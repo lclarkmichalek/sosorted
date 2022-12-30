@@ -16,3 +16,7 @@ criterion = "0.3"
 [[bench]]
 name = "find_first_duplicate"
 harness = false
+
+[[bench]]
+name = "deduplicate"
+harness = false
