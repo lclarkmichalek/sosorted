@@ -71,6 +71,19 @@ fn criterion_benchmark(c: &mut Criterion) {
             naive_deduplicate(&mut data[..]);
         })
     });
+
+    c.bench_function("deduplicate std l:1024 d:0", |b| {
+        b.iter(|| {
+            let mut data = unique.clone();
+            data.dedup();
+        })
+    });
+    c.bench_function("deduplicate std l:1024 d:1", |b| {
+        b.iter(|| {
+            let mut data = with_duplicates.clone();
+            data.dedup();
+        });
+    });
 }
 
 criterion_group!(benches, criterion_benchmark);
