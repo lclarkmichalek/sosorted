@@ -1,0 +1,3 @@
+[target.x86_64-unknown-linux-gnu]
+# No clue, just enabling all the simd sounding things
+rustflags = ["-C", "target-feature=+sse,+sse2,+sse3,+ssse3,+avx,+avx2"]
