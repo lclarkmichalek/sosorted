@@ -40,8 +40,11 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     let unique = data.clone();
     let mut with_duplicates = data.clone();
-    let ix = rng.gen_range(1..with_duplicates.len());
-    with_duplicates[ix] = with_duplicates[ix] - 1;
+    let ix = rng.gen_range(1..with_duplicates.len() / 2);
+    // Add a long span of duplicates
+    for i in 0..64 {
+        with_duplicates[ix + i] = with_duplicates[ix];
+    }
 
     c.bench_function("deduplicate l:1024 d:0", |b| {
         b.iter(|| {
