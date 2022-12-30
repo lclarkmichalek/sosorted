@@ -1,4 +1,7 @@
 #![feature(portable_simd)]
 
-pub mod sorted_vec;
-pub use sorted_vec::{deduplicate, find_first_duplicate};
+mod deduplicate;
+pub use deduplicate::deduplicate;
+
+mod find_first_duplicate;
+pub use find_first_duplicate::find_first_duplicate;

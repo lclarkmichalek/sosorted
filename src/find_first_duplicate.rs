@@ -1,85 +1,9 @@
 use std::simd::Which::{First, Second};
-use std::simd::{simd_swizzle, u64x4, usizex4, Simd, SimdPartialEq};
+use std::simd::{simd_swizzle, SimdPartialEq};
 
-pub fn deduplicate(data: &mut [u64]) -> usize {
-    let dupe_ix = find_first_duplicate(&data);
-    if dupe_ix == data.len() {
-        return data.len();
-    }
-
-    let idxs = usizex4::from_array([0, 1, 2, 3]);
-    let mut dupe_count = 0;
-    let mut i = dupe_ix + 3;
-    while i < data.len() {
-        // println!("dupe_ix: {dupe_ix}, i: {i}, count: {dupe_count}");
-        // a, b, c, d
-        let src: u64x4 = Simd::from_slice(&data[i - 4..i]);
-        // println!("src: {:?}", src);
-        // b, c, d, e
-        let cmp: u64x4 = Simd::from_slice(&data[i - 3..i + 1]);
-        // println!("cmp: {:?}", cmp);
-        let mask = src.simd_eq(cmp);
-        // println!("mask: {:?}", mask);
-        if mask.any() {
-            // Ffs, slow path
-            // a == b
-            if mask.test(0) {
-                dupe_count += 1;
-            } else {
-                data[i - 4 - dupe_count] = data[i - 4];
-            }
-            if mask.test(1) {
-                dupe_count += 1;
-            } else {
-                data[i - 3 - dupe_count] = data[i - 3];
-            }
-            if mask.test(2) {
-                dupe_count += 1;
-            } else {
-                data[i - 2 - dupe_count] = data[i - 2];
-            }
-            if mask.test(3) {
-                dupe_count += 1;
-            } else {
-                data[i - 1 - dupe_count] = data[i - 1];
-            }
-        } else {
-            // println!(
-            //     "copying {}..{} to {}..{}",
-            //     i - 4,
-            //     i,
-            //     i - 4 - dupe_count,
-            //     i - dupe_count
-            // );
-            // Else, copy the whole block
-            src.scatter(&mut data[i - 4 - dupe_count..i - dupe_count], idxs);
-        }
-        i += 4;
-    }
-
-    i -= 4;
-    // println!("data: {data:?}");
-    // println!("i: {i}/{}", data[i]);
-    for ix in i..data.len() {
-        if data[ix] == data[ix - 1] {
-            dupe_count += 1;
-        } else {
-            data[ix - dupe_count] = data[ix];
-        }
-    }
-    data.len() - dupe_count
-}
-
-#[inline(always)]
-fn find_first_duplicate_scalar<T: PartialEq>(vec: &[T]) -> usize {
-    for i in 1..vec.len() {
-        if vec[i] == vec[i - 1] {
-            return i;
-        }
-    }
-    vec.len()
-}
-
+/// Returns the index of the first duplicate entry. If there are no duplicates, the length of ther
+/// slice is returned.
+///
 /// OK, so is it possible to do a fast deduplication? Well, fundementally, we have to move a
 /// lot of data - if the first element is duplicated, we're going to have to shift every other
 /// element over.
@@ -87,9 +11,6 @@ fn find_first_duplicate_scalar<T: PartialEq>(vec: &[T]) -> usize {
 /// The one obvious thing I can see is identifying the initial sorted, deduplicated run. The
 /// longer that run, the better. And in the happy path where we have no duplicates, the
 /// performance of that run is the performance of the overall function call.
-///
-/// This function returns the index of the first duplicate entry. It returns the length of the
-/// array if there are no duplicates.
 ///
 /// # Examples
 ///
@@ -100,13 +21,14 @@ fn find_first_duplicate_scalar<T: PartialEq>(vec: &[T]) -> usize {
 /// assert_eq!(3, find_first_duplicate(&data[..]));
 /// ```
 pub fn find_first_duplicate(vec: &[u64]) -> usize {
+    // The SIMD loop works on 4 chunks of 4, plus one additional chunk for the look ahead.
+    // Practically speaking, there's no point going down that path unless we have less than 5
+    // chunks
+    if vec.len() < (4 + 1) * 4 {
+        return find_first_duplicate_scalar(vec);
+    }
+
     let (pref, middle, _suffix) = vec.as_simd();
-    // println!(
-    //     "p: {}, m: {}, s: {}",
-    //     pref.len(),
-    //     middle.len(),
-    //     suffix.len()
-    // );
     match find_first_duplicate_scalar(&vec[0..pref.len()]) {
         x if x != pref.len() => return x,
         _ => {}
@@ -176,13 +98,18 @@ pub fn find_first_duplicate(vec: &[u64]) -> usize {
     }
 
     // test the rest by hand. we have not checked the last chunk
-    let ix = pref.len() + (i - 4) * 4;
-    let x = find_first_duplicate_scalar(&vec[ix..]);
-    match x {
-        x if x != vec.len() - ix => return x,
-        _ => {}
-    };
+    let suffix_start = pref.len() + (i - 4) * 4;
+    let suffix_dupe_index = find_first_duplicate_scalar(&vec[suffix_start..]);
+    suffix_start + suffix_dupe_index
+}
 
+#[inline(always)]
+fn find_first_duplicate_scalar<T: PartialEq>(vec: &[T]) -> usize {
+    for i in 1..vec.len() {
+        if vec[i] == vec[i - 1] {
+            return i;
+        }
+    }
     vec.len()
 }
 
@@ -193,26 +120,7 @@ mod tests {
     use rand::{RngCore, SeedableRng};
 
     #[test]
-    fn test_deduplicate() {
-        let mut data = vec![1, 2, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18];
-        let new_len = deduplicate(&mut data[..]);
-        assert_eq!(new_len, 3);
-        assert_eq!(data[0..3], [1, 2, 18]);
-    }
-
-    #[test]
-    fn test_deduplicate_one() {
-        let mut data = vec![1, 1, 2, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29];
-        let new_len = deduplicate(&mut data[..]);
-        assert_eq!(
-            data[0..14],
-            [1, 2, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
-        );
-        assert_eq!(new_len, 14);
-    }
-
-    #[test]
-    fn test_simd_first_dupe() {
+    fn test_first_dupe() {
         let data = vec![
             1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 9, 11, 12, 13, 14, 15, 16, 17, 18, 18, 18, 18, 18, 18,
             18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18,

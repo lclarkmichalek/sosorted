@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::{rngs::SmallRng, Rng, RngCore, SeedableRng};
-use sosorted::sorted_vec::find_first_duplicate;
+use sosorted::find_first_duplicate;
 
 fn criterion_benchmark(c: &mut Criterion) {
     // let mut seed: [u8; 32] = [0; 32];
