@@ -26,47 +26,49 @@ pub fn deduplicate(data: &mut [u64]) -> usize {
     // so we "detect" the dupe again
     let mut dupe_count = 0;
     let mut i = dupe_ix - 1;
-    while i < data.len() - 5 {
-        let src: u64x4 = Simd::from_slice(&data[i..i + 4]);
-        let cmp: u64x4 = Simd::from_slice(&data[i + 1..i + 5]);
-        let mask = src.simd_eq(cmp);
+    if data.len() > 5 {
+        while i < data.len() - 5 {
+            let src: u64x4 = Simd::from_slice(&data[i..i + 4]);
+            let cmp: u64x4 = Simd::from_slice(&data[i + 1..i + 5]);
+            let mask = src.simd_eq(cmp);
 
-        if mask.all() {
-            // Fast path - all dupes
-            dupe_count += 4;
+            if mask.all() {
+                // Fast path - all dupes
+                dupe_count += 4;
+                i += 4;
+                continue;
+            }
+            if !mask.any() {
+                // Fast path - no dupes
+                data.copy_within(i..i + 4, i - dupe_count);
+                i += 4;
+                continue;
+            }
+
+            // Slow path
+            if mask.test(0) {
+                dupe_count += 1;
+            } else {
+                data[i - dupe_count] = data[i];
+            }
+            if mask.test(1) {
+                dupe_count += 1;
+            } else {
+                data[i + 1 - dupe_count] = data[i + 1];
+            }
+            if mask.test(2) {
+                dupe_count += 1;
+            } else {
+                data[i + 2 - dupe_count] = data[i + 2];
+            }
+            if mask.test(3) {
+                dupe_count += 1;
+            } else {
+                data[i + 3 - dupe_count] = data[i + 3];
+            }
+
             i += 4;
-            continue;
         }
-        if !mask.any() {
-            // Fast path - no dupes
-            data.copy_within(i..i + 4, i - dupe_count);
-            i += 4;
-            continue;
-        }
-
-        // Slow path
-        if mask.test(0) {
-            dupe_count += 1;
-        } else {
-            data[i - dupe_count] = data[i];
-        }
-        if mask.test(1) {
-            dupe_count += 1;
-        } else {
-            data[i + 1 - dupe_count] = data[i + 1];
-        }
-        if mask.test(2) {
-            dupe_count += 1;
-        } else {
-            data[i + 2 - dupe_count] = data[i + 2];
-        }
-        if mask.test(3) {
-            dupe_count += 1;
-        } else {
-            data[i + 3 - dupe_count] = data[i + 3];
-        }
-
-        i += 4;
     }
 
     // At this point, data between 0 and i has been deduplicated. i to i-dupe_count are junk
