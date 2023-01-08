@@ -35,10 +35,8 @@ pub fn find_first_duplicate(vec: &[u64]) -> usize {
     };
 
     // Check that the last element of prefix isn't a duplicate with the next
-    if !pref.is_empty() && vec.len() > pref.len() {
-        if vec[pref.len() - 1] == vec[pref.len()] {
-            return pref.len();
-        }
+    if !pref.is_empty() && vec.len() > pref.len() && vec[pref.len() - 1] == vec[pref.len()] {
+        return pref.len();
     }
 
     let mut i = 4;
@@ -94,7 +92,7 @@ pub fn find_first_duplicate(vec: &[u64]) -> usize {
             };
             return pref.len() + (i - 4 + chunk_offset) * 4 + lane_offset;
         }
-        i = i + 4;
+        i += 4;
     }
 
     // test the rest by hand. we have not checked the last chunk

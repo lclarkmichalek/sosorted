@@ -17,7 +17,7 @@ use crate::find_first_duplicate;
 /// assert_eq!(data[..new_length], [0, 1, 2]);
 /// ```
 pub fn deduplicate(data: &mut [u64]) -> usize {
-    let dupe_ix = find_first_duplicate(&data);
+    let dupe_ix = find_first_duplicate(data);
     if dupe_ix == data.len() {
         return data.len();
     }
