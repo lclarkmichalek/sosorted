@@ -21,3 +21,7 @@ harness = false
 [[bench]]
 name = "deduplicate"
 harness = false
+
+[[bench]]
+name = "intersect"
+harness = false
