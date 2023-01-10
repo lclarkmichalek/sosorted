@@ -1,6 +1,28 @@
+use std::cmp::Ordering;
+
 use criterion::{criterion_group, criterion_main, Criterion};
-use rand::{rngs::SmallRng, Rng, RngCore, SeedableRng};
-use sosorted::{deduplicate, intersect};
+use rand::{rngs::SmallRng, RngCore, SeedableRng};
+use sosorted::intersect;
+
+fn naive_intersect(a: &mut [u64], b: &[u64]) -> usize {
+    let mut i = 0;
+    let mut j = 0;
+    let mut intersect_count = 0;
+
+    while i < a.len() && j < b.len() {
+        match a[i].cmp(&b[j]) {
+            Ordering::Less => i += 1,
+            Ordering::Greater => j += 1,
+            _ => {
+                a[intersect_count] = b[j];
+                j += 1;
+                i += 1;
+                intersect_count += 1;
+            }
+        }
+    }
+    intersect_count
+}
 
 // We'll go for one in 3 elements intersecting, randomly spread throughout the dataset
 fn criterion_benchmark(c: &mut Criterion) {
@@ -16,7 +38,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     static K: usize = 1024;
     let size = K * K;
-    let mut all_datapoints = Vec::with_capacity(size * 3);
+    let mut all_datapoints = Vec::with_capacity(size);
     for _j in 0..size {
         all_datapoints.push(rng.next_u64());
     }
@@ -24,15 +46,15 @@ fn criterion_benchmark(c: &mut Criterion) {
     all_datapoints.sort();
 
     let mut intersecting = all_datapoints.clone();
-    let ix = rng.gen_range(1..intersecting.len() / 2);
-    // Offset everything before the ix by 1, to reduce the # of intersecting datapoints
-    for i in 0..ix {
-        intersecting[i] -= 1;
+    // Halve everything in the first half, to reduce the # of intersecting datapoints
+    for i in 0..intersecting.len() / 2 {
+        intersecting[i] /= 2;
     }
     let mut disjoint = all_datapoints.clone();
-    // Offset everything by 1, to eliminate all intersecting datapoints
+    // Halve everything, to eliminate intersecting datapoints (except for maybe a couple if we get
+    // unlucky)
     for i in 0..disjoint.len() {
-        disjoint[i] -= 1;
+        disjoint[i] /= 2;
     }
 
     c.bench_function("intersect l:1024 intersection:0.5", |b| {
@@ -51,6 +73,24 @@ fn criterion_benchmark(c: &mut Criterion) {
         b.iter(|| {
             let mut data = all_datapoints.clone();
             intersect(&mut data, &disjoint);
+        })
+    });
+    c.bench_function("naive_intersect l:1024 intersection:0.5", |b| {
+        b.iter(|| {
+            let mut data = all_datapoints.clone();
+            naive_intersect(&mut data, &intersecting);
+        })
+    });
+    c.bench_function("naive_intersect l:1024 intersection:1.0", |b| {
+        b.iter(|| {
+            let mut data = all_datapoints.clone();
+            naive_intersect(&mut data, &all_datapoints);
+        })
+    });
+    c.bench_function("naive_intersect l:1024 intersection:0.0", |b| {
+        b.iter(|| {
+            let mut data = all_datapoints.clone();
+            naive_intersect(&mut data, &disjoint);
         })
     });
 }
