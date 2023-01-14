@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    simd::{simd_swizzle, u64x4, SimdPartialOrd},
+    simd::{u64x4, Simd, SimdPartialOrd},
 };
 
 pub fn intersect(a: &mut [u64], b: &[u64]) -> usize {
@@ -8,7 +8,6 @@ pub fn intersect(a: &mut [u64], b: &[u64]) -> usize {
     // We can use SIMD instructions to find long runs of non intersecting values. However, dealing
     // with intersecting values in bulk is going to be a nightmare. So we're going to go through
     // `a` element by element, and simd search b for matches.
-    let (b_prefix, b_middle, b_suffix) = b.as_simd::<4>();
 
     // Our index in `a`
     let mut i = 0;
@@ -18,34 +17,12 @@ pub fn intersect(a: &mut [u64], b: &[u64]) -> usize {
     // a)
     let mut intersect_count = 0;
 
-    // Do the prefix with scalars
-    while i < a.len() && j < b_prefix.len() {
-        match a[i].cmp(&b_prefix[j]) {
-            Ordering::Less => i += 1,
-            Ordering::Greater => j += 1,
-            _ => {
-                a[intersect_count] = b_prefix[j];
-                j += 1;
-                i += 1;
-                intersect_count += 1;
-            }
-        }
-    }
-
-    // j is now the index of a lane in b_middle - each entry in b_middle is 4 lanes wide
-    j = 0;
-    while i < a.len() && j / 4 < b_middle.len() {
-        // If we're offset, we may have issues
-        let b_vals = match j % 4 {
-            1 => simd_swizzle!(b_middle[j / 4], [1, 1, 2, 3]),
-            2 => simd_swizzle!(b_middle[j / 4], [2, 2, 2, 3]),
-            3 => simd_swizzle!(b_middle[j / 4], [3, 3, 3, 3]),
-            _ => b_middle[j / 4],
-        };
+    while i < a.len() && j + 4 < b.len() {
+        let b_vals: u64x4 = Simd::from_slice(&b[j..j + 4]);
         let a_val = u64x4::splat(a[i]);
         // If all lanes are smaller than a, we can skip forwards
         if a_val.simd_gt(b_vals).all() {
-            j += 4 - j % 4;
+            j += 4;
             continue;
         }
         // If all lanes are bigger than a, a was not part of the intersection - move i forward
@@ -55,12 +32,12 @@ pub fn intersect(a: &mut [u64], b: &[u64]) -> usize {
         }
         // Otherwise, we may have found an intersection. Or at least, within the block, we have a
         // cross over point, and we're going to need to swap to the slow path
-        for _ in j % 4..4 {
-            match a[i].cmp(&b[b_prefix.len() + j]) {
+        for _ in 0..4 {
+            match a[i].cmp(&b[j]) {
                 Ordering::Less => i += 1,
                 Ordering::Greater => j += 1,
                 _ => {
-                    a[intersect_count] = b[b_prefix.len() + j];
+                    a[intersect_count] = b[j];
                     j += 1;
                     i += 1;
                     intersect_count += 1;
@@ -69,14 +46,13 @@ pub fn intersect(a: &mut [u64], b: &[u64]) -> usize {
         }
     }
 
-    // Finally, the suffix. j is now the index in b_suffix
-    j = 0;
-    while i < a.len() && j < b_suffix.len() {
-        match a[i].cmp(&b_suffix[j]) {
+    // Finally, the suffix that we couldn't fit in a SIMD register
+    while i < a.len() && j < b.len() {
+        match a[i].cmp(&b[j]) {
             Ordering::Less => i += 1,
             Ordering::Greater => j += 1,
             _ => {
-                a[intersect_count] = b_suffix[j];
+                a[intersect_count] = b[j];
                 j += 1;
                 i += 1;
                 intersect_count += 1;
