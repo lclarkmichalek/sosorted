@@ -1,6 +1,13 @@
-use criterion::{criterion_group, criterion_main, Criterion};
-use rand::{rngs::SmallRng, Rng, RngCore, SeedableRng};
+#[macro_use]
+extern crate bencher;
+
+use std::ops::Range;
+
+use bencher::Bencher;
+use rand::{rngs::SmallRng, RngCore, SeedableRng};
 use sosorted::deduplicate;
+
+const N: usize = 1024 * 1024;
 
 pub fn naive_deduplicate(data: &mut [u64]) -> usize {
     if data.is_empty() {
@@ -18,7 +25,7 @@ pub fn naive_deduplicate(data: &mut [u64]) -> usize {
     data.len() - dupe_count
 }
 
-fn criterion_benchmark(c: &mut Criterion) {
+fn unique_data() -> Vec<u64> {
     // let mut seed: [u8; 32] = [0; 32];
     // rand::thread_rng().fill_bytes(&mut seed[..]);
     // println!("seed: {:?}", seed);
@@ -29,62 +36,174 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     let mut rng = SmallRng::from_seed(seed);
 
-    static K: usize = 1024;
-    let size = K * K;
-    let mut data = Vec::with_capacity(size);
-    for _j in 0..size {
+    let mut data = Vec::with_capacity(N);
+    for _ in 0..N {
         data.push(rng.next_u64());
     }
 
     data.sort();
-
-    let unique = data.clone();
-    let mut with_duplicates = data.clone();
-    let ix = rng.gen_range(1..with_duplicates.len() / 2);
-    // Add a long span of duplicates
-    for i in 0..64 {
-        with_duplicates[ix + i] = with_duplicates[ix];
-    }
-
-    c.bench_function("deduplicate l:1024 d:0", |b| {
-        b.iter(|| {
-            let mut data = unique.clone();
-            deduplicate(&mut data[..]);
-        })
-    });
-    c.bench_function("deduplicate l:1024 d:1", |b| {
-        b.iter(|| {
-            let mut data = with_duplicates.clone();
-            deduplicate(&mut data[..]);
-        })
-    });
-
-    c.bench_function("deduplicate naive l:1024 d:0", |b| {
-        b.iter(|| {
-            let mut data = unique.clone();
-            naive_deduplicate(&mut data[..]);
-        })
-    });
-    c.bench_function("deduplicate naive l:1024 d:1", |b| {
-        b.iter(|| {
-            let mut data = with_duplicates.clone();
-            naive_deduplicate(&mut data[..]);
-        })
-    });
-
-    c.bench_function("deduplicate std l:1024 d:0", |b| {
-        b.iter(|| {
-            let mut data = unique.clone();
-            data.dedup();
-        })
-    });
-    c.bench_function("deduplicate std l:1024 d:1", |b| {
-        b.iter(|| {
-            let mut data = with_duplicates.clone();
-            data.dedup();
-        });
-    });
+    data
 }
 
-criterion_group!(benches, criterion_benchmark);
-criterion_main!(benches);
+fn add_duplicates(data: &mut [u64], range: Range<f32>) {
+    let mut start = (range.start * data.len() as f32) as usize;
+    let mut end = (range.end * data.len() as f32) as usize;
+    if start <= 0 {
+        start = 1;
+    }
+    if end > data.len() {
+        end = data.len()
+    }
+    // Add a long span of duplicates
+    for i in start..end {
+        data[i - 1] = data[i];
+    }
+}
+
+// fn
+//     c.bench_function("deduplicate l:1024 d:0", |b| {
+//         b.iter(|| {
+//             let mut data = unique.clone();
+//             deduplicate(&mut data[..]);
+//         })
+//     });
+//     c.bench_function("deduplicate l:1024 d:1", |b| {
+//         b.iter(|| {
+//             let mut data = with_duplicates.clone();
+//             deduplicate(&mut data[..]);
+//         })
+//     });
+
+//     c.bench_function("deduplicate naive l:1024 d:0", |b| {
+//         b.iter(|| {
+//             let mut data = unique.clone();
+//             naive_deduplicate(&mut data[..]);
+//         })
+//     });
+//     c.bench_function("deduplicate naive l:1024 d:1", |b| {
+//         b.iter(|| {
+//             let mut data = with_duplicates.clone();
+//             naive_deduplicate(&mut data[..]);
+//         })
+//     });
+
+//     c.bench_function("deduplicate std l:1024 d:0", |b| {
+//         b.iter(|| {
+//             let mut data = unique.clone();
+//             data.dedup();
+//         })
+//     });
+//     c.bench_function("deduplicate std l:1024 d:1", |b| {
+//         b.iter(|| {
+//             let mut data = with_duplicates.clone();
+//             data.dedup();
+//         });
+//     });
+// }
+
+// Benchmarks using sosorted::deduplicate
+
+fn deduplicate_all_unique(bench: &mut Bencher) {
+    let data = unique_data();
+    bench.iter(|| {
+        let mut case = data.clone();
+        deduplicate(&mut case);
+    });
+    bench.bytes = N as u64 * 4;
+}
+
+fn deduplicate_some_unique(bench: &mut Bencher) {
+    let mut data = unique_data();
+    add_duplicates(&mut data, 0.5..0.75);
+    bench.iter(|| {
+        let mut case = data.clone();
+        deduplicate(&mut case);
+    });
+    bench.bytes = N as u64 * 4;
+}
+
+fn deduplicate_no_unique(bench: &mut Bencher) {
+    let mut data = unique_data();
+    add_duplicates(&mut data, 0.0..1.0);
+    bench.iter(|| {
+        let mut case = data.clone();
+        deduplicate(&mut case);
+    });
+    bench.bytes = N as u64 * 4;
+}
+
+// Benchmarks using naive_deduplicate
+
+fn naive_deduplicate_all_unique(bench: &mut Bencher) {
+    let data = unique_data();
+    bench.iter(|| {
+        let mut case = data.clone();
+        naive_deduplicate(&mut case);
+    });
+    bench.bytes = N as u64 * 4;
+}
+
+fn naive_deduplicate_some_unique(bench: &mut Bencher) {
+    let mut data = unique_data();
+    add_duplicates(&mut data, 0.5..0.75);
+    bench.iter(|| {
+        let mut case = data.clone();
+        naive_deduplicate(&mut case);
+    });
+    bench.bytes = N as u64 * 4;
+}
+
+fn naive_deduplicate_no_unique(bench: &mut Bencher) {
+    let mut data = unique_data();
+    add_duplicates(&mut data, 0.0..1.0);
+    bench.iter(|| {
+        let mut case = data.clone();
+        naive_deduplicate(&mut case);
+    });
+    bench.bytes = N as u64 * 4;
+}
+
+// Benchmarks using std dedup
+
+fn std_dedup_all_unique(bench: &mut Bencher) {
+    let data = unique_data();
+    bench.iter(|| {
+        let mut case = data.clone();
+        case.dedup();
+    });
+    bench.bytes = N as u64 * 4;
+}
+
+fn std_dedup_some_unique(bench: &mut Bencher) {
+    let mut data = unique_data();
+    add_duplicates(&mut data, 0.5..0.75);
+    bench.iter(|| {
+        let mut case = data.clone();
+        case.dedup();
+    });
+    bench.bytes = N as u64 * 4;
+}
+
+fn std_dedup_no_unique(bench: &mut Bencher) {
+    let mut data = unique_data();
+    add_duplicates(&mut data, 0.0..1.0);
+    bench.iter(|| {
+        let mut case = data.clone();
+        case.dedup();
+    });
+    bench.bytes = N as u64 * 4;
+}
+
+benchmark_group!(
+    benches,
+    deduplicate_all_unique,
+    deduplicate_some_unique,
+    deduplicate_no_unique,
+    naive_deduplicate_all_unique,
+    naive_deduplicate_some_unique,
+    naive_deduplicate_no_unique,
+    std_dedup_all_unique,
+    std_dedup_some_unique,
+    std_dedup_no_unique
+);
+benchmark_main!(benches);
