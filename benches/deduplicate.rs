@@ -1,11 +1,10 @@
 #[macro_use]
 extern crate bencher;
 
-use std::ops::Range;
-
 use bencher::Bencher;
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
 use sosorted::deduplicate;
+use std::ops::Range;
 
 const N: usize = 1024 * 1024;
 
@@ -59,47 +58,6 @@ fn add_duplicates(data: &mut [u64], range: Range<f32>) {
         data[i - 1] = data[i];
     }
 }
-
-// fn
-//     c.bench_function("deduplicate l:1024 d:0", |b| {
-//         b.iter(|| {
-//             let mut data = unique.clone();
-//             deduplicate(&mut data[..]);
-//         })
-//     });
-//     c.bench_function("deduplicate l:1024 d:1", |b| {
-//         b.iter(|| {
-//             let mut data = with_duplicates.clone();
-//             deduplicate(&mut data[..]);
-//         })
-//     });
-
-//     c.bench_function("deduplicate naive l:1024 d:0", |b| {
-//         b.iter(|| {
-//             let mut data = unique.clone();
-//             naive_deduplicate(&mut data[..]);
-//         })
-//     });
-//     c.bench_function("deduplicate naive l:1024 d:1", |b| {
-//         b.iter(|| {
-//             let mut data = with_duplicates.clone();
-//             naive_deduplicate(&mut data[..]);
-//         })
-//     });
-
-//     c.bench_function("deduplicate std l:1024 d:0", |b| {
-//         b.iter(|| {
-//             let mut data = unique.clone();
-//             data.dedup();
-//         })
-//     });
-//     c.bench_function("deduplicate std l:1024 d:1", |b| {
-//         b.iter(|| {
-//             let mut data = with_duplicates.clone();
-//             data.dedup();
-//         });
-//     });
-// }
 
 // Benchmarks using sosorted::deduplicate
 
