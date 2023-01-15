@@ -1,8 +1,12 @@
-use std::cmp::Ordering;
+#[macro_use]
+extern crate bencher;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use bencher::Bencher;
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
 use sosorted::intersect;
+use std::cmp::Ordering;
+
+static N: usize = 1024 * 1024;
 
 fn naive_intersect(a: &mut [u64], b: &[u64]) -> usize {
     let mut i = 0;
@@ -24,8 +28,7 @@ fn naive_intersect(a: &mut [u64], b: &[u64]) -> usize {
     intersect_count
 }
 
-// We'll go for one in 3 elements intersecting, randomly spread throughout the dataset
-fn criterion_benchmark(c: &mut Criterion) {
+fn unique_data() -> Vec<u64> {
     // let mut seed: [u8; 32] = [0; 32];
     // rand::thread_rng().fill_bytes(&mut seed[..]);
     // println!("seed: {:?}", seed);
@@ -36,64 +39,128 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     let mut rng = SmallRng::from_seed(seed);
 
-    static K: usize = 1024;
-    let size = K * K;
-    let mut all_datapoints = Vec::with_capacity(size);
-    for _j in 0..size {
-        all_datapoints.push(rng.next_u64());
+    let mut data = Vec::with_capacity(N);
+    for _ in 0..N {
+        data.push(rng.next_u64());
     }
 
-    all_datapoints.sort();
-
-    let mut intersecting = all_datapoints.clone();
-    // Halve everything in the first half, to reduce the # of intersecting datapoints
-    for i in 0..intersecting.len() / 2 {
-        intersecting[i] /= 2;
-    }
-    let mut disjoint = all_datapoints.clone();
-    // Halve everything, to eliminate intersecting datapoints (except for maybe a couple if we get
-    // unlucky)
-    for i in 0..disjoint.len() {
-        disjoint[i] /= 2;
-    }
-
-    c.bench_function("intersect l:1024 intersection:0.5", |b| {
-        b.iter(|| {
-            let mut data = all_datapoints.clone();
-            intersect(&mut data, &intersecting);
-        })
-    });
-    c.bench_function("intersect l:1024 intersection:1.0", |b| {
-        b.iter(|| {
-            let mut data = all_datapoints.clone();
-            intersect(&mut data, &all_datapoints);
-        })
-    });
-    c.bench_function("intersect l:1024 intersection:0.0", |b| {
-        b.iter(|| {
-            let mut data = all_datapoints.clone();
-            intersect(&mut data, &disjoint);
-        })
-    });
-    c.bench_function("naive_intersect l:1024 intersection:0.5", |b| {
-        b.iter(|| {
-            let mut data = all_datapoints.clone();
-            naive_intersect(&mut data, &intersecting);
-        })
-    });
-    c.bench_function("naive_intersect l:1024 intersection:1.0", |b| {
-        b.iter(|| {
-            let mut data = all_datapoints.clone();
-            naive_intersect(&mut data, &all_datapoints);
-        })
-    });
-    c.bench_function("naive_intersect l:1024 intersection:0.0", |b| {
-        b.iter(|| {
-            let mut data = all_datapoints.clone();
-            naive_intersect(&mut data, &disjoint);
-        })
-    });
+    data.sort();
+    data
 }
 
-criterion_group!(benches, criterion_benchmark);
-criterion_main!(benches);
+// Generate a dataset that intersects with `data` `intersect_count` times. Intersections will be
+// evenly spread
+fn add_intersections(data: &mut [u64], intersect_with: &[u64], intersect_count: usize) {
+    let stride = data.len() / intersect_count;
+    for i in 0..intersect_count {
+        data[i * stride] = intersect_with[i * stride];
+    }
+}
+
+// Generate a dataset that is disjoint - initially due to all values being higher, and then after
+// `pivot_prop`, lower
+fn disjoint_higher_lower(data: &[u64], pivot_prop: f32) -> Vec<u64> {
+    let mut disjoint = data.to_vec();
+    let pivot_ix = (data.len() as f32 * pivot_prop + 1.0) as usize;
+    let pivot_val = data[pivot_ix];
+    for i in 0..pivot_ix {
+        let val = (disjoint[i] + pivot_val) / 2;
+        if data.binary_search(&val).is_ok() {
+            panic!("could not make disjoint dataset");
+        }
+        disjoint[i] = val
+    }
+    for i in pivot_ix..data.len() {
+        let val = disjoint[i] + (disjoint[i] + pivot_val) / 2;
+        if data.binary_search(&val).is_ok() {
+            panic!("could not make disjoint dataset");
+        }
+        disjoint[i] = val
+    }
+    disjoint
+}
+
+// Benchmarks using sosorted::intersect
+
+fn intersect_no_intersections(bench: &mut Bencher) {
+    let a = unique_data();
+    let b = disjoint_higher_lower(&a, 0.5);
+
+    bench.iter(|| {
+        let mut case = a.clone();
+        intersect(&mut case, &b);
+    });
+    bench.bytes = N as u64 * 4;
+}
+
+fn intersect_sparse_intersections(bench: &mut Bencher) {
+    let a = unique_data();
+    let mut b = disjoint_higher_lower(&a, 0.5);
+    // One in 64 elements will intersect
+    add_intersections(&mut b, &a, a.len() / 64);
+
+    bench.iter(|| {
+        let mut case = a.clone();
+        intersect(&mut case, &b);
+    });
+    bench.bytes = N as u64 * 4;
+}
+
+fn intersect_all_intersections(bench: &mut Bencher) {
+    let a = unique_data();
+    let b = a.clone();
+
+    bench.iter(|| {
+        let mut case = a.clone();
+        intersect(&mut case, &b);
+    });
+    bench.bytes = N as u64 * 4;
+}
+
+// Benchmarks using a naive intersection
+
+fn naive_intersect_no_intersections(bench: &mut Bencher) {
+    let a = unique_data();
+    let b = disjoint_higher_lower(&a, 0.5);
+
+    bench.iter(|| {
+        let mut case = a.clone();
+        naive_intersect(&mut case, &b);
+    });
+    bench.bytes = N as u64 * 4;
+}
+
+fn naive_intersect_sparse_intersections(bench: &mut Bencher) {
+    let a = unique_data();
+    let mut b = disjoint_higher_lower(&a, 0.5);
+    // One in 64 elements will intersect
+    add_intersections(&mut b, &a, a.len() / 64);
+
+    bench.iter(|| {
+        let mut case = a.clone();
+        naive_intersect(&mut case, &b);
+    });
+    bench.bytes = N as u64 * 4;
+}
+
+fn naive_intersect_all_intersections(bench: &mut Bencher) {
+    let a = unique_data();
+    let b = a.clone();
+
+    bench.iter(|| {
+        let mut case = a.clone();
+        naive_intersect(&mut case, &b);
+    });
+    bench.bytes = N as u64 * 4;
+}
+
+benchmark_group!(
+    benches,
+    intersect_no_intersections,
+    intersect_sparse_intersections,
+    intersect_all_intersections,
+    naive_intersect_no_intersections,
+    naive_intersect_sparse_intersections,
+    naive_intersect_all_intersections,
+);
+benchmark_main!(benches);

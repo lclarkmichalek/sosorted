@@ -13,7 +13,6 @@ exclude = ['perf.*', 'target', 'Cargo.lock', '.sl']
 anyhow = "1.0.68"
 rand = { version = "0.8.5", features = ["small_rng"] }
 bencher = "0.1.5"
-criterion = "0.3"
 
 [[bench]]
 name = "find_first_duplicate"
