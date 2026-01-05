@@ -1,4 +1,4 @@
-use std::simd::{u64x4, Simd, SimdPartialEq};
+use std::simd::{u64x4, Simd, cmp::SimdPartialEq};
 
 use crate::find_first_duplicate;
 

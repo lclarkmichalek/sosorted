@@ -1,5 +1,4 @@
-use std::simd::Which::{First, Second};
-use std::simd::{simd_swizzle, SimdPartialEq};
+use std::simd::{simd_swizzle, cmp::SimdPartialEq};
 
 /// Returns the index of the first duplicate entry. If there are no duplicates, the length of ther
 /// slice is returned.
@@ -48,22 +47,22 @@ pub fn find_first_duplicate(vec: &[u64]) -> usize {
         let cmp1 = simd_swizzle!(
             middle[i - 4],
             middle[i - 3],
-            [First(1), First(2), First(3), Second(0)]
+            [1, 2, 3, 4]
         );
         let cmp2 = simd_swizzle!(
             middle[i - 3],
             middle[i - 2],
-            [First(1), First(2), First(3), Second(0)]
+            [1, 2, 3, 4]
         );
         let cmp3 = simd_swizzle!(
             middle[i - 2],
             middle[i - 1],
-            [First(1), First(2), First(3), Second(0)]
+            [1, 2, 3, 4]
         );
         let cmp4 = simd_swizzle!(
             middle[i - 1],
             middle[i],
-            [First(1), First(2), First(3), Second(0)]
+            [1, 2, 3, 4]
         );
 
         let mask1 = cmp1.simd_eq(chunk1);
@@ -132,7 +131,7 @@ mod tests {
     #[test]
     fn test_find_first_dupe_fuzz() {
         let mut seed: [u8; 32] = [0; 32];
-        rand::thread_rng().fill_bytes(&mut seed[..]);
+        rand::rng().fill_bytes(&mut seed[..]);
         println!("seed: {:?}", seed);
 
         let mut rng = SmallRng::from_seed(seed);

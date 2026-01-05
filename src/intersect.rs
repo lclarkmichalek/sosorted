@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    simd::{u64x4, Simd, SimdPartialOrd},
+    simd::{u64x4, Simd, cmp::SimdPartialOrd},
 };
 
 pub fn intersect(a: &mut [u64], b: &[u64]) -> usize {
@@ -88,7 +88,7 @@ mod tests {
     #[test]
     fn test_intersect_fuzz() {
         let mut seed: [u8; 32] = [0; 32];
-        rand::thread_rng().fill_bytes(&mut seed[..]);
+        rand::rng().fill_bytes(&mut seed[..]);
         println!("seed: {:?}", seed);
 
         let mut rng = SmallRng::from_seed(seed);

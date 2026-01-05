@@ -10,8 +10,8 @@ license = "MIT"
 exclude = ['perf.*', 'target', 'Cargo.lock', '.sl']
 
 [dev-dependencies]
-anyhow = "1.0.68"
-rand = { version = "0.8.5", features = ["small_rng"] }
+anyhow = "1.0.100"
+rand = { version = "0.9.2", features = ["small_rng"] }
 bencher = "0.1.5"
 
 [[bench]]
