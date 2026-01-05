@@ -38,3 +38,9 @@ This crate provides various methods for efficiently manipulating arrays of sorte
 ## Types
 
 All operations are currently defined against `&[u64]`. Support for all primitive scalar types is planned for future releases.
+
+## References
+
+The intersection algorithm is based on the following paper:
+
+- Daniel Lemire, Leonid Boytsov, and Nathan Kurz. "SIMD Compression and the Intersection of Sorted Integers." *Software: Practice and Experience* 46.6 (2016): 723-749. [arXiv:1401.6399](https://arxiv.org/abs/1401.6399)

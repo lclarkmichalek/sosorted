@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
-use sosorted::{intersect, intersect_adaptive, intersect_simd_galloping, intersect_v1, intersect_v3};
+use sosorted::intersect;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
@@ -277,14 +277,10 @@ fn bench_lemire_asymmetric(c: &mut Criterion) {
         let freq = generate_sorted_unique(seed1, *freq_size, max_val);
         let rare = generate_sorted_unique(seed2, *rare_size, max_val);
 
-        // Calculate actual intersection size (for verification if needed)
-        let _freq_set: HashSet<_> = freq.iter().copied().collect();
-        let _actual_intersect: usize = rare.iter().filter(|x| _freq_set.contains(x)).count();
-
         // Throughput based on smaller array (rare) since that's the bottleneck
         group.throughput(Throughput::Elements(*rare_size as u64));
 
-        // Current sosorted implementation
+        // sosorted (uses adaptive algorithm internally)
         group.bench_with_input(
             BenchmarkId::new("sosorted", ratio_name),
             &(&freq, &rare),
@@ -292,54 +288,6 @@ fn bench_lemire_asymmetric(c: &mut Criterion) {
                 bencher.iter(|| {
                     let mut a = (*rare).clone();
                     black_box(intersect(&mut a, black_box(freq)));
-                });
-            },
-        );
-
-        // V1 (optimized for ratios up to 50:1)
-        group.bench_with_input(
-            BenchmarkId::new("v1", ratio_name),
-            &(&freq, &rare),
-            |bencher, (freq, rare)| {
-                bencher.iter(|| {
-                    let mut a = (*rare).clone();
-                    black_box(intersect_v1(&mut a, black_box(freq)));
-                });
-            },
-        );
-
-        // V3 (optimized for ratios 50:1 to 1000:1)
-        group.bench_with_input(
-            BenchmarkId::new("v3", ratio_name),
-            &(&freq, &rare),
-            |bencher, (freq, rare)| {
-                bencher.iter(|| {
-                    let mut a = (*rare).clone();
-                    black_box(intersect_v3(&mut a, black_box(freq)));
-                });
-            },
-        );
-
-        // SIMD Galloping (optimized for ratios > 1000:1)
-        group.bench_with_input(
-            BenchmarkId::new("galloping", ratio_name),
-            &(&freq, &rare),
-            |bencher, (freq, rare)| {
-                bencher.iter(|| {
-                    let mut a = (*rare).clone();
-                    black_box(intersect_simd_galloping(&mut a, black_box(freq)));
-                });
-            },
-        );
-
-        // Adaptive (automatically selects best algorithm)
-        group.bench_with_input(
-            BenchmarkId::new("adaptive", ratio_name),
-            &(&freq, &rare),
-            |bencher, (freq, rare)| {
-                bencher.iter(|| {
-                    let mut a = (*rare).clone();
-                    black_box(intersect_adaptive(&mut a, black_box(freq)));
                 });
             },
         );
@@ -405,28 +353,6 @@ fn bench_intersection_density(c: &mut Criterion) {
         );
 
         group.bench_with_input(
-            BenchmarkId::new("v1", name),
-            &(&base, &other),
-            |bencher, (base, other)| {
-                bencher.iter(|| {
-                    let mut a = (*base).clone();
-                    black_box(intersect_v1(&mut a, black_box(other)));
-                });
-            },
-        );
-
-        group.bench_with_input(
-            BenchmarkId::new("adaptive", name),
-            &(&base, &other),
-            |bencher, (base, other)| {
-                bencher.iter(|| {
-                    let mut a = (*base).clone();
-                    black_box(intersect_adaptive(&mut a, black_box(other)));
-                });
-            },
-        );
-
-        group.bench_with_input(
             BenchmarkId::new("naive", name),
             &(&base, &other),
             |bencher, (base, other)| {
@@ -441,7 +367,7 @@ fn bench_intersection_density(c: &mut Criterion) {
     group.finish();
 }
 
-/// Direct algorithm comparison on equal-sized arrays
+/// Size scaling comparison
 fn bench_algorithm_comparison(c: &mut Criterion) {
     let mut group = c.benchmark_group("algorithm_comparison");
 
@@ -470,42 +396,6 @@ fn bench_algorithm_comparison(c: &mut Criterion) {
                 bencher.iter(|| {
                     let mut arr = (*a).clone();
                     black_box(intersect(&mut arr, black_box(b)));
-                });
-            },
-        );
-
-        group.bench_with_input(BenchmarkId::new("v1", size), &(&a, &b), |bencher, (a, b)| {
-            bencher.iter(|| {
-                let mut arr = (*a).clone();
-                black_box(intersect_v1(&mut arr, black_box(b)));
-            });
-        });
-
-        group.bench_with_input(BenchmarkId::new("v3", size), &(&a, &b), |bencher, (a, b)| {
-            bencher.iter(|| {
-                let mut arr = (*a).clone();
-                black_box(intersect_v3(&mut arr, black_box(b)));
-            });
-        });
-
-        group.bench_with_input(
-            BenchmarkId::new("galloping", size),
-            &(&a, &b),
-            |bencher, (a, b)| {
-                bencher.iter(|| {
-                    let mut arr = (*a).clone();
-                    black_box(intersect_simd_galloping(&mut arr, black_box(b)));
-                });
-            },
-        );
-
-        group.bench_with_input(
-            BenchmarkId::new("adaptive", size),
-            &(&a, &b),
-            |bencher, (a, b)| {
-                bencher.iter(|| {
-                    let mut arr = (*a).clone();
-                    black_box(intersect_adaptive(&mut arr, black_box(b)));
                 });
             },
         );
