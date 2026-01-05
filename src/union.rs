@@ -1,7 +1,9 @@
 use std::{
     cmp::Ordering,
-    simd::{cmp::SimdPartialOrd, u64x4, Simd},
+    simd::{cmp::SimdPartialOrd, Simd},
 };
+
+use crate::simd_element::{SimdMask, SortedSimdElement, SIMD_LANES};
 
 /// Calculates the size of the union of two sorted arrays without allocating.
 ///
@@ -10,15 +12,18 @@ use std::{
 /// ```
 /// use sosorted::union_size;
 ///
-/// let a = [1, 3, 5];
-/// let b = [2, 3, 4];
+/// let a = [1u64, 3, 5];
+/// let b = [2u64, 3, 4];
 /// assert_eq!(union_size(&a, &b), 5); // [1, 2, 3, 4, 5]
 /// ```
-pub fn union_size(a: &[u64], b: &[u64]) -> usize {
+pub fn union_size<T>(a: &[T], b: &[T]) -> usize
+where
+    T: SortedSimdElement + Ord,
+{
     let mut i = 0;
     let mut j = 0;
     let mut count = 0;
-    let mut last_value: Option<u64> = None;
+    let mut last_value: Option<T> = None;
 
     while i < a.len() && j < b.len() {
         let val = match a[i].cmp(&b[j]) {
@@ -79,8 +84,8 @@ pub fn union_size(a: &[u64], b: &[u64]) -> usize {
 /// ```
 /// use sosorted::union;
 ///
-/// let a = [1, 3, 5];
-/// let b = [2, 3, 4];
+/// let a = [1u64, 3, 5];
+/// let b = [2u64, 3, 4];
 /// let mut dest = [0u64; 6];  // Max possible size
 /// let union_len = union(&mut dest, &a, &b);
 /// assert_eq!(&dest[..union_len], &[1, 2, 3, 4, 5]);
@@ -89,7 +94,11 @@ pub fn union_size(a: &[u64], b: &[u64]) -> usize {
 /// # Panics
 ///
 /// Panics if `dest.len() < a.len() + b.len()` (insufficient capacity).
-pub fn union(dest: &mut [u64], a: &[u64], b: &[u64]) -> usize {
+pub fn union<T>(dest: &mut [T], a: &[T], b: &[T]) -> usize
+where
+    T: SortedSimdElement + Ord,
+    Simd<T, SIMD_LANES>: SimdPartialOrd<Mask = SimdMask<T>>,
+{
     // Handle edge cases
     if a.is_empty() && b.is_empty() {
         return 0;
@@ -181,17 +190,17 @@ pub fn union(dest: &mut [u64], a: &[u64], b: &[u64]) -> usize {
     let mut i = 0;
     let mut j = 0;
     let mut write = 0;
-    let mut last_written: Option<u64> = None;
+    let mut last_written: Option<T> = None;
 
     // SIMD-accelerated merge loop
-    while i < a.len() && j + 4 <= b.len() {
-        let b_chunk: u64x4 = Simd::from_slice(&b[j..j + 4]);
-        let a_splat = u64x4::splat(a[i]);
+    while i < a.len() && j + SIMD_LANES <= b.len() {
+        let b_chunk: Simd<T, SIMD_LANES> = Simd::from_slice(&b[j..j + SIMD_LANES]);
+        let a_splat = Simd::<T, SIMD_LANES>::splat(a[i]);
 
         // If all elements in b_chunk are less than a[i], we can bulk copy from b
         if b_chunk.simd_lt(a_splat).all() {
-            // Copy up to 4 elements from b (with deduplication)
-            for k in 0..4 {
+            // Copy up to SIMD_LANES elements from b (with deduplication)
+            for k in 0..SIMD_LANES {
                 let val = b[j + k];
                 if last_written != Some(val) {
                     dest[write] = val;
@@ -199,7 +208,7 @@ pub fn union(dest: &mut [u64], a: &[u64], b: &[u64]) -> usize {
                     last_written = Some(val);
                 }
             }
-            j += 4;
+            j += SIMD_LANES;
             continue;
         }
 
@@ -216,8 +225,8 @@ pub fn union(dest: &mut [u64], a: &[u64], b: &[u64]) -> usize {
         }
 
         // Overlap detected - fall back to scalar for this chunk
-        // Process up to 4 elements carefully
-        for _ in 0..4 {
+        // Process up to SIMD_LANES elements carefully
+        for _ in 0..SIMD_LANES {
             if i >= a.len() || j >= b.len() {
                 break;
             }
@@ -752,4 +761,55 @@ mod tests {
             }
         }
     }
+
+    // Tests for different numeric types
+    macro_rules! test_union_type {
+        ($name:ident, $t:ty) => {
+            #[test]
+            fn $name() {
+                // Basic union
+                let a: Vec<$t> = vec![1, 3, 5];
+                let b: Vec<$t> = vec![2, 3, 4];
+                let mut dest = vec![0 as $t; 6];
+                let len = union(&mut dest, &a, &b);
+                assert_eq!(len, 5);
+                assert_eq!(&dest[..len], &[1, 2, 3, 4, 5]);
+
+                // Disjoint
+                let a: Vec<$t> = vec![1, 2, 3];
+                let b: Vec<$t> = vec![4, 5, 6];
+                let mut dest = vec![0 as $t; 6];
+                let len = union(&mut dest, &a, &b);
+                assert_eq!(len, 6);
+                assert_eq!(&dest[..len], &[1, 2, 3, 4, 5, 6]);
+
+                // Identical
+                let a: Vec<$t> = vec![1, 2, 3];
+                let b: Vec<$t> = vec![1, 2, 3];
+                let mut dest = vec![0 as $t; 6];
+                let len = union(&mut dest, &a, &b);
+                assert_eq!(len, 3);
+
+                // union_size test
+                let a: Vec<$t> = vec![1, 3, 5, 7];
+                let b: Vec<$t> = vec![2, 3, 6, 7];
+                assert_eq!(union_size(&a, &b), 6);
+
+                // Large arrays to test SIMD path
+                let a: Vec<$t> = (0..50).map(|x| (x * 2) as $t).collect();
+                let b: Vec<$t> = (0..50).map(|x| (x * 2 + 1) as $t).collect();
+                let mut dest = vec![0 as $t; 100];
+                let len = union(&mut dest, &a, &b);
+                assert_eq!(len, 100);
+            }
+        };
+    }
+
+    test_union_type!(test_union_u8, u8);
+    test_union_type!(test_union_u16, u16);
+    test_union_type!(test_union_u32, u32);
+    test_union_type!(test_union_i8, i8);
+    test_union_type!(test_union_i16, i16);
+    test_union_type!(test_union_i32, i32);
+    test_union_type!(test_union_i64, i64);
 }

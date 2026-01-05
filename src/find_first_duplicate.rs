@@ -1,4 +1,6 @@
-use std::simd::{simd_swizzle, cmp::SimdPartialEq};
+use std::simd::{cmp::SimdPartialEq, simd_swizzle, Simd};
+
+use crate::simd_element::{SimdMask, SortedSimdElement, SIMD_LANES};
 
 /// Returns the index of the first duplicate entry. If there are no duplicates, the length of ther
 /// slice is returned.
@@ -16,18 +18,22 @@ use std::simd::{simd_swizzle, cmp::SimdPartialEq};
 /// ```
 /// use sosorted::find_first_duplicate;
 ///
-/// let data = vec![0, 1, 2, 2];
+/// let data = vec![0u64, 1, 2, 2];
 /// assert_eq!(3, find_first_duplicate(&data[..]));
 /// ```
-pub fn find_first_duplicate(vec: &[u64]) -> usize {
+pub fn find_first_duplicate<T>(vec: &[T]) -> usize
+where
+    T: SortedSimdElement,
+    Simd<T, SIMD_LANES>: SimdPartialEq<Mask = SimdMask<T>>,
+{
     // The SIMD loop works on 4 chunks of 4, plus one additional chunk for the look ahead.
     // Practically speaking, there's no point going down that path unless we have less than 5
     // chunks
-    if vec.len() < (4 + 1) * 4 {
+    if vec.len() < (4 + 1) * SIMD_LANES {
         return find_first_duplicate_scalar(vec);
     }
 
-    let (pref, middle, _suffix) = vec.as_simd();
+    let (pref, middle, _suffix) = vec.as_simd::<SIMD_LANES>();
     match find_first_duplicate_scalar(&vec[0..pref.len()]) {
         x if x != pref.len() => return x,
         _ => {}
@@ -44,26 +50,10 @@ pub fn find_first_duplicate(vec: &[u64]) -> usize {
         let chunk2 = middle[i - 3];
         let chunk3 = middle[i - 2];
         let chunk4 = middle[i - 1];
-        let cmp1 = simd_swizzle!(
-            middle[i - 4],
-            middle[i - 3],
-            [1, 2, 3, 4]
-        );
-        let cmp2 = simd_swizzle!(
-            middle[i - 3],
-            middle[i - 2],
-            [1, 2, 3, 4]
-        );
-        let cmp3 = simd_swizzle!(
-            middle[i - 2],
-            middle[i - 1],
-            [1, 2, 3, 4]
-        );
-        let cmp4 = simd_swizzle!(
-            middle[i - 1],
-            middle[i],
-            [1, 2, 3, 4]
-        );
+        let cmp1 = simd_swizzle!(middle[i - 4], middle[i - 3], [1, 2, 3, 4]);
+        let cmp2 = simd_swizzle!(middle[i - 3], middle[i - 2], [1, 2, 3, 4]);
+        let cmp3 = simd_swizzle!(middle[i - 2], middle[i - 1], [1, 2, 3, 4]);
+        let cmp4 = simd_swizzle!(middle[i - 1], middle[i], [1, 2, 3, 4]);
 
         let mask1 = cmp1.simd_eq(chunk1);
         let mask2 = cmp2.simd_eq(chunk2);
@@ -89,13 +79,13 @@ pub fn find_first_duplicate(vec: &[u64]) -> usize {
             } else {
                 4
             };
-            return pref.len() + (i - 4 + chunk_offset) * 4 + lane_offset;
+            return pref.len() + (i - 4 + chunk_offset) * SIMD_LANES + lane_offset;
         }
         i += 4;
     }
 
     // test the rest by hand. we have not checked the last chunk
-    let suffix_start = pref.len() + (i - 4) * 4;
+    let suffix_start = pref.len() + (i - 4) * SIMD_LANES;
     let suffix_dupe_index = find_first_duplicate_scalar(&vec[suffix_start..]);
     suffix_start + suffix_dupe_index
 }
@@ -152,4 +142,41 @@ mod tests {
             );
         }
     }
+
+    // Tests for different numeric types
+    macro_rules! test_find_first_duplicate_type {
+        ($name:ident, $t:ty) => {
+            #[test]
+            fn $name() {
+                // No duplicates
+                let data: Vec<$t> = vec![1, 2, 3, 4, 5];
+                assert_eq!(find_first_duplicate(&data), data.len());
+
+                // Duplicate at the beginning
+                let data: Vec<$t> = vec![1, 1, 2, 3, 4];
+                assert_eq!(find_first_duplicate(&data), 1);
+
+                // Duplicate at the end
+                let data: Vec<$t> = vec![1, 2, 3, 4, 4];
+                assert_eq!(find_first_duplicate(&data), 4);
+
+                // Large array with no duplicates (test SIMD path)
+                let data: Vec<$t> = (0..100).map(|x| x as $t).collect();
+                assert_eq!(find_first_duplicate(&data), 100);
+
+                // Large array with duplicate in middle
+                let mut data: Vec<$t> = (0..100).map(|x| x as $t).collect();
+                data[50] = data[49]; // Create duplicate
+                assert_eq!(find_first_duplicate(&data), 50);
+            }
+        };
+    }
+
+    test_find_first_duplicate_type!(test_find_first_duplicate_u8, u8);
+    test_find_first_duplicate_type!(test_find_first_duplicate_u16, u16);
+    test_find_first_duplicate_type!(test_find_first_duplicate_u32, u32);
+    test_find_first_duplicate_type!(test_find_first_duplicate_i8, i8);
+    test_find_first_duplicate_type!(test_find_first_duplicate_i16, i16);
+    test_find_first_duplicate_type!(test_find_first_duplicate_i32, i32);
+    test_find_first_duplicate_type!(test_find_first_duplicate_i64, i64);
 }

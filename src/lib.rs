@@ -1,5 +1,8 @@
 #![feature(portable_simd)]
 
+mod simd_element;
+pub use simd_element::{SortedSimdElement, SIMD_LANES};
+
 mod deduplicate;
 pub use deduplicate::deduplicate;
 

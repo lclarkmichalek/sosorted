@@ -1,9 +1,31 @@
 use std::{
     cmp::Ordering,
-    simd::{u64x4, Simd, cmp::SimdPartialOrd},
+    simd::{cmp::SimdPartialOrd, Simd},
 };
 
-pub fn intersect(a: &mut [u64], b: &[u64]) -> usize {
+use crate::simd_element::{SimdMask, SortedSimdElement, SIMD_LANES};
+
+/// Computes the intersection of two sorted slices in-place.
+///
+/// The result is written to the beginning of `a`, and the function returns
+/// the number of elements in the intersection.
+///
+/// # Examples
+///
+/// ```
+/// use sosorted::intersect;
+///
+/// let mut a = [1u64, 2, 3, 4, 5];
+/// let b = [1, 3, 5];
+/// let new_len = intersect(&mut a, &b);
+/// assert_eq!(new_len, 3);
+/// assert_eq!(&a[..new_len], &[1, 3, 5]);
+/// ```
+pub fn intersect<T>(a: &mut [T], b: &[T]) -> usize
+where
+    T: SortedSimdElement + Ord,
+    Simd<T, SIMD_LANES>: SimdPartialOrd<Mask = SimdMask<T>>,
+{
     // Rough strategy:
     // We can use SIMD instructions to find long runs of non intersecting values. However, dealing
     // with intersecting values in bulk is going to be a nightmare. So we're going to go through
@@ -17,12 +39,12 @@ pub fn intersect(a: &mut [u64], b: &[u64]) -> usize {
     // a)
     let mut intersect_count = 0;
 
-    while i < a.len() && j + 4 < b.len() {
-        let b_vals: u64x4 = Simd::from_slice(&b[j..j + 4]);
-        let a_val = u64x4::splat(a[i]);
+    while i < a.len() && j + SIMD_LANES < b.len() {
+        let b_vals: Simd<T, SIMD_LANES> = Simd::from_slice(&b[j..j + SIMD_LANES]);
+        let a_val = Simd::<T, SIMD_LANES>::splat(a[i]);
         // If all lanes are smaller than a, we can skip forwards
         if a_val.simd_gt(b_vals).all() {
-            j += 4;
+            j += SIMD_LANES;
             continue;
         }
         // If all lanes are bigger than a, a was not part of the intersection - move i forward
@@ -32,14 +54,14 @@ pub fn intersect(a: &mut [u64], b: &[u64]) -> usize {
         }
         // Otherwise, we may have found an intersection. Or at least, within the block, we have a
         // cross over point, and we're going to need to swap to the slow path
-        for _ in 0..4 {
+        for _ in 0..SIMD_LANES {
             if i >= a.len() || j >= b.len() {
                 break;
             }
             match a[i].cmp(&b[j]) {
                 Ordering::Less => i += 1,
                 Ordering::Greater => j += 1,
-                _ => {
+                Ordering::Equal => {
                     a[intersect_count] = b[j];
                     j += 1;
                     i += 1;
@@ -54,7 +76,7 @@ pub fn intersect(a: &mut [u64], b: &[u64]) -> usize {
         match a[i].cmp(&b[j]) {
             Ordering::Less => i += 1,
             Ordering::Greater => j += 1,
-            _ => {
+            Ordering::Equal => {
                 a[intersect_count] = b[j];
                 j += 1;
                 i += 1;
@@ -134,4 +156,41 @@ mod tests {
         assert_eq!(result, 4);
         assert_eq!(&a[..result], &[14, 15, 16, 17]);
     }
+
+    // Tests for different numeric types
+    macro_rules! test_intersect_type {
+        ($name:ident, $t:ty) => {
+            #[test]
+            fn $name() {
+                // Basic test
+                let mut a: Vec<$t> = vec![1, 2, 3, 4, 5];
+                let b: Vec<$t> = vec![1, 3, 5];
+                let new_len = intersect(&mut a, &b);
+                assert_eq!(new_len, 3);
+                assert_eq!(&a[..new_len], &[1, 3, 5]);
+
+                // Empty intersection
+                let mut a: Vec<$t> = vec![1, 2, 3];
+                let b: Vec<$t> = vec![4, 5, 6];
+                assert_eq!(intersect(&mut a, &b), 0);
+
+                // Large arrays to test SIMD path
+                let mut a: Vec<$t> = (0..100).map(|x| x as $t).collect();
+                let b: Vec<$t> = (50..150).map(|x| x as $t).collect();
+                let new_len = intersect(&mut a, &b);
+                assert_eq!(new_len, 50);
+                for i in 0..50 {
+                    assert_eq!(a[i], (50 + i) as $t);
+                }
+            }
+        };
+    }
+
+    test_intersect_type!(test_intersect_u8, u8);
+    test_intersect_type!(test_intersect_u16, u16);
+    test_intersect_type!(test_intersect_u32, u32);
+    test_intersect_type!(test_intersect_i8, i8);
+    test_intersect_type!(test_intersect_i16, i16);
+    test_intersect_type!(test_intersect_i32, i32);
+    test_intersect_type!(test_intersect_i64, i64);
 }
