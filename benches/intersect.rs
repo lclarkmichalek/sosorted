@@ -132,7 +132,10 @@ fn bench_intersect(c: &mut Criterion) {
 
     group.bench_function("hashset/sparse_intersections", |bencher| {
         bencher.iter(|| {
-            black_box(hashset_intersect(black_box(&a_sparse), black_box(&b_sparse)));
+            black_box(hashset_intersect(
+                black_box(&a_sparse),
+                black_box(&b_sparse),
+            ));
         });
     });
 

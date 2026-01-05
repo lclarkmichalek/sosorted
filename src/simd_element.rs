@@ -28,7 +28,9 @@ mod sealed {
 /// let d = [1, 5, 9];
 /// assert_eq!(intersect(&mut c, &d), 2);
 /// ```
-pub trait SortedSimdElement: sealed::Sealed + SimdElement + Copy + PartialOrd + PartialEq + Default {
+pub trait SortedSimdElement:
+    sealed::Sealed + SimdElement + Copy + PartialOrd + PartialEq + Default
+{
     /// The mask element type for this scalar type's SIMD operations.
     type MaskElement: std::simd::MaskElement;
 }
