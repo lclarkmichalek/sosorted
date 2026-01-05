@@ -471,7 +471,10 @@ mod tests {
     #[test]
     fn test_union_specific_seed() {
         // This is a failing seed from the fuzz test to debug
-        let seed: [u8; 32] = [76, 173, 78, 211, 5, 152, 25, 132, 141, 72, 157, 15, 249, 40, 246, 161, 64, 212, 34, 107, 93, 231, 101, 3, 5, 7, 171, 104, 95, 186, 58, 98];
+        let seed: [u8; 32] = [
+            76, 173, 78, 211, 5, 152, 25, 132, 141, 72, 157, 15, 249, 40, 246, 161, 64, 212, 34,
+            107, 93, 231, 101, 3, 5, 7, 171, 104, 95, 186, 58, 98,
+        ];
         let mut rng = SmallRng::from_seed(seed);
 
         const TEST_DATA_SIZE: usize = 256;
@@ -495,7 +498,10 @@ mod tests {
         let actual_size = union(&mut dest, &a_data, &b_data);
 
         println!("a_size: {}, b_size: {}", a_size, b_size);
-        println!("expected_size: {}, actual_size: {}", expected_size, actual_size);
+        println!(
+            "expected_size: {}, actual_size: {}",
+            expected_size, actual_size
+        );
         println!("a_data (first 10): {:?}", &a_data[..a_size.min(10)]);
         println!("b_data (first 10): {:?}", &b_data[..b_size.min(10)]);
         println!("result (first 10): {:?}", &dest[..actual_size.min(10)]);
@@ -600,8 +606,8 @@ mod tests {
         assert_eq!(
             &dest[..len],
             &[
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-                23, 24
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+                24
             ]
         );
     }
@@ -639,7 +645,10 @@ mod tests {
     #[test]
     fn test_union_failing_fuzz_seed() {
         // Specific failing seed to debug
-        let seed: [u8; 32] = [83, 111, 111, 107, 116, 207, 25, 241, 84, 88, 255, 153, 139, 26, 215, 26, 168, 4, 227, 187, 33, 202, 140, 31, 102, 146, 46, 61, 223, 210, 181, 108];
+        let seed: [u8; 32] = [
+            83, 111, 111, 107, 116, 207, 25, 241, 84, 88, 255, 153, 139, 26, 215, 26, 168, 4, 227,
+            187, 33, 202, 140, 31, 102, 146, 46, 61, 223, 210, 181, 108,
+        ];
         let mut rng = SmallRng::from_seed(seed);
 
         const TEST_DATA_SIZE: usize = 256;
@@ -665,7 +674,10 @@ mod tests {
         // Debug output
         if actual_size != expected_size {
             println!("a_size: {}, b_size: {}", a_size, b_size);
-            println!("expected_size: {}, actual_size: {}", expected_size, actual_size);
+            println!(
+                "expected_size: {}, actual_size: {}",
+                expected_size, actual_size
+            );
 
             // Check for duplicates in result
             for i in 1..actual_size {

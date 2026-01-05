@@ -52,9 +52,7 @@ fn unique_data() -> Vec<u64> {
 /// Generate a sorted array of `size` unique random values within [0, max_val)
 fn generate_sorted_unique(seed: [u8; 32], size: usize, max_val: u64) -> Vec<u64> {
     let mut rng = SmallRng::from_seed(seed);
-    let mut data: Vec<u64> = (0..size * 2)
-        .map(|_| rng.next_u64() % max_val)
-        .collect();
+    let mut data: Vec<u64> = (0..size * 2).map(|_| rng.next_u64() % max_val).collect();
     data.sort();
     data.dedup();
     data.truncate(size);
@@ -177,7 +175,10 @@ fn bench_intersect(c: &mut Criterion) {
 
     group.bench_function("hashset/sparse_intersections", |bencher| {
         bencher.iter(|| {
-            black_box(hashset_intersect(black_box(&set_a_sparse), black_box(&set_b_sparse)));
+            black_box(hashset_intersect(
+                black_box(&set_a_sparse),
+                black_box(&set_b_sparse),
+            ));
         });
     });
 
@@ -203,7 +204,10 @@ fn bench_intersect(c: &mut Criterion) {
 
     group.bench_function("hashset/all_intersections", |bencher| {
         bencher.iter(|| {
-            black_box(hashset_intersect(black_box(&set_a_all), black_box(&set_b_all)));
+            black_box(hashset_intersect(
+                black_box(&set_a_all),
+                black_box(&set_b_all),
+            ));
         });
     });
 
@@ -274,8 +278,8 @@ fn bench_lemire_asymmetric(c: &mut Criterion) {
         22, 106, 209, 27, 213, 179, 143, 64, 78, 135, 141, 242,
     ];
     let seed2: [u8; 32] = [
-        42, 135, 233, 92, 112, 23, 105, 79, 81, 127, 217, 1, 97, 10, 71, 36, 110, 148, 100, 78, 122,
-        6, 9, 127, 13, 79, 43, 164, 178, 35, 41, 142,
+        42, 135, 233, 92, 112, 23, 105, 79, 81, 127, 217, 1, 97, 10, 71, 36, 110, 148, 100, 78,
+        122, 6, 9, 127, 13, 79, 43, 164, 178, 35, 41, 142,
     ];
 
     for (freq_size, rare_size, ratio_name) in test_cases.iter() {
@@ -344,7 +348,8 @@ fn bench_intersection_density(c: &mut Criterion) {
             122, 6, 9, 127, 13, 79, 43, 164, 178, 35, 41, 142,
         ];
 
-        let other = generate_with_intersections(seed2, &base, size, intersect_count, size as u64 * 10);
+        let other =
+            generate_with_intersections(seed2, &base, size, intersect_count, size as u64 * 10);
 
         group.throughput(Throughput::Elements(size as u64));
 
@@ -385,8 +390,8 @@ fn bench_algorithm_comparison(c: &mut Criterion) {
         22, 106, 209, 27, 213, 179, 143, 64, 78, 135, 141, 242,
     ];
     let seed2: [u8; 32] = [
-        42, 135, 233, 92, 112, 23, 105, 79, 81, 127, 217, 1, 97, 10, 71, 36, 110, 148, 100, 78, 122,
-        6, 9, 127, 13, 79, 43, 164, 178, 35, 41, 142,
+        42, 135, 233, 92, 112, 23, 105, 79, 81, 127, 217, 1, 97, 10, 71, 36, 110, 148, 100, 78,
+        122, 6, 9, 127, 13, 79, 43, 164, 178, 35, 41, 142,
     ];
 
     for size in sizes.iter() {

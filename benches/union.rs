@@ -140,7 +140,10 @@ fn bench_union(c: &mut Criterion) {
 
     group.bench_function("hashset/sparse_overlap", |bencher| {
         bencher.iter(|| {
-            black_box(hashset_union(black_box(&set_a_sparse), black_box(&set_b_sparse)));
+            black_box(hashset_union(
+                black_box(&set_a_sparse),
+                black_box(&set_b_sparse),
+            ));
         });
     });
 
@@ -153,19 +156,29 @@ fn bench_union(c: &mut Criterion) {
     group.bench_function("sosorted/complete_overlap", |bencher| {
         bencher.iter(|| {
             let mut dest = vec![0u64; a_identical.len() + b_identical.len()];
-            black_box(union(&mut dest, black_box(&a_identical), black_box(&b_identical)));
+            black_box(union(
+                &mut dest,
+                black_box(&a_identical),
+                black_box(&b_identical),
+            ));
         });
     });
 
     group.bench_function("naive/complete_overlap", |bencher| {
         bencher.iter(|| {
-            black_box(naive_union(black_box(&a_identical), black_box(&b_identical)));
+            black_box(naive_union(
+                black_box(&a_identical),
+                black_box(&b_identical),
+            ));
         });
     });
 
     group.bench_function("hashset/complete_overlap", |bencher| {
         bencher.iter(|| {
-            black_box(hashset_union(black_box(&set_a_identical), black_box(&set_b_identical)));
+            black_box(hashset_union(
+                black_box(&set_a_identical),
+                black_box(&set_b_identical),
+            ));
         });
     });
 
