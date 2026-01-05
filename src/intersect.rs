@@ -33,6 +33,9 @@ pub fn intersect(a: &mut [u64], b: &[u64]) -> usize {
         // Otherwise, we may have found an intersection. Or at least, within the block, we have a
         // cross over point, and we're going to need to swap to the slow path
         for _ in 0..4 {
+            if i >= a.len() || j >= b.len() {
+                break;
+            }
             match a[i].cmp(&b[j]) {
                 Ordering::Less => i += 1,
                 Ordering::Greater => j += 1,
@@ -112,5 +115,23 @@ mod tests {
             );
             assert_eq!(data[..intersection_len], data2[..intersection_len]);
         }
+    }
+
+    #[test]
+    fn test_intersect_boundary_bug() {
+        // This test reproduces the bug where the slow path loop runs 4 times
+        // without checking bounds, causing an out-of-bounds panic.
+        // The bug occurs when we enter the slow path but don't have 4 elements
+        // remaining in one of the arrays.
+
+        // Create a scenario where we enter the slow path with exactly 1 element left in `a`
+        // We need at least 4 elements in `b` to trigger the SIMD path, and then
+        // a crossover that puts us in the slow path with limited elements in `a`
+        let mut a = vec![10, 11, 12, 13, 14, 15, 16, 17];
+        let b = vec![5, 6, 7, 8, 14, 15, 16, 17];
+
+        let result = intersect(&mut a, &b);
+        assert_eq!(result, 4);
+        assert_eq!(&a[..result], &[14, 15, 16, 17]);
     }
 }

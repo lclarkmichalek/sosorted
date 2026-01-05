@@ -163,11 +163,6 @@ fn bench_intersect(c: &mut Criterion) {
     group.finish();
 }
 
-// Scaling benchmark commented out due to edge case bug in intersect implementation
-// that causes out-of-bounds panics with certain array sizes and intersection patterns.
-// See GitHub issue for details.
-// TODO: Re-enable once intersect implementation is fixed
-/*
 fn bench_intersect_scaling(c: &mut Criterion) {
     let mut group = c.benchmark_group("intersect_scaling");
 
@@ -207,7 +202,6 @@ fn bench_intersect_scaling(c: &mut Criterion) {
 
     group.finish();
 }
-*/
 
-criterion_group!(benches, bench_intersect);
+criterion_group!(benches, bench_intersect, bench_intersect_scaling);
 criterion_main!(benches);
