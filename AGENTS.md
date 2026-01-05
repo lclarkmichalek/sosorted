@@ -118,7 +118,9 @@ When working with SIMD operations:
 
 ## Benchmarking
 
-The project uses `bencher` for benchmarking. Benchmarks are located in the `benches/` directory:
+The project uses **Criterion** for statistical benchmarking with HTML report generation. Every supported operation must have comprehensive benchmarks.
+
+### Running Benchmarks
 
 ```bash
 # Run specific benchmark
@@ -126,7 +128,93 @@ cargo bench --bench find_first_duplicate
 
 # Run all benchmarks
 cargo bench
+
+# View HTML reports (generated in target/criterion/)
+open target/criterion/report/index.html
 ```
+
+### Benchmark Requirements
+
+Each operation benchmark must include:
+
+1. **Comparison against standard library** - Compare with idiomatic Rust stdlib approaches
+   - `deduplicate` → compare with `Vec::dedup()`
+   - `intersect` → compare with `HashSet::intersection()`
+   - `find_first_duplicate` → compare with `.windows(2)` iterator
+
+2. **Comparison against naive implementation** - Simple scalar loop without SIMD optimizations
+
+3. **Multiple data scenarios** - Test different input patterns:
+   - Best case (early exit conditions)
+   - Worst case (full traversal required)
+   - Average case (mid-range scenarios)
+   - Edge cases (empty, all duplicates, all unique)
+
+4. **Scaling benchmarks** - Test performance across different input sizes:
+   - Small: 1024 elements
+   - Medium: 8192 elements
+   - Large: 65536 elements
+   - Very large: 524288 elements
+
+5. **Throughput metrics** - Set throughput in bytes for performance comparison
+
+### Benchmark Structure
+
+```rust
+use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
+
+fn bench_operation(c: &mut Criterion) {
+    let mut group = c.benchmark_group("operation_name");
+    group.throughput(Throughput::Bytes((N * 8) as u64));
+
+    // Benchmark sosorted implementation
+    group.bench_function("sosorted/scenario", |b| {
+        b.iter(|| black_box(operation(black_box(&data))));
+    });
+
+    // Benchmark stdlib alternative
+    group.bench_function("stdlib/scenario", |b| {
+        b.iter(|| black_box(stdlib_operation(black_box(&data))));
+    });
+
+    group.finish();
+}
+
+criterion_group!(benches, bench_operation);
+criterion_main!(benches);
+```
+
+### Maintaining Benchmarks
+
+When adding a new operation:
+
+1. Create `benches/<operation_name>.rs`
+2. Add `[[bench]]` entry to `Cargo.toml` with `harness = false`
+3. Implement comparison functions (naive, stdlib, HashSet where applicable)
+4. Create multiple test scenarios (best/worst/average cases)
+5. Add scaling benchmarks across different sizes
+6. Run `cargo bench` to verify benchmarks compile and execute
+7. Review HTML reports to ensure meaningful comparisons
+
+### Current Benchmarks
+
+- **`intersect`** - Compares against naive merge and `HashSet::intersection()`
+- **`deduplicate`** - Compares against naive loop, `Vec::dedup()`, and `HashSet`
+- **`find_first_duplicate`** - Compares against naive loop and `.windows(2)` iterator
+
+### Benchmark Data Generation
+
+All benchmarks use deterministic seeded RNG for reproducibility:
+
+```rust
+let seed: [u8; 32] = [165, 35, 33, ...]; // Fixed seed
+let mut rng = SmallRng::from_seed(seed);
+```
+
+This ensures:
+- Reproducible results across runs
+- Fair comparisons between implementations
+- Consistent performance regression detection
 
 ## Type System
 
@@ -145,9 +233,9 @@ Currently, all operations work on `&[u64]` or `&mut [u64]`. Future work may exte
 
 - **Production**: None (zero-dependency crate)
 - **Development**:
-  - `bencher` - Benchmarking framework
-  - `rand` - Random data generation for tests
-  - `anyhow` - Error handling in benchmarks
+  - `criterion` - Statistical benchmarking framework with HTML reports
+  - `rand` - Random data generation for tests and benchmarks
+  - `anyhow` - Error handling in tests
 
 ## Performance Notes
 

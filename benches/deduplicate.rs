@@ -1,9 +1,7 @@
-#[macro_use]
-extern crate bencher;
-
-use bencher::Bencher;
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
 use sosorted::deduplicate;
+use std::collections::HashSet;
 use std::ops::Range;
 
 const N: usize = 1024 * 1024;
@@ -24,10 +22,14 @@ pub fn naive_deduplicate(data: &mut [u64]) -> usize {
     data.len() - dupe_count
 }
 
+fn hashset_deduplicate(data: &[u64]) -> Vec<u64> {
+    let set: HashSet<_> = data.iter().copied().collect();
+    let mut result: Vec<_> = set.into_iter().collect();
+    result.sort_unstable();
+    result
+}
+
 fn unique_data() -> Vec<u64> {
-    // let mut seed: [u8; 32] = [0; 32];
-    // rand::thread_rng().fill_bytes(&mut seed[..]);
-    // println!("seed: {:?}", seed);
     let seed: [u8; 32] = [
         165, 35, 33, 192, 12, 223, 5, 179, 181, 27, 17, 101, 197, 110, 171, 236, 10, 48, 200, 178,
         22, 106, 209, 27, 213, 179, 143, 64, 78, 135, 141, 242,
@@ -59,109 +61,149 @@ fn add_duplicates(data: &mut [u64], range: Range<f32>) {
     }
 }
 
-// Benchmarks using sosorted::deduplicate
+fn bench_deduplicate(c: &mut Criterion) {
+    let mut group = c.benchmark_group("deduplicate");
+    group.throughput(Throughput::Bytes((N * 8) as u64));
 
-fn deduplicate_all_unique(bench: &mut Bencher) {
+    // All unique
     let data = unique_data();
-    bench.iter(|| {
-        let mut case = data.clone();
-        deduplicate(&mut case);
+
+    group.bench_function("sosorted/all_unique", |bencher| {
+        bencher.iter(|| {
+            let mut case = data.clone();
+            black_box(deduplicate(black_box(&mut case)));
+        });
     });
-    bench.bytes = N as u64 * 4;
+
+    group.bench_function("naive/all_unique", |bencher| {
+        bencher.iter(|| {
+            let mut case = data.clone();
+            black_box(naive_deduplicate(black_box(&mut case)));
+        });
+    });
+
+    group.bench_function("std_dedup/all_unique", |bencher| {
+        bencher.iter(|| {
+            let mut case = data.clone();
+            black_box(case.dedup());
+        });
+    });
+
+    group.bench_function("hashset/all_unique", |bencher| {
+        bencher.iter(|| {
+            black_box(hashset_deduplicate(black_box(&data)));
+        });
+    });
+
+    // Some duplicates (25% of data is duplicates)
+    let mut data_some = unique_data();
+    add_duplicates(&mut data_some, 0.5..0.75);
+
+    group.bench_function("sosorted/some_duplicates", |bencher| {
+        bencher.iter(|| {
+            let mut case = data_some.clone();
+            black_box(deduplicate(black_box(&mut case)));
+        });
+    });
+
+    group.bench_function("naive/some_duplicates", |bencher| {
+        bencher.iter(|| {
+            let mut case = data_some.clone();
+            black_box(naive_deduplicate(black_box(&mut case)));
+        });
+    });
+
+    group.bench_function("std_dedup/some_duplicates", |bencher| {
+        bencher.iter(|| {
+            let mut case = data_some.clone();
+            black_box(case.dedup());
+        });
+    });
+
+    group.bench_function("hashset/some_duplicates", |bencher| {
+        bencher.iter(|| {
+            black_box(hashset_deduplicate(black_box(&data_some)));
+        });
+    });
+
+    // All duplicates
+    let mut data_none = unique_data();
+    add_duplicates(&mut data_none, 0.0..1.0);
+
+    group.bench_function("sosorted/no_unique", |bencher| {
+        bencher.iter(|| {
+            let mut case = data_none.clone();
+            black_box(deduplicate(black_box(&mut case)));
+        });
+    });
+
+    group.bench_function("naive/no_unique", |bencher| {
+        bencher.iter(|| {
+            let mut case = data_none.clone();
+            black_box(naive_deduplicate(black_box(&mut case)));
+        });
+    });
+
+    group.bench_function("std_dedup/no_unique", |bencher| {
+        bencher.iter(|| {
+            let mut case = data_none.clone();
+            black_box(case.dedup());
+        });
+    });
+
+    group.bench_function("hashset/no_unique", |bencher| {
+        bencher.iter(|| {
+            black_box(hashset_deduplicate(black_box(&data_none)));
+        });
+    });
+
+    group.finish();
 }
 
-fn deduplicate_some_unique(bench: &mut Bencher) {
-    let mut data = unique_data();
-    add_duplicates(&mut data, 0.5..0.75);
-    bench.iter(|| {
-        let mut case = data.clone();
-        deduplicate(&mut case);
-    });
-    bench.bytes = N as u64 * 4;
+fn bench_deduplicate_scaling(c: &mut Criterion) {
+    let mut group = c.benchmark_group("deduplicate_scaling");
+
+    let sizes = [1024, 8192, 262144, 1048576];
+
+    for size in sizes.iter() {
+        group.throughput(Throughput::Bytes((*size * 8) as u64));
+
+        let seed: [u8; 32] = [
+            165, 35, 33, 192, 12, 223, 5, 179, 181, 27, 17, 101, 197, 110, 171, 236, 10, 48, 200,
+            178, 22, 106, 209, 27, 213, 179, 143, 64, 78, 135, 141, 242,
+        ];
+        let mut rng = SmallRng::from_seed(seed);
+
+        let mut data = Vec::with_capacity(*size);
+        for _ in 0..*size {
+            data.push(rng.next_u64());
+        }
+        data.sort();
+        add_duplicates(&mut data, 0.5..0.75);
+
+        group.bench_with_input(BenchmarkId::new("sosorted", size), size, |bencher, _| {
+            bencher.iter(|| {
+                let mut case = data.clone();
+                black_box(deduplicate(black_box(&mut case)));
+            });
+        });
+
+        group.bench_with_input(BenchmarkId::new("std_dedup", size), size, |bencher, _| {
+            bencher.iter(|| {
+                let mut case = data.clone();
+                black_box(case.dedup());
+            });
+        });
+
+        group.bench_with_input(BenchmarkId::new("hashset", size), size, |bencher, _| {
+            bencher.iter(|| {
+                black_box(hashset_deduplicate(black_box(&data)));
+            });
+        });
+    }
+
+    group.finish();
 }
 
-fn deduplicate_no_unique(bench: &mut Bencher) {
-    let mut data = unique_data();
-    add_duplicates(&mut data, 0.0..1.0);
-    bench.iter(|| {
-        let mut case = data.clone();
-        deduplicate(&mut case);
-    });
-    bench.bytes = N as u64 * 4;
-}
-
-// Benchmarks using naive_deduplicate
-
-fn naive_deduplicate_all_unique(bench: &mut Bencher) {
-    let data = unique_data();
-    bench.iter(|| {
-        let mut case = data.clone();
-        naive_deduplicate(&mut case);
-    });
-    bench.bytes = N as u64 * 4;
-}
-
-fn naive_deduplicate_some_unique(bench: &mut Bencher) {
-    let mut data = unique_data();
-    add_duplicates(&mut data, 0.5..0.75);
-    bench.iter(|| {
-        let mut case = data.clone();
-        naive_deduplicate(&mut case);
-    });
-    bench.bytes = N as u64 * 4;
-}
-
-fn naive_deduplicate_no_unique(bench: &mut Bencher) {
-    let mut data = unique_data();
-    add_duplicates(&mut data, 0.0..1.0);
-    bench.iter(|| {
-        let mut case = data.clone();
-        naive_deduplicate(&mut case);
-    });
-    bench.bytes = N as u64 * 4;
-}
-
-// Benchmarks using std dedup
-
-fn std_dedup_all_unique(bench: &mut Bencher) {
-    let data = unique_data();
-    bench.iter(|| {
-        let mut case = data.clone();
-        case.dedup();
-    });
-    bench.bytes = N as u64 * 4;
-}
-
-fn std_dedup_some_unique(bench: &mut Bencher) {
-    let mut data = unique_data();
-    add_duplicates(&mut data, 0.5..0.75);
-    bench.iter(|| {
-        let mut case = data.clone();
-        case.dedup();
-    });
-    bench.bytes = N as u64 * 4;
-}
-
-fn std_dedup_no_unique(bench: &mut Bencher) {
-    let mut data = unique_data();
-    add_duplicates(&mut data, 0.0..1.0);
-    bench.iter(|| {
-        let mut case = data.clone();
-        case.dedup();
-    });
-    bench.bytes = N as u64 * 4;
-}
-
-benchmark_group!(
-    benches,
-    deduplicate_all_unique,
-    deduplicate_some_unique,
-    deduplicate_no_unique,
-    naive_deduplicate_all_unique,
-    naive_deduplicate_some_unique,
-    naive_deduplicate_no_unique,
-    std_dedup_all_unique,
-    std_dedup_some_unique,
-    std_dedup_no_unique
-);
-benchmark_main!(benches);
+criterion_group!(benches, bench_deduplicate, bench_deduplicate_scaling);
+criterion_main!(benches);
