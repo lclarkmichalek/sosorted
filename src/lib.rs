@@ -12,6 +12,9 @@ pub use find_first_duplicate::find_first_duplicate;
 mod intersect;
 pub use intersect::intersect;
 
+mod intersect_lemire;
+pub use intersect_lemire::{intersect_adaptive, intersect_simd_galloping, intersect_v1, intersect_v3};
+
 mod union;
 pub use union::{union, union_size};
 
