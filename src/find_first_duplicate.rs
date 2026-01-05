@@ -2,16 +2,8 @@ use std::simd::{cmp::SimdPartialEq, simd_swizzle, Simd};
 
 use crate::simd_element::{SimdMask, SortedSimdElement, SIMD_LANES};
 
-/// Returns the index of the first duplicate entry. If there are no duplicates, the length of ther
+/// Returns the index of the first duplicate entry. If there are no duplicates, the length of the
 /// slice is returned.
-///
-/// OK, so is it possible to do a fast deduplication? Well, fundementally, we have to move a
-/// lot of data - if the first element is duplicated, we're going to have to shift every other
-/// element over.
-///
-/// The one obvious thing I can see is identifying the initial sorted, deduplicated run. The
-/// longer that run, the better. And in the happy path where we have no duplicates, the
-/// performance of that run is the performance of the overall function call.
 ///
 /// # Examples
 ///
