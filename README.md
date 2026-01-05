@@ -6,6 +6,8 @@ This crate provides various methods for efficiently manipulating arrays of sorte
 
 ### Set Operations
 - **`intersect`** - Computes the intersection of two sorted arrays. Modifies the first array in-place to contain only elements present in both arrays.
+- **`union`** - Merges two sorted arrays and removes duplicates. Writes the result to a destination buffer, leveraging SIMD for performance.
+- **`union_size`** - Calculates the size of the union without allocating or modifying arrays.
 
 ### Deduplication
 - **`deduplicate`** - Removes repeated elements from a sorted slice. Returns the length of the deduplicated prefix.
@@ -14,7 +16,6 @@ This crate provides various methods for efficiently manipulating arrays of sorte
 ## Planned Future Operations
 
 ### Set Operations
-- **`union`** - Merge two sorted arrays and remove duplicates
 - **`difference`** - Elements in the first array but not in the second
 - **`symmetric_difference`** - Elements in either array but not in both
 - **`is_subset`** - Check if the first array is a subset of the second
