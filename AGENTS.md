@@ -8,11 +8,13 @@ This document provides guidance for AI agents working with the `sosorted` codeba
 
 ## Key Operations
 
-The library provides three main public APIs (all in `src/lib.rs`):
+The library provides five main public APIs (all in `src/lib.rs`):
 
 1. **`find_first_duplicate`** (`src/find_first_duplicate.rs:23`) - Locates the index of the first duplicate element in a sorted slice
 2. **`deduplicate`** (`src/deduplicate.rs:19`) - Removes consecutive duplicate elements in-place
 3. **`intersect`** (`src/intersect.rs:6`) - Computes the intersection of two sorted slices
+4. **`union`** (`src/union.rs:92`) - Merges two sorted arrays into a destination buffer with deduplication
+5. **`union_size`** (`src/union.rs:17`) - Calculates the size of the union without allocation
 
 ## Architecture
 
@@ -23,11 +25,13 @@ src/
 ├── lib.rs                      # Public API exports
 ├── find_first_duplicate.rs     # First duplicate detection
 ├── deduplicate.rs              # Deduplication using SIMD
-└── intersect.rs                # Set intersection
+├── intersect.rs                # Set intersection
+└── union.rs                    # Set union with SIMD
 benches/
 ├── find_first_duplicate.rs     # Benchmarks for duplicate finding
 ├── deduplicate.rs              # Benchmarks for deduplication
-└── intersect.rs                # Benchmarks for intersection
+├── intersect.rs                # Benchmarks for intersection
+└── union.rs                    # Benchmarks for union
 ```
 
 ### Implementation Strategy
@@ -104,8 +108,9 @@ When adding new sorted array operations:
 2. Export the public function in `src/lib.rs`
 3. Implement both SIMD and scalar versions
 4. Add comprehensive tests including fuzz tests
-5. Create a benchmark in `benches/`
-6. Update README.md with the new operation
+5. Create a benchmark in `benches/<operation>.rs`
+6. **Register the benchmark in `Cargo.toml`** (see Benchmarking section below)
+7. Update README.md with the new operation
 
 ### Modifying SIMD Code
 
@@ -188,12 +193,18 @@ criterion_main!(benches);
 
 When adding a new operation:
 
-1. Create `benches/<operation_name>.rs`
-2. Add `[[bench]]` entry to `Cargo.toml` with `harness = false`
+1. Create `benches/<operation_name>.rs` with Criterion benchmark functions
+2. **CRITICAL: Register benchmark in `Cargo.toml`**
+   ```toml
+   [[bench]]
+   name = "operation_name"
+   harness = false
+   ```
+   Without this, benchmarks will run as regular tests (showing "0 tests") instead of executing as Criterion benchmarks, and **won't appear in CI benchmark results**.
 3. Implement comparison functions (naive, stdlib, HashSet where applicable)
 4. Create multiple test scenarios (best/worst/average cases)
 5. Add scaling benchmarks across different sizes
-6. Run `cargo bench` to verify benchmarks compile and execute
+6. Run `cargo bench --bench operation_name` to verify benchmarks execute correctly
 7. Review HTML reports to ensure meaningful comparisons
 
 ### Current Benchmarks
@@ -201,6 +212,7 @@ When adding a new operation:
 - **`intersect`** - Compares against naive merge and `HashSet::intersection()`
 - **`deduplicate`** - Compares against naive loop, `Vec::dedup()`, and `HashSet`
 - **`find_first_duplicate`** - Compares against naive loop and `.windows(2)` iterator
+- **`union`** - Compares against naive merge and `HashSet::union()` with sort
 
 ### Benchmark Data Generation
 
