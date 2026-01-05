@@ -1,0 +1,829 @@
+use std::{
+    cmp::Ordering,
+    simd::{cmp::SimdPartialOrd, Simd},
+};
+
+use crate::simd_element::{SimdMask, SortedSimdElement, SIMD_LANES};
+
+/// Calculates the size of the set difference (a \ b) without modifying the input.
+///
+/// Returns the count of elements in `a` that are NOT in `b`.
+/// Duplicates in `a` are preserved in the count (each duplicate is checked independently).
+///
+/// Uses SIMD acceleration to quickly skip over non-overlapping regions.
+///
+/// # Examples
+///
+/// ```
+/// use sosorted::difference_size;
+///
+/// let a = [1u64, 2, 3, 4, 5];
+/// let b = [2, 4];
+/// assert_eq!(difference_size(&a, &b), 3); // [1, 3, 5]
+/// ```
+pub fn difference_size<T>(a: &[T], b: &[T]) -> usize
+where
+    T: SortedSimdElement + Ord,
+    Simd<T, SIMD_LANES>: SimdPartialOrd<Mask = SimdMask<T>>,
+{
+    // Handle edge cases
+    if a.is_empty() {
+        return 0;
+    }
+    if b.is_empty() {
+        return a.len();
+    }
+
+    // Fast path: disjoint ranges
+    // If max(a) < min(b), no elements of a can be in b
+    if a[a.len() - 1] < b[0] {
+        return a.len();
+    }
+    // If max(b) < min(a), no elements of a can be in b
+    if b[b.len() - 1] < a[0] {
+        return a.len();
+    }
+
+    let mut i = 0;
+    let mut j = 0;
+    let mut count = 0;
+
+    // SIMD-accelerated loop
+    while i < a.len() && j + SIMD_LANES <= b.len() {
+        let b_chunk: Simd<T, SIMD_LANES> = Simd::from_slice(&b[j..j + SIMD_LANES]);
+        let a_splat = Simd::<T, SIMD_LANES>::splat(a[i]);
+
+        // Fast path: all elements in b_chunk are less than a[i]
+        // We can skip this entire chunk of b
+        if b_chunk.simd_lt(a_splat).all() {
+            j += SIMD_LANES;
+            continue;
+        }
+
+        // Fast path: all elements in b_chunk are greater than a[i]
+        // a[i] is definitely not in b, count it
+        if b_chunk.simd_gt(a_splat).all() {
+            count += 1;
+            i += 1;
+            continue;
+        }
+
+        // Slow path: mixed comparison, process element by element
+        for _ in 0..SIMD_LANES {
+            if i >= a.len() || j >= b.len() {
+                break;
+            }
+
+            match a[i].cmp(&b[j]) {
+                Ordering::Less => {
+                    // a[i] is not in b (at least not at current position)
+                    count += 1;
+                    i += 1;
+                }
+                Ordering::Greater => {
+                    // Haven't reached a[i] in b yet
+                    j += 1;
+                }
+                Ordering::Equal => {
+                    // a[i] is in b, skip ALL duplicates of this value in both arrays
+                    let matched_val = a[i];
+                    while i < a.len() && a[i] == matched_val {
+                        i += 1;
+                    }
+                    while j < b.len() && b[j] == matched_val {
+                        j += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    // Scalar loop for remaining elements
+    while i < a.len() && j < b.len() {
+        match a[i].cmp(&b[j]) {
+            Ordering::Less => {
+                count += 1;
+                i += 1;
+            }
+            Ordering::Greater => {
+                j += 1;
+            }
+            Ordering::Equal => {
+                // Skip ALL duplicates of this value in both arrays
+                let matched_val = a[i];
+                while i < a.len() && a[i] == matched_val {
+                    i += 1;
+                }
+                while j < b.len() && b[j] == matched_val {
+                    j += 1;
+                }
+            }
+        }
+    }
+
+    // All remaining elements in a are not in b
+    count += a.len() - i;
+
+    count
+}
+
+/// Computes the set difference (a \ b) in-place.
+///
+/// Returns elements in `a` that are NOT in `b`. The result is written to the
+/// beginning of `a`, and the function returns the count of elements in the result.
+///
+/// Duplicates in `a` are preserved (each duplicate is checked independently against `b`).
+///
+/// Uses SIMD acceleration to quickly skip over non-overlapping regions.
+///
+/// # Examples
+///
+/// ```
+/// use sosorted::difference;
+///
+/// let mut a = [1u64, 2, 3, 4, 5];
+/// let b = [2, 4];
+/// let len = difference(&mut a, &b);
+/// assert_eq!(&a[..len], &[1, 3, 5]);
+/// ```
+///
+/// # Example with duplicates
+///
+/// ```
+/// use sosorted::difference;
+///
+/// let mut a = [1u64, 2, 2, 3, 4, 5];
+/// let b = [2, 4];
+/// let len = difference(&mut a, &b);
+/// assert_eq!(&a[..len], &[1, 3, 5]); // Both 2s were in b, so both removed
+/// ```
+pub fn difference<T>(a: &mut [T], b: &[T]) -> usize
+where
+    T: SortedSimdElement + Ord,
+    Simd<T, SIMD_LANES>: SimdPartialOrd<Mask = SimdMask<T>>,
+{
+    // Handle edge cases
+    if a.is_empty() {
+        return 0;
+    }
+    if b.is_empty() {
+        // All of a is the result, already in place
+        return a.len();
+    }
+
+    // Fast path: disjoint ranges
+    // If max(a) < min(b), no elements of a can be in b
+    if a[a.len() - 1] < b[0] {
+        return a.len();
+    }
+    // If max(b) < min(a), no elements of a can be in b
+    if b[b.len() - 1] < a[0] {
+        return a.len();
+    }
+
+    let mut i = 0; // Read position in a
+    let mut j = 0; // Position in b
+    let mut write = 0; // Write position in a
+
+    // SIMD-accelerated loop
+    while i < a.len() && j + SIMD_LANES <= b.len() {
+        let b_chunk: Simd<T, SIMD_LANES> = Simd::from_slice(&b[j..j + SIMD_LANES]);
+        let a_splat = Simd::<T, SIMD_LANES>::splat(a[i]);
+
+        // Fast path: all elements in b_chunk are less than a[i]
+        // We can skip this entire chunk of b
+        if b_chunk.simd_lt(a_splat).all() {
+            j += SIMD_LANES;
+            continue;
+        }
+
+        // Fast path: all elements in b_chunk are greater than a[i]
+        // a[i] is definitely not in b, include it
+        if b_chunk.simd_gt(a_splat).all() {
+            a[write] = a[i];
+            write += 1;
+            i += 1;
+            continue;
+        }
+
+        // Slow path: mixed comparison, process element by element
+        for _ in 0..SIMD_LANES {
+            if i >= a.len() || j >= b.len() {
+                break;
+            }
+
+            match a[i].cmp(&b[j]) {
+                Ordering::Less => {
+                    // a[i] is not in b, include it
+                    a[write] = a[i];
+                    write += 1;
+                    i += 1;
+                }
+                Ordering::Greater => {
+                    // Haven't reached a[i] in b yet
+                    j += 1;
+                }
+                Ordering::Equal => {
+                    // a[i] is in b, skip ALL duplicates of this value in both arrays
+                    let matched_val = a[i];
+                    while i < a.len() && a[i] == matched_val {
+                        i += 1;
+                    }
+                    while j < b.len() && b[j] == matched_val {
+                        j += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    // Scalar loop for remaining elements
+    while i < a.len() && j < b.len() {
+        match a[i].cmp(&b[j]) {
+            Ordering::Less => {
+                a[write] = a[i];
+                write += 1;
+                i += 1;
+            }
+            Ordering::Greater => {
+                j += 1;
+            }
+            Ordering::Equal => {
+                // Skip ALL duplicates of this value in both arrays
+                let matched_val = a[i];
+                while i < a.len() && a[i] == matched_val {
+                    i += 1;
+                }
+                while j < b.len() && b[j] == matched_val {
+                    j += 1;
+                }
+            }
+        }
+    }
+
+    // Copy remaining elements from a (they're all not in b since b is exhausted)
+    while i < a.len() {
+        a[write] = a[i];
+        write += 1;
+        i += 1;
+    }
+
+    write
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::{rngs::SmallRng, RngCore, SeedableRng};
+
+    // ==================== difference_size tests ====================
+
+    #[test]
+    fn test_difference_size_basic() {
+        let a = [1u64, 2, 3, 4, 5];
+        let b = [2u64, 4];
+        assert_eq!(difference_size(&a, &b), 3);
+    }
+
+    #[test]
+    fn test_difference_size_no_overlap() {
+        let a = [1u64, 3, 5];
+        let b = [2u64, 4, 6];
+        assert_eq!(difference_size(&a, &b), 3);
+    }
+
+    #[test]
+    fn test_difference_size_complete_overlap() {
+        let a = [1u64, 2, 3];
+        let b = [1u64, 2, 3];
+        assert_eq!(difference_size(&a, &b), 0);
+    }
+
+    #[test]
+    fn test_difference_size_empty_a() {
+        let a: [u64; 0] = [];
+        let b = [1u64, 2, 3];
+        assert_eq!(difference_size(&a, &b), 0);
+    }
+
+    #[test]
+    fn test_difference_size_empty_b() {
+        let a = [1u64, 2, 3];
+        let b: [u64; 0] = [];
+        assert_eq!(difference_size(&a, &b), 3);
+    }
+
+    #[test]
+    fn test_difference_size_both_empty() {
+        let a: [u64; 0] = [];
+        let b: [u64; 0] = [];
+        assert_eq!(difference_size(&a, &b), 0);
+    }
+
+    #[test]
+    fn test_difference_size_a_subset_of_b() {
+        let a = [2u64, 4];
+        let b = [1u64, 2, 3, 4, 5];
+        assert_eq!(difference_size(&a, &b), 0);
+    }
+
+    #[test]
+    fn test_difference_size_b_subset_of_a() {
+        let a = [1u64, 2, 3, 4, 5];
+        let b = [2u64, 4];
+        assert_eq!(difference_size(&a, &b), 3);
+    }
+
+    #[test]
+    fn test_difference_size_disjoint_a_lower() {
+        let a = [1u64, 2, 3];
+        let b = [10u64, 20, 30];
+        assert_eq!(difference_size(&a, &b), 3);
+    }
+
+    #[test]
+    fn test_difference_size_disjoint_a_higher() {
+        let a = [10u64, 20, 30];
+        let b = [1u64, 2, 3];
+        assert_eq!(difference_size(&a, &b), 3);
+    }
+
+    #[test]
+    fn test_difference_size_with_duplicates_in_a() {
+        let a = [1u64, 2, 2, 3, 4, 4, 5];
+        let b = [2u64, 4];
+        // Both 2s and both 4s are removed
+        assert_eq!(difference_size(&a, &b), 3);
+    }
+
+    #[test]
+    fn test_difference_size_with_duplicates_in_b() {
+        let a = [1u64, 2, 3, 4, 5];
+        let b = [2u64, 2, 4, 4];
+        assert_eq!(difference_size(&a, &b), 3);
+    }
+
+    #[test]
+    fn test_difference_size_single_elements() {
+        let a = [5u64];
+        let b = [3u64];
+        assert_eq!(difference_size(&a, &b), 1);
+
+        let a = [5u64];
+        let b = [5u64];
+        assert_eq!(difference_size(&a, &b), 0);
+    }
+
+    // ==================== difference tests ====================
+
+    #[test]
+    fn test_difference_basic() {
+        let mut a = [1u64, 2, 3, 4, 5];
+        let b = [2u64, 4];
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 3);
+        assert_eq!(&a[..len], &[1, 3, 5]);
+    }
+
+    #[test]
+    fn test_difference_no_overlap() {
+        let mut a = [1u64, 3, 5];
+        let b = [2u64, 4, 6];
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 3);
+        assert_eq!(&a[..len], &[1, 3, 5]);
+    }
+
+    #[test]
+    fn test_difference_complete_overlap() {
+        let mut a = [1u64, 2, 3];
+        let b = [1u64, 2, 3];
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 0);
+    }
+
+    #[test]
+    fn test_difference_empty_a() {
+        let mut a: [u64; 0] = [];
+        let b = [1u64, 2, 3];
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 0);
+    }
+
+    #[test]
+    fn test_difference_empty_b() {
+        let mut a = [1u64, 2, 3];
+        let b: [u64; 0] = [];
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 3);
+        assert_eq!(&a[..len], &[1, 2, 3]);
+    }
+
+    #[test]
+    fn test_difference_both_empty() {
+        let mut a: [u64; 0] = [];
+        let b: [u64; 0] = [];
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 0);
+    }
+
+    #[test]
+    fn test_difference_a_subset_of_b() {
+        let mut a = [2u64, 4];
+        let b = [1u64, 2, 3, 4, 5];
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 0);
+    }
+
+    #[test]
+    fn test_difference_b_subset_of_a() {
+        let mut a = [1u64, 2, 3, 4, 5];
+        let b = [2u64, 4];
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 3);
+        assert_eq!(&a[..len], &[1, 3, 5]);
+    }
+
+    #[test]
+    fn test_difference_disjoint_a_lower() {
+        let mut a = [1u64, 2, 3];
+        let b = [10u64, 20, 30];
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 3);
+        assert_eq!(&a[..len], &[1, 2, 3]);
+    }
+
+    #[test]
+    fn test_difference_disjoint_a_higher() {
+        let mut a = [10u64, 20, 30];
+        let b = [1u64, 2, 3];
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 3);
+        assert_eq!(&a[..len], &[10, 20, 30]);
+    }
+
+    #[test]
+    fn test_difference_with_duplicates_in_a() {
+        let mut a = [1u64, 2, 2, 3, 4, 4, 5];
+        let b = [2u64, 4];
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 3);
+        assert_eq!(&a[..len], &[1, 3, 5]);
+    }
+
+    #[test]
+    fn test_difference_with_duplicates_in_b() {
+        let mut a = [1u64, 2, 3, 4, 5];
+        let b = [2u64, 2, 4, 4];
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 3);
+        assert_eq!(&a[..len], &[1, 3, 5]);
+    }
+
+    #[test]
+    fn test_difference_preserves_duplicates_not_in_b() {
+        let mut a = [1u64, 1, 2, 3, 3, 3, 4, 5, 5];
+        let b = [2u64, 4];
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 7);
+        assert_eq!(&a[..len], &[1, 1, 3, 3, 3, 5, 5]);
+    }
+
+    #[test]
+    fn test_difference_single_elements() {
+        let mut a = [5u64];
+        let b = [3u64];
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 1);
+        assert_eq!(&a[..len], &[5]);
+
+        let mut a = [5u64];
+        let b = [5u64];
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 0);
+    }
+
+    // ==================== SIMD-specific tests ====================
+
+    #[test]
+    fn test_difference_simd_aligned() {
+        // Test with exactly 4 elements (one SIMD chunk) in b
+        let mut a = [1u64, 2, 3, 4, 5, 6, 7, 8];
+        let b = [2u64, 4, 6, 8];
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 4);
+        assert_eq!(&a[..len], &[1, 3, 5, 7]);
+    }
+
+    #[test]
+    fn test_difference_simd_all_b_less_than_a() {
+        // Fast path: all b elements less than current a element
+        let mut a = [100u64, 101, 102, 103, 104, 105, 106, 107];
+        let b = [1u64, 2, 3, 4, 5, 6, 7, 8];
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 8);
+        assert_eq!(&a[..len], &[100, 101, 102, 103, 104, 105, 106, 107]);
+    }
+
+    #[test]
+    fn test_difference_simd_all_b_greater_than_a() {
+        // Fast path: all b elements greater than current a element
+        let mut a = [1u64, 2, 3, 4, 5, 6, 7, 8];
+        let b = [100u64, 101, 102, 103, 104, 105, 106, 107];
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 8);
+        assert_eq!(&a[..len], &[1, 2, 3, 4, 5, 6, 7, 8]);
+    }
+
+    #[test]
+    fn test_difference_simd_long_run_from_a() {
+        // Long run where we include many elements from a
+        let mut a: Vec<u64> = (1..=20).collect();
+        let b = [100u64, 101, 102, 103]; // All greater than a
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 20);
+        assert_eq!(&a[..len], &(1..=20).collect::<Vec<_>>()[..]);
+    }
+
+    #[test]
+    fn test_difference_simd_interleaved() {
+        // Heavily interleaved data
+        let mut a: Vec<u64> = (1..=16).collect();
+        let b: Vec<u64> = (1..=16).step_by(2).collect(); // [1, 3, 5, 7, 9, 11, 13, 15]
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 8);
+        assert_eq!(&a[..len], &[2, 4, 6, 8, 10, 12, 14, 16]);
+    }
+
+    #[test]
+    fn test_difference_simd_boundary() {
+        // Test at SIMD chunk boundaries
+        let mut a = [1u64, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        let b = [4u64, 5, 6, 7, 8, 9, 10, 11]; // Overlaps middle
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 4);
+        assert_eq!(&a[..len], &[1, 2, 3, 12]);
+    }
+
+    #[test]
+    fn test_difference_simd_unaligned_sizes() {
+        // Sizes that don't align with SIMD width
+        let mut a = [1u64, 2, 3, 4, 5];
+        let b = [2u64, 4, 6];
+        let len = difference(&mut a, &b);
+        assert_eq!(len, 3);
+        assert_eq!(&a[..len], &[1, 3, 5]);
+    }
+
+    #[test]
+    fn test_difference_simd_large_arrays() {
+        // Large arrays to test SIMD performance
+        let mut a_data: Vec<u64> = (0..1000).collect();
+        let b_data: Vec<u64> = (0..1000).step_by(2).collect(); // Even numbers
+
+        let expected_size = difference_size(&a_data, &b_data);
+        let len = difference(&mut a_data, &b_data);
+
+        assert_eq!(len, expected_size);
+        assert_eq!(len, 500); // Odd numbers 1, 3, 5, ..., 999
+
+        // Verify result is correct
+        for i in 0..len {
+            assert_eq!(a_data[i], (i * 2 + 1) as u64);
+        }
+    }
+
+    // ==================== Fuzz tests ====================
+
+    #[test]
+    fn test_difference_fuzz() {
+        let mut seed: [u8; 32] = [0; 32];
+        rand::rng().fill_bytes(&mut seed[..]);
+        println!("seed: {:?}", seed);
+
+        let mut rng = SmallRng::from_seed(seed);
+
+        const TEST_DATA_SIZE: usize = 256;
+        const TEST_ITERATION_COUNT: usize = 1000;
+
+        for _ in 0..TEST_ITERATION_COUNT {
+            // Generate two random sorted arrays
+            let a_size = (rng.next_u64() % TEST_DATA_SIZE as u64) as usize;
+            let b_size = (rng.next_u64() % TEST_DATA_SIZE as u64) as usize;
+
+            let mut a_data = Vec::with_capacity(a_size);
+            for _ in 0..a_size {
+                a_data.push(rng.next_u64() % (TEST_DATA_SIZE as u64 * 2));
+            }
+            a_data.sort();
+
+            let mut b_data = Vec::with_capacity(b_size);
+            for _ in 0..b_size {
+                b_data.push(rng.next_u64() % (TEST_DATA_SIZE as u64 * 2));
+            }
+            b_data.sort();
+
+            // Calculate expected size
+            let expected_size = difference_size(&a_data, &b_data);
+
+            // Keep a copy of original a for verification
+            let a_original = a_data.clone();
+
+            // Perform difference
+            let actual_size = difference(&mut a_data, &b_data);
+
+            // Verify size matches
+            assert_eq!(
+                actual_size, expected_size,
+                "Size mismatch: expected {}, got {}",
+                expected_size, actual_size
+            );
+
+            // Verify result is sorted
+            for i in 1..actual_size {
+                assert!(
+                    a_data[i - 1] <= a_data[i],
+                    "Result not sorted at index {}: {} > {}",
+                    i,
+                    a_data[i - 1],
+                    a_data[i]
+                );
+            }
+
+            // Verify all elements in result were in original a
+            let result = &a_data[..actual_size];
+            for &elem in result {
+                assert!(
+                    a_original.binary_search(&elem).is_ok(),
+                    "Element {} in result was not in original a",
+                    elem
+                );
+            }
+
+            // Verify no elements in result are in b
+            for &elem in result {
+                assert!(
+                    b_data.binary_search(&elem).is_err(),
+                    "Element {} in result should not be in b",
+                    elem
+                );
+            }
+
+            // Verify all elements from a that are not in b are in result
+            for &elem in &a_original {
+                if b_data.binary_search(&elem).is_err() {
+                    assert!(
+                        result.binary_search(&elem).is_ok(),
+                        "Element {} from a (not in b) should be in result",
+                        elem
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_difference_size_fuzz() {
+        let mut seed: [u8; 32] = [0; 32];
+        rand::rng().fill_bytes(&mut seed[..]);
+        println!("seed: {:?}", seed);
+
+        let mut rng = SmallRng::from_seed(seed);
+
+        const TEST_DATA_SIZE: usize = 256;
+        const TEST_ITERATION_COUNT: usize = 1000;
+
+        for _ in 0..TEST_ITERATION_COUNT {
+            let a_size = (rng.next_u64() % TEST_DATA_SIZE as u64) as usize;
+            let b_size = (rng.next_u64() % TEST_DATA_SIZE as u64) as usize;
+
+            let mut a_data = Vec::with_capacity(a_size);
+            for _ in 0..a_size {
+                a_data.push(rng.next_u64() % (TEST_DATA_SIZE as u64 * 2));
+            }
+            a_data.sort();
+
+            let mut b_data = Vec::with_capacity(b_size);
+            for _ in 0..b_size {
+                b_data.push(rng.next_u64() % (TEST_DATA_SIZE as u64 * 2));
+            }
+            b_data.sort();
+
+            // Calculate expected size using naive method
+            let mut expected = 0;
+            let mut i = 0;
+            let mut j = 0;
+            while i < a_data.len() {
+                if j >= b_data.len() {
+                    expected += a_data.len() - i;
+                    break;
+                }
+                match a_data[i].cmp(&b_data[j]) {
+                    Ordering::Less => {
+                        expected += 1;
+                        i += 1;
+                    }
+                    Ordering::Greater => {
+                        j += 1;
+                    }
+                    Ordering::Equal => {
+                        // Skip ALL duplicates of matched value in both arrays
+                        let matched_val = a_data[i];
+                        while i < a_data.len() && a_data[i] == matched_val {
+                            i += 1;
+                        }
+                        while j < b_data.len() && b_data[j] == matched_val {
+                            j += 1;
+                        }
+                    }
+                }
+            }
+
+            let actual = difference_size(&a_data, &b_data);
+            assert_eq!(
+                actual, expected,
+                "Size mismatch: expected {}, got {}",
+                expected, actual
+            );
+        }
+    }
+
+    #[test]
+    fn test_difference_specific_seed() {
+        // Placeholder for debugging specific failing seeds
+        let seed: [u8; 32] = [0; 32];
+        let mut rng = SmallRng::from_seed(seed);
+
+        const TEST_DATA_SIZE: usize = 256;
+        let a_size = (rng.next_u64() % TEST_DATA_SIZE as u64) as usize;
+        let b_size = (rng.next_u64() % TEST_DATA_SIZE as u64) as usize;
+
+        let mut a_data = Vec::with_capacity(a_size);
+        for _ in 0..a_size {
+            a_data.push(rng.next_u64() % (TEST_DATA_SIZE as u64 * 2));
+        }
+        a_data.sort();
+
+        let mut b_data = Vec::with_capacity(b_size);
+        for _ in 0..b_size {
+            b_data.push(rng.next_u64() % (TEST_DATA_SIZE as u64 * 2));
+        }
+        b_data.sort();
+
+        let expected_size = difference_size(&a_data, &b_data);
+        let actual_size = difference(&mut a_data, &b_data);
+
+        assert_eq!(actual_size, expected_size);
+    }
+
+    // ==================== Tests for different numeric types ====================
+
+    macro_rules! test_difference_type {
+        ($name:ident, $t:ty) => {
+            #[test]
+            fn $name() {
+                // Basic difference
+                let mut a: Vec<$t> = vec![1, 2, 3, 4, 5];
+                let b: Vec<$t> = vec![2, 4];
+                let len = difference(&mut a, &b);
+                assert_eq!(len, 3);
+                assert_eq!(&a[..len], &[1, 3, 5]);
+
+                // No overlap
+                let mut a: Vec<$t> = vec![1, 2, 3];
+                let b: Vec<$t> = vec![4, 5, 6];
+                let len = difference(&mut a, &b);
+                assert_eq!(len, 3);
+                assert_eq!(&a[..len], &[1, 2, 3]);
+
+                // Complete overlap
+                let mut a: Vec<$t> = vec![1, 2, 3];
+                let b: Vec<$t> = vec![1, 2, 3];
+                let len = difference(&mut a, &b);
+                assert_eq!(len, 0);
+
+                // difference_size test
+                let a: Vec<$t> = vec![1, 3, 5, 7];
+                let b: Vec<$t> = vec![2, 3, 6, 7];
+                assert_eq!(difference_size(&a, &b), 2);
+
+                // Large arrays to test SIMD path
+                let mut a: Vec<$t> = (0..50).map(|x| x as $t).collect();
+                let b: Vec<$t> = (25..75).map(|x| x as $t).collect();
+                let len = difference(&mut a, &b);
+                assert_eq!(len, 25);
+                for i in 0..25 {
+                    assert_eq!(a[i], i as $t);
+                }
+            }
+        };
+    }
+
+    test_difference_type!(test_difference_u8, u8);
+    test_difference_type!(test_difference_u16, u16);
+    test_difference_type!(test_difference_u32, u32);
+    test_difference_type!(test_difference_i8, i8);
+    test_difference_type!(test_difference_i16, i16);
+    test_difference_type!(test_difference_i32, i32);
+    test_difference_type!(test_difference_i64, i64);
+}
