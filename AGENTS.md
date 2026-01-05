@@ -8,13 +8,15 @@ This document provides guidance for AI agents working with the `sosorted` codeba
 
 ## Key Operations
 
-The library provides five main public APIs (all in `src/lib.rs`):
+The library provides seven main public APIs (all in `src/lib.rs`):
 
 1. **`find_first_duplicate`** (`src/find_first_duplicate.rs:23`) - Locates the index of the first duplicate element in a sorted slice
 2. **`deduplicate`** (`src/deduplicate.rs:19`) - Removes consecutive duplicate elements in-place
 3. **`intersect`** (`src/intersect.rs:6`) - Computes the intersection of two sorted slices
 4. **`union`** (`src/union.rs:92`) - Merges two sorted arrays into a destination buffer with deduplication
 5. **`union_size`** (`src/union.rs:17`) - Calculates the size of the union without allocation
+6. **`difference`** (`src/difference.rs:142`) - Computes the set difference (a \ b) in-place
+7. **`difference_size`** (`src/difference.rs:20`) - Calculates the size of the set difference without allocation
 
 ## Architecture
 
@@ -26,7 +28,8 @@ src/
 ├── find_first_duplicate.rs     # First duplicate detection
 ├── deduplicate.rs              # Deduplication using SIMD
 ├── intersect.rs                # Set intersection
-└── union.rs                    # Set union with SIMD
+├── union.rs                    # Set union with SIMD
+└── difference.rs               # Set difference with SIMD
 benches/
 ├── find_first_duplicate.rs     # Benchmarks for duplicate finding
 ├── deduplicate.rs              # Benchmarks for deduplication
