@@ -38,7 +38,21 @@ This crate provides various methods for efficiently manipulating arrays of sorte
 
 ## Types
 
-All operations are currently defined against `&[u64]`. Support for all primitive scalar types is planned for future releases.
+All operations are generic over integer types via the `SortedSimdElement` trait. This trait is implemented for all primitive integer types: `u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, and `i64`.
+
+```rust
+use sosorted::intersect;
+
+// Works with u64
+let mut a = [1u64, 2, 3, 4, 5];
+let b = [2, 4];
+assert_eq!(intersect(&mut a, &b), 2);
+
+// Works with i32
+let mut c = [1i32, 3, 5, 7];
+let d = [1, 5, 9];
+assert_eq!(intersect(&mut c, &d), 2);
+```
 
 ## References
 
