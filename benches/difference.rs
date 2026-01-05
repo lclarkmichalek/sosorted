@@ -1,13 +1,13 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
-use sosorted::{union, union_size};
+use sosorted::{difference, difference_size};
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
 static N: usize = 1024 * 1024;
 
-fn naive_union(a: &[u64], b: &[u64]) -> Vec<u64> {
-    let mut result = Vec::with_capacity(a.len() + b.len());
+fn naive_difference(a: &[u64], b: &[u64]) -> Vec<u64> {
+    let mut result = Vec::with_capacity(a.len());
     let mut i = 0;
     let mut j = 0;
 
@@ -18,11 +18,9 @@ fn naive_union(a: &[u64], b: &[u64]) -> Vec<u64> {
                 i += 1;
             }
             Ordering::Greater => {
-                result.push(b[j]);
                 j += 1;
             }
             Ordering::Equal => {
-                result.push(a[i]);
                 i += 1;
                 j += 1;
             }
@@ -30,12 +28,11 @@ fn naive_union(a: &[u64], b: &[u64]) -> Vec<u64> {
     }
 
     result.extend_from_slice(&a[i..]);
-    result.extend_from_slice(&b[j..]);
     result
 }
 
-fn hashset_union(set_a: &HashSet<u64>, set_b: &HashSet<u64>) -> Vec<u64> {
-    let mut result: Vec<_> = set_a.union(set_b).copied().collect();
+fn hashset_difference(a: &[u64], set_b: &HashSet<u64>) -> Vec<u64> {
+    let mut result: Vec<_> = a.iter().copied().filter(|x| !set_b.contains(x)).collect();
     result.sort_unstable();
     result
 }
@@ -89,84 +86,86 @@ fn disjoint_higher_lower(data: &[u64], pivot_prop: f32) -> Vec<u64> {
     disjoint
 }
 
-fn bench_union(c: &mut Criterion) {
-    let mut group = c.benchmark_group("union");
+fn bench_difference(c: &mut Criterion) {
+    let mut group = c.benchmark_group("difference");
     group.throughput(Throughput::Bytes((N * 8) as u64));
 
-    // No overlap (completely disjoint sets)
+    // No overlap (completely disjoint sets) - best case: all of a returned
     let a = unique_data();
     let b = disjoint_higher_lower(&a, 0.5);
-    let set_a: HashSet<_> = a.iter().copied().collect();
     let set_b: HashSet<_> = b.iter().copied().collect();
 
     group.bench_function("sosorted/no_overlap", |bencher| {
-        bencher.iter(|| {
-            let mut dest = vec![0u64; a.len() + b.len()];
-            black_box(union(&mut dest, black_box(&a), black_box(&b)));
-        });
+        bencher.iter_batched(
+            || a.clone(),
+            |mut a_clone| {
+                black_box(difference(&mut a_clone, black_box(&b)));
+            },
+            criterion::BatchSize::LargeInput,
+        );
     });
 
     group.bench_function("naive/no_overlap", |bencher| {
         bencher.iter(|| {
-            black_box(naive_union(black_box(&a), black_box(&b)));
+            black_box(naive_difference(black_box(&a), black_box(&b)));
         });
     });
 
     group.bench_function("hashset/no_overlap", |bencher| {
         bencher.iter(|| {
-            black_box(hashset_union(black_box(&set_a), black_box(&set_b)));
+            black_box(hashset_difference(black_box(&a), black_box(&set_b)));
         });
     });
 
-    // Sparse overlap (some common elements)
+    // Sparse overlap (some common elements removed)
     let a_sparse = unique_data();
     let mut b_sparse = disjoint_higher_lower(&a_sparse, 0.5);
     add_intersections(&mut b_sparse, &a_sparse, a_sparse.len() / 64);
-    let set_a_sparse: HashSet<_> = a_sparse.iter().copied().collect();
     let set_b_sparse: HashSet<_> = b_sparse.iter().copied().collect();
 
     group.bench_function("sosorted/sparse_overlap", |bencher| {
-        bencher.iter(|| {
-            let mut dest = vec![0u64; a_sparse.len() + b_sparse.len()];
-            black_box(union(&mut dest, black_box(&a_sparse), black_box(&b_sparse)));
-        });
+        bencher.iter_batched(
+            || a_sparse.clone(),
+            |mut a_clone| {
+                black_box(difference(&mut a_clone, black_box(&b_sparse)));
+            },
+            criterion::BatchSize::LargeInput,
+        );
     });
 
     group.bench_function("naive/sparse_overlap", |bencher| {
         bencher.iter(|| {
-            black_box(naive_union(black_box(&a_sparse), black_box(&b_sparse)));
+            black_box(naive_difference(black_box(&a_sparse), black_box(&b_sparse)));
         });
     });
 
     group.bench_function("hashset/sparse_overlap", |bencher| {
         bencher.iter(|| {
-            black_box(hashset_union(
-                black_box(&set_a_sparse),
+            black_box(hashset_difference(
+                black_box(&a_sparse),
                 black_box(&set_b_sparse),
             ));
         });
     });
 
-    // Complete overlap (identical sets)
+    // Complete overlap (identical sets) - worst case: empty result
     let a_identical = unique_data();
     let b_identical = a_identical.clone();
-    let set_a_identical: HashSet<_> = a_identical.iter().copied().collect();
     let set_b_identical: HashSet<_> = b_identical.iter().copied().collect();
 
     group.bench_function("sosorted/complete_overlap", |bencher| {
-        bencher.iter(|| {
-            let mut dest = vec![0u64; a_identical.len() + b_identical.len()];
-            black_box(union(
-                &mut dest,
-                black_box(&a_identical),
-                black_box(&b_identical),
-            ));
-        });
+        bencher.iter_batched(
+            || a_identical.clone(),
+            |mut a_clone| {
+                black_box(difference(&mut a_clone, black_box(&b_identical)));
+            },
+            criterion::BatchSize::LargeInput,
+        );
     });
 
     group.bench_function("naive/complete_overlap", |bencher| {
         bencher.iter(|| {
-            black_box(naive_union(
+            black_box(naive_difference(
                 black_box(&a_identical),
                 black_box(&b_identical),
             ));
@@ -175,8 +174,8 @@ fn bench_union(c: &mut Criterion) {
 
     group.bench_function("hashset/complete_overlap", |bencher| {
         bencher.iter(|| {
-            black_box(hashset_union(
-                black_box(&set_a_identical),
+            black_box(hashset_difference(
+                black_box(&a_identical),
                 black_box(&set_b_identical),
             ));
         });
@@ -185,8 +184,8 @@ fn bench_union(c: &mut Criterion) {
     group.finish();
 }
 
-fn bench_union_size(c: &mut Criterion) {
-    let mut group = c.benchmark_group("union_size");
+fn bench_difference_size(c: &mut Criterion) {
+    let mut group = c.benchmark_group("difference_size");
     group.throughput(Throughput::Bytes((N * 8) as u64));
 
     let a = unique_data();
@@ -194,7 +193,7 @@ fn bench_union_size(c: &mut Criterion) {
 
     group.bench_function("sosorted/no_overlap", |bencher| {
         bencher.iter(|| {
-            black_box(union_size(black_box(&a), black_box(&b)));
+            black_box(difference_size(black_box(&a), black_box(&b)));
         });
     });
 
@@ -204,7 +203,7 @@ fn bench_union_size(c: &mut Criterion) {
 
     group.bench_function("sosorted/sparse_overlap", |bencher| {
         bencher.iter(|| {
-            black_box(union_size(black_box(&a_sparse), black_box(&b_sparse)));
+            black_box(difference_size(black_box(&a_sparse), black_box(&b_sparse)));
         });
     });
 
@@ -213,12 +212,15 @@ fn bench_union_size(c: &mut Criterion) {
 
     group.bench_function("sosorted/complete_overlap", |bencher| {
         bencher.iter(|| {
-            black_box(union_size(black_box(&a_identical), black_box(&b_identical)));
+            black_box(difference_size(
+                black_box(&a_identical),
+                black_box(&b_identical),
+            ));
         });
     });
 
     group.finish();
 }
 
-criterion_group!(benches, bench_union, bench_union_size);
+criterion_group!(benches, bench_difference, bench_difference_size);
 criterion_main!(benches);

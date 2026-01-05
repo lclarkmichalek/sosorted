@@ -14,3 +14,6 @@ pub use intersect::intersect;
 
 mod union;
 pub use union::{union, union_size};
+
+mod difference;
+pub use difference::{difference, difference_size};
