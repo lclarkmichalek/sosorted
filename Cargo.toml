@@ -25,3 +25,7 @@ harness = false
 [[bench]]
 name = "intersect"
 harness = false
+
+[[bench]]
+name = "union"
+harness = false
