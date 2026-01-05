@@ -31,8 +31,7 @@ fn naive_difference(a: &[u64], b: &[u64]) -> Vec<u64> {
     result
 }
 
-fn hashset_difference(a: &[u64], b: &[u64]) -> Vec<u64> {
-    let set_b: HashSet<_> = b.iter().copied().collect();
+fn hashset_difference(a: &[u64], set_b: &HashSet<u64>) -> Vec<u64> {
     let mut result: Vec<_> = a.iter().copied().filter(|x| !set_b.contains(x)).collect();
     result.sort_unstable();
     result
@@ -94,6 +93,7 @@ fn bench_difference(c: &mut Criterion) {
     // No overlap (completely disjoint sets) - best case: all of a returned
     let a = unique_data();
     let b = disjoint_higher_lower(&a, 0.5);
+    let set_b: HashSet<_> = b.iter().copied().collect();
 
     group.bench_function("sosorted/no_overlap", |bencher| {
         bencher.iter_batched(
@@ -113,7 +113,7 @@ fn bench_difference(c: &mut Criterion) {
 
     group.bench_function("hashset/no_overlap", |bencher| {
         bencher.iter(|| {
-            black_box(hashset_difference(black_box(&a), black_box(&b)));
+            black_box(hashset_difference(black_box(&a), black_box(&set_b)));
         });
     });
 
@@ -121,6 +121,7 @@ fn bench_difference(c: &mut Criterion) {
     let a_sparse = unique_data();
     let mut b_sparse = disjoint_higher_lower(&a_sparse, 0.5);
     add_intersections(&mut b_sparse, &a_sparse, a_sparse.len() / 64);
+    let set_b_sparse: HashSet<_> = b_sparse.iter().copied().collect();
 
     group.bench_function("sosorted/sparse_overlap", |bencher| {
         bencher.iter_batched(
@@ -140,13 +141,14 @@ fn bench_difference(c: &mut Criterion) {
 
     group.bench_function("hashset/sparse_overlap", |bencher| {
         bencher.iter(|| {
-            black_box(hashset_difference(black_box(&a_sparse), black_box(&b_sparse)));
+            black_box(hashset_difference(black_box(&a_sparse), black_box(&set_b_sparse)));
         });
     });
 
     // Complete overlap (identical sets) - worst case: empty result
     let a_identical = unique_data();
     let b_identical = a_identical.clone();
+    let set_b_identical: HashSet<_> = b_identical.iter().copied().collect();
 
     group.bench_function("sosorted/complete_overlap", |bencher| {
         bencher.iter_batched(
@@ -166,7 +168,7 @@ fn bench_difference(c: &mut Criterion) {
 
     group.bench_function("hashset/complete_overlap", |bencher| {
         bencher.iter(|| {
-            black_box(hashset_difference(black_box(&a_identical), black_box(&b_identical)));
+            black_box(hashset_difference(black_box(&a_identical), black_box(&set_b_identical)));
         });
     });
 

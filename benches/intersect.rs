@@ -26,10 +26,8 @@ fn naive_intersect(a: &mut [u64], b: &[u64]) -> usize {
     intersect_count
 }
 
-fn hashset_intersect(a: &[u64], b: &[u64]) -> Vec<u64> {
-    let set_a: HashSet<_> = a.iter().copied().collect();
-    let set_b: HashSet<_> = b.iter().copied().collect();
-    let mut result: Vec<_> = set_a.intersection(&set_b).copied().collect();
+fn hashset_intersect(set_a: &HashSet<u64>, set_b: &HashSet<u64>) -> Vec<u64> {
+    let mut result: Vec<_> = set_a.intersection(set_b).copied().collect();
     result.sort_unstable();
     result
 }
@@ -90,6 +88,8 @@ fn bench_intersect(c: &mut Criterion) {
     // No intersections
     let a = unique_data();
     let b = disjoint_higher_lower(&a, 0.5);
+    let set_a: HashSet<_> = a.iter().copied().collect();
+    let set_b: HashSet<_> = b.iter().copied().collect();
 
     group.bench_function("sosorted/no_intersections", |bencher| {
         bencher.iter(|| {
@@ -107,7 +107,7 @@ fn bench_intersect(c: &mut Criterion) {
 
     group.bench_function("hashset/no_intersections", |bencher| {
         bencher.iter(|| {
-            black_box(hashset_intersect(black_box(&a), black_box(&b)));
+            black_box(hashset_intersect(black_box(&set_a), black_box(&set_b)));
         });
     });
 
@@ -115,6 +115,8 @@ fn bench_intersect(c: &mut Criterion) {
     let a_sparse = unique_data();
     let mut b_sparse = disjoint_higher_lower(&a_sparse, 0.5);
     add_intersections(&mut b_sparse, &a_sparse, a_sparse.len() / 64);
+    let set_a_sparse: HashSet<_> = a_sparse.iter().copied().collect();
+    let set_b_sparse: HashSet<_> = b_sparse.iter().copied().collect();
 
     group.bench_function("sosorted/sparse_intersections", |bencher| {
         bencher.iter(|| {
@@ -132,13 +134,15 @@ fn bench_intersect(c: &mut Criterion) {
 
     group.bench_function("hashset/sparse_intersections", |bencher| {
         bencher.iter(|| {
-            black_box(hashset_intersect(black_box(&a_sparse), black_box(&b_sparse)));
+            black_box(hashset_intersect(black_box(&set_a_sparse), black_box(&set_b_sparse)));
         });
     });
 
     // All intersections
     let a_all = unique_data();
     let b_all = a_all.clone();
+    let set_a_all: HashSet<_> = a_all.iter().copied().collect();
+    let set_b_all: HashSet<_> = b_all.iter().copied().collect();
 
     group.bench_function("sosorted/all_intersections", |bencher| {
         bencher.iter(|| {
@@ -156,7 +160,7 @@ fn bench_intersect(c: &mut Criterion) {
 
     group.bench_function("hashset/all_intersections", |bencher| {
         bencher.iter(|| {
-            black_box(hashset_intersect(black_box(&a_all), black_box(&b_all)));
+            black_box(hashset_intersect(black_box(&set_a_all), black_box(&set_b_all)));
         });
     });
 
@@ -186,6 +190,9 @@ fn bench_intersect_scaling(c: &mut Criterion) {
         let mut b = disjoint_higher_lower(&data, 0.5);
         add_intersections(&mut b, &data, data.len() / 64);
 
+        let set_data: HashSet<_> = data.iter().copied().collect();
+        let set_b: HashSet<_> = b.iter().copied().collect();
+
         group.bench_with_input(BenchmarkId::new("sosorted", size), size, |bencher, _| {
             bencher.iter(|| {
                 let mut case = data.clone();
@@ -195,7 +202,7 @@ fn bench_intersect_scaling(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("hashset", size), size, |bencher, _| {
             bencher.iter(|| {
-                black_box(hashset_intersect(black_box(&data), black_box(&b)));
+                black_box(hashset_intersect(black_box(&set_data), black_box(&set_b)));
             });
         });
     }
