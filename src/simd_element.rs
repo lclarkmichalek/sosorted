@@ -24,6 +24,8 @@ pub trait SimdMaskOps: Copy {
     fn any(self) -> bool;
     /// Tests if a specific lane is set.
     fn test(self, lane: usize) -> bool;
+    /// Converts the mask to a bitmask.
+    fn to_bitmask(self) -> u64;
 }
 
 // Implement SimdMaskOps for all Mask types
@@ -44,6 +46,17 @@ where
     #[inline(always)]
     fn test(self, lane: usize) -> bool {
         Mask::test(&self, lane)
+    }
+
+    #[inline(always)]
+    fn to_bitmask(self) -> u64 {
+        let mut mask: u64 = 0;
+        for i in 0..N {
+            if self.test(i) {
+                mask |= 1 << i;
+            }
+        }
+        mask
     }
 }
 

@@ -727,6 +727,69 @@ fn bench_deduplicate_realistic(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_deduplicate_u32(c: &mut Criterion) {
+    let mut group = c.benchmark_group("deduplicate_u32");
+    // Use a smaller size for u8 to keep total bytes reasonable but elements high
+    let size = 1024 * 1024; 
+    group.throughput(Throughput::Bytes((size * 4) as u64));
+
+    let seed: [u8; 32] = [
+        165, 35, 33, 192, 12, 223, 5, 179, 181, 27, 17, 101, 197, 110, 171, 236, 10, 48, 200, 178,
+        22, 106, 209, 27, 213, 179, 143, 64, 78, 135, 141, 242,
+    ];
+    let mut rng = SmallRng::from_seed(seed);
+
+    // All unique (max 256 items for u8, so this loop will wrap? 
+    // Wait, u8 can only have 256 unique values.
+    // So "All Unique" for N=1M is impossible for u8.
+    // "Scattered duplicates" is the best we can do.
+    // We can simulate "sorted u8 array" which is just 0,0,0...1,1,1...255,255.
+    // That's actually "High Duplicates".
+    
+    // To test the "Mixed" loop, we need an array that switches values often.
+    // But sorted u8 switches values at most 255 times.
+    // So for large N, u8 is almost ALWAYS in "Galloping" mode (identical blocks).
+    // SIMD compression only matters at the boundaries (255 boundaries).
+    
+    // This implies SIMD compression optimization is IRRELEVANT for u8 on large arrays because 99.9% of blocks are identical.
+    
+    // HOWEVER, for `u16` (65k values) or `u32` (4B values), it matters.
+    // Let's verify `u32`.
+    
+    // Switch plan: Add `bench_deduplicate_u32`.
+    // 1M elements, values range up to 1M -> mostly unique is possible.
+    
+    let mut data: Vec<u32> = (0..size).map(|_| rng.next_u32()).collect();
+    data.sort();
+    
+    group.bench_function("sosorted/u32_all_unique", |bencher| {
+         // Create mostly unique data
+        let mut d = data.clone();
+        d.dedup(); // Ensure unique
+        let mut out = vec![0u32; d.len()];
+        bencher.iter(|| {
+             black_box(deduplicate(black_box(&mut out), black_box(&d)));
+        });
+    });
+
+    // Mixed duplicates
+    // Create data where every element appears ~2 times on average
+    let mut data_mixed: Vec<u32> = (0..size/2).map(|_| rng.next_u32()).collect();
+    for _ in 0..size/2 {
+        data_mixed.push(data_mixed[data_mixed.len() % (size/2)]);
+    }
+    data_mixed.sort();
+    
+    group.bench_function("sosorted/u32_mixed", |bencher| {
+         let mut out = vec![0u32; data_mixed.len()];
+         bencher.iter(|| {
+             black_box(deduplicate(black_box(&mut out), black_box(&data_mixed)));
+         });
+    });
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_deduplicate,
@@ -734,6 +797,7 @@ criterion_group!(
     bench_deduplicate_scaling,
     bench_lemire_duplicate_density,
     bench_lemire_run_length,
-    bench_algorithm_comparison
+    bench_algorithm_comparison,
+    bench_deduplicate_u32
 );
 criterion_main!(benches);
