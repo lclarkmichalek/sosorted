@@ -1,25 +1,25 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
-use sosorted::deduplicate;
+use sosorted::{deduplicate, deduplicate_scan};
 use std::collections::HashSet;
 use std::ops::Range;
 
 const N: usize = 1024 * 1024;
 
-pub fn naive_deduplicate(data: &mut [u64]) -> usize {
-    if data.is_empty() {
+pub fn naive_deduplicate(out: &mut [u64], input: &[u64]) -> usize {
+    if input.is_empty() {
         return 0;
     }
 
-    let mut dupe_count = 0;
-    for i in 1..data.len() {
-        if data[i] == data[i - 1] {
-            dupe_count += 1;
-        } else {
-            data[i - dupe_count] = data[i];
+    out[0] = input[0];
+    let mut write_pos = 1;
+    for i in 1..input.len() {
+        if input[i] != input[i - 1] {
+            out[write_pos] = input[i];
+            write_pos += 1;
         }
     }
-    data.len() - dupe_count
+    write_pos
 }
 
 fn hashset_deduplicate(data: &[u64]) -> Vec<u64> {
@@ -61,6 +61,128 @@ fn add_duplicates(data: &mut [u64], range: Range<f32>) {
     }
 }
 
+/// Generate data with scattered duplicates by limiting the value range.
+/// This simulates real-world scenarios like database foreign keys or categorical data.
+fn scattered_duplicates_data(unique_ratio: f64) -> Vec<u64> {
+    let seed: [u8; 32] = [
+        165, 35, 33, 192, 12, 223, 5, 179, 181, 27, 17, 101, 197, 110, 171, 236, 10, 48, 200, 178,
+        22, 106, 209, 27, 213, 179, 143, 64, 78, 135, 141, 242,
+    ];
+    let mut rng = SmallRng::from_seed(seed);
+
+    // Limit range to create natural duplicates when sorted
+    let max_value = (N as f64 * unique_ratio) as u64;
+    let mut data: Vec<u64> = (0..N).map(|_| rng.next_u64() % max_value).collect();
+    data.sort();
+    data
+}
+
+/// Generate data with Zipf-like distribution (power law).
+/// A small number of values appear very frequently.
+fn zipf_data() -> Vec<u64> {
+    let seed: [u8; 32] = [
+        42, 35, 33, 192, 12, 223, 5, 179, 181, 27, 17, 101, 197, 110, 171, 236, 10, 48, 200, 178,
+        22, 106, 209, 27, 213, 179, 143, 64, 78, 135, 141, 242,
+    ];
+    let mut rng = SmallRng::from_seed(seed);
+
+    // Zipf-like: value = max / rank^alpha, we approximate with exponential buckets
+    let mut data: Vec<u64> = (0..N)
+        .map(|_| {
+            let r = rng.next_u64() as f64 / u64::MAX as f64;
+            // This creates a power-law distribution
+            let value = (1.0 / (1.0 - r * 0.99)).powf(1.5) as u64;
+            value.min(1_000_000) // Cap at 1M distinct values
+        })
+        .collect();
+    data.sort();
+    data
+}
+
+/// Generate data with multiple small runs of duplicates (2-8 elements each).
+/// This simulates scenarios like timestamps with sub-second precision.
+fn small_runs_data() -> Vec<u64> {
+    let seed: [u8; 32] = [
+        99, 35, 33, 192, 12, 223, 5, 179, 181, 27, 17, 101, 197, 110, 171, 236, 10, 48, 200, 178,
+        22, 106, 209, 27, 213, 179, 143, 64, 78, 135, 141, 242,
+    ];
+    let mut rng = SmallRng::from_seed(seed);
+
+    let mut data = Vec::with_capacity(N);
+    let mut current_value = 0u64;
+
+    while data.len() < N {
+        // Each run has 1-8 copies of the same value
+        let run_length = (rng.next_u32() % 8 + 1) as usize;
+        let copies = run_length.min(N - data.len());
+
+        for _ in 0..copies {
+            data.push(current_value);
+        }
+
+        // Jump to next value (with some gap)
+        current_value += (rng.next_u32() % 100 + 1) as u64;
+    }
+
+    data
+}
+
+/// Generate data with clustered duplicates - several dense regions separated by unique data.
+/// This simulates real-world scenarios like log data with bursts of repeated events.
+fn clustered_data() -> Vec<u64> {
+    let seed: [u8; 32] = [
+        77, 35, 33, 192, 12, 223, 5, 179, 181, 27, 17, 101, 197, 110, 171, 236, 10, 48, 200, 178,
+        22, 106, 209, 27, 213, 179, 143, 64, 78, 135, 141, 242,
+    ];
+    let mut rng = SmallRng::from_seed(seed);
+
+    // Start with unique data
+    let mut data: Vec<u64> = (0..N).map(|_| rng.next_u64()).collect();
+    data.sort();
+
+    // Add 10 clusters of duplicates at random positions
+    for _ in 0..10 {
+        let cluster_start = (rng.next_u32() as usize) % (N - 10000);
+        let cluster_size = 5000 + (rng.next_u32() as usize % 5000); // 5000-10000 elements
+
+        // Make all elements in the cluster the same
+        let value = data[cluster_start];
+        for i in cluster_start..cluster_start + cluster_size.min(N - cluster_start) {
+            data[i] = value;
+        }
+    }
+
+    data
+}
+
+/// Generate data simulating sorted database IDs with ~10% duplicates.
+fn database_ids_data() -> Vec<u64> {
+    let seed: [u8; 32] = [
+        123, 35, 33, 192, 12, 223, 5, 179, 181, 27, 17, 101, 197, 110, 171, 236, 10, 48, 200, 178,
+        22, 106, 209, 27, 213, 179, 143, 64, 78, 135, 141, 242,
+    ];
+    let mut rng = SmallRng::from_seed(seed);
+
+    let mut data = Vec::with_capacity(N);
+    let mut current_id = 1000u64;
+
+    while data.len() < N {
+        // 90% chance of unique ID, 10% chance of 2-5 duplicates
+        if rng.next_u32() % 10 == 0 {
+            let dupes = (rng.next_u32() % 4 + 2) as usize;
+            for _ in 0..dupes.min(N - data.len()) {
+                data.push(current_id);
+            }
+        } else {
+            data.push(current_id);
+        }
+        current_id += 1;
+    }
+
+    data.truncate(N);
+    data
+}
+
 fn bench_deduplicate(c: &mut Criterion) {
     let mut group = c.benchmark_group("deduplicate");
     group.throughput(Throughput::Bytes((N * 8) as u64));
@@ -70,15 +192,22 @@ fn bench_deduplicate(c: &mut Criterion) {
 
     group.bench_function("sosorted/all_unique", |bencher| {
         bencher.iter(|| {
-            let mut case = data.clone();
-            black_box(deduplicate(black_box(&mut case)));
+            let mut out = vec![0u64; data.len()];
+            black_box(deduplicate(black_box(&mut out), black_box(&data)));
+        });
+    });
+
+    group.bench_function("scan/all_unique", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data.len()];
+            black_box(deduplicate_scan(black_box(&mut out), black_box(&data)));
         });
     });
 
     group.bench_function("naive/all_unique", |bencher| {
         bencher.iter(|| {
-            let mut case = data.clone();
-            black_box(naive_deduplicate(black_box(&mut case)));
+            let mut out = vec![0u64; data.len()];
+            black_box(naive_deduplicate(black_box(&mut out), black_box(&data)));
         });
     });
 
@@ -101,15 +230,25 @@ fn bench_deduplicate(c: &mut Criterion) {
 
     group.bench_function("sosorted/some_duplicates", |bencher| {
         bencher.iter(|| {
-            let mut case = data_some.clone();
-            black_box(deduplicate(black_box(&mut case)));
+            let mut out = vec![0u64; data_some.len()];
+            black_box(deduplicate(black_box(&mut out), black_box(&data_some)));
+        });
+    });
+
+    group.bench_function("scan/some_duplicates", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_some.len()];
+            black_box(deduplicate_scan(black_box(&mut out), black_box(&data_some)));
         });
     });
 
     group.bench_function("naive/some_duplicates", |bencher| {
         bencher.iter(|| {
-            let mut case = data_some.clone();
-            black_box(naive_deduplicate(black_box(&mut case)));
+            let mut out = vec![0u64; data_some.len()];
+            black_box(naive_deduplicate(
+                black_box(&mut out),
+                black_box(&data_some),
+            ));
         });
     });
 
@@ -132,15 +271,25 @@ fn bench_deduplicate(c: &mut Criterion) {
 
     group.bench_function("sosorted/no_unique", |bencher| {
         bencher.iter(|| {
-            let mut case = data_none.clone();
-            black_box(deduplicate(black_box(&mut case)));
+            let mut out = vec![0u64; data_none.len()];
+            black_box(deduplicate(black_box(&mut out), black_box(&data_none)));
+        });
+    });
+
+    group.bench_function("scan/no_unique", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_none.len()];
+            black_box(deduplicate_scan(black_box(&mut out), black_box(&data_none)));
         });
     });
 
     group.bench_function("naive/no_unique", |bencher| {
         bencher.iter(|| {
-            let mut case = data_none.clone();
-            black_box(naive_deduplicate(black_box(&mut case)));
+            let mut out = vec![0u64; data_none.len()];
+            black_box(naive_deduplicate(
+                black_box(&mut out),
+                black_box(&data_none),
+            ));
         });
     });
 
@@ -183,8 +332,15 @@ fn bench_deduplicate_scaling(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("sosorted", size), size, |bencher, _| {
             bencher.iter(|| {
-                let mut case = data.clone();
-                black_box(deduplicate(black_box(&mut case)));
+                let mut out = vec![0u64; data.len()];
+                black_box(deduplicate(black_box(&mut out), black_box(&data)));
+            });
+        });
+
+        group.bench_with_input(BenchmarkId::new("scan", size), size, |bencher, _| {
+            bencher.iter(|| {
+                let mut out = vec![0u64; data.len()];
+                black_box(deduplicate_scan(black_box(&mut out), black_box(&data)));
             });
         });
 
@@ -293,16 +449,23 @@ fn bench_lemire_duplicate_density(c: &mut Criterion) {
             &data,
             |bencher, data| {
                 bencher.iter(|| {
-                    let mut case = data.clone();
-                    black_box(deduplicate(black_box(&mut case)))
+                    let mut out = vec![0u64; data.len()];
+                    black_box(deduplicate(black_box(&mut out), black_box(data)))
                 });
             },
         );
 
+        group.bench_with_input(BenchmarkId::new("scan", name), &data, |bencher, data| {
+            bencher.iter(|| {
+                let mut out = vec![0u64; data.len()];
+                black_box(deduplicate_scan(black_box(&mut out), black_box(data)))
+            });
+        });
+
         group.bench_with_input(BenchmarkId::new("naive", name), &data, |bencher, data| {
             bencher.iter(|| {
-                let mut case = data.clone();
-                black_box(naive_deduplicate(black_box(&mut case)))
+                let mut out = vec![0u64; data.len()];
+                black_box(naive_deduplicate(black_box(&mut out), black_box(data)))
             });
         });
 
@@ -353,16 +516,23 @@ fn bench_lemire_run_length(c: &mut Criterion) {
             &data,
             |bencher, data| {
                 bencher.iter(|| {
-                    let mut case = data.clone();
-                    black_box(deduplicate(black_box(&mut case)))
+                    let mut out = vec![0u64; data.len()];
+                    black_box(deduplicate(black_box(&mut out), black_box(data)))
                 });
             },
         );
 
+        group.bench_with_input(BenchmarkId::new("scan", name), &data, |bencher, data| {
+            bencher.iter(|| {
+                let mut out = vec![0u64; data.len()];
+                black_box(deduplicate_scan(black_box(&mut out), black_box(data)))
+            });
+        });
+
         group.bench_with_input(BenchmarkId::new("naive", name), &data, |bencher, data| {
             bencher.iter(|| {
-                let mut case = data.clone();
-                black_box(naive_deduplicate(black_box(&mut case)))
+                let mut out = vec![0u64; data.len()];
+                black_box(naive_deduplicate(black_box(&mut out), black_box(data)))
             });
         });
 
@@ -405,16 +575,23 @@ fn bench_algorithm_comparison(c: &mut Criterion) {
             &data,
             |bencher, data| {
                 bencher.iter(|| {
-                    let mut case = data.clone();
-                    black_box(deduplicate(black_box(&mut case)))
+                    let mut out = vec![0u64; data.len()];
+                    black_box(deduplicate(black_box(&mut out), black_box(data)))
                 });
             },
         );
 
+        group.bench_with_input(BenchmarkId::new("scan", size), &data, |bencher, data| {
+            bencher.iter(|| {
+                let mut out = vec![0u64; data.len()];
+                black_box(deduplicate_scan(black_box(&mut out), black_box(data)))
+            });
+        });
+
         group.bench_with_input(BenchmarkId::new("naive", size), &data, |bencher, data| {
             bencher.iter(|| {
-                let mut case = data.clone();
-                black_box(naive_deduplicate(black_box(&mut case)))
+                let mut out = vec![0u64; data.len()];
+                black_box(naive_deduplicate(black_box(&mut out), black_box(data)))
             });
         });
 
@@ -438,9 +615,222 @@ fn bench_algorithm_comparison(c: &mut Criterion) {
     group.finish();
 }
 
+/// Benchmark with realistic duplicate patterns
+fn bench_deduplicate_realistic(c: &mut Criterion) {
+    let mut group = c.benchmark_group("deduplicate_realistic");
+    group.throughput(Throughput::Bytes((N * 8) as u64));
+
+    // Scattered duplicates (50% unique values - moderate duplicates)
+    let data_scattered_50 = scattered_duplicates_data(0.5);
+    group.bench_function("sosorted/scattered_50pct_unique", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_scattered_50.len()];
+            black_box(deduplicate(
+                black_box(&mut out),
+                black_box(&data_scattered_50),
+            ));
+        });
+    });
+    group.bench_function("scan/scattered_50pct_unique", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_scattered_50.len()];
+            black_box(deduplicate_scan(
+                black_box(&mut out),
+                black_box(&data_scattered_50),
+            ));
+        });
+    });
+    group.bench_function("naive/scattered_50pct_unique", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_scattered_50.len()];
+            black_box(naive_deduplicate(
+                black_box(&mut out),
+                black_box(&data_scattered_50),
+            ));
+        });
+    });
+    group.bench_function("std_dedup/scattered_50pct_unique", |bencher| {
+        bencher.iter(|| {
+            let mut case = data_scattered_50.clone();
+            black_box(case.dedup());
+        });
+    });
+
+    // Scattered duplicates (10% unique values - heavy duplicates)
+    let data_scattered_10 = scattered_duplicates_data(0.1);
+    group.bench_function("sosorted/scattered_10pct_unique", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_scattered_10.len()];
+            black_box(deduplicate(
+                black_box(&mut out),
+                black_box(&data_scattered_10),
+            ));
+        });
+    });
+    group.bench_function("scan/scattered_10pct_unique", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_scattered_10.len()];
+            black_box(deduplicate_scan(
+                black_box(&mut out),
+                black_box(&data_scattered_10),
+            ));
+        });
+    });
+    group.bench_function("naive/scattered_10pct_unique", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_scattered_10.len()];
+            black_box(naive_deduplicate(
+                black_box(&mut out),
+                black_box(&data_scattered_10),
+            ));
+        });
+    });
+    group.bench_function("std_dedup/scattered_10pct_unique", |bencher| {
+        bencher.iter(|| {
+            let mut case = data_scattered_10.clone();
+            black_box(case.dedup());
+        });
+    });
+
+    // Zipf distribution (power law - common in real data)
+    let data_zipf = zipf_data();
+    group.bench_function("sosorted/zipf", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_zipf.len()];
+            black_box(deduplicate(black_box(&mut out), black_box(&data_zipf)));
+        });
+    });
+    group.bench_function("scan/zipf", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_zipf.len()];
+            black_box(deduplicate_scan(black_box(&mut out), black_box(&data_zipf)));
+        });
+    });
+    group.bench_function("naive/zipf", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_zipf.len()];
+            black_box(naive_deduplicate(
+                black_box(&mut out),
+                black_box(&data_zipf),
+            ));
+        });
+    });
+    group.bench_function("std_dedup/zipf", |bencher| {
+        bencher.iter(|| {
+            let mut case = data_zipf.clone();
+            black_box(case.dedup());
+        });
+    });
+
+    // Small runs (2-8 element runs - like timestamps)
+    let data_small_runs = small_runs_data();
+    group.bench_function("sosorted/small_runs", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_small_runs.len()];
+            black_box(deduplicate(
+                black_box(&mut out),
+                black_box(&data_small_runs),
+            ));
+        });
+    });
+    group.bench_function("scan/small_runs", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_small_runs.len()];
+            black_box(deduplicate_scan(
+                black_box(&mut out),
+                black_box(&data_small_runs),
+            ));
+        });
+    });
+    group.bench_function("naive/small_runs", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_small_runs.len()];
+            black_box(naive_deduplicate(
+                black_box(&mut out),
+                black_box(&data_small_runs),
+            ));
+        });
+    });
+    group.bench_function("std_dedup/small_runs", |bencher| {
+        bencher.iter(|| {
+            let mut case = data_small_runs.clone();
+            black_box(case.dedup());
+        });
+    });
+
+    // Clustered duplicates (bursts of repeated events)
+    let data_clustered = clustered_data();
+    group.bench_function("sosorted/clustered", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_clustered.len()];
+            black_box(deduplicate(black_box(&mut out), black_box(&data_clustered)));
+        });
+    });
+    group.bench_function("scan/clustered", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_clustered.len()];
+            black_box(deduplicate_scan(
+                black_box(&mut out),
+                black_box(&data_clustered),
+            ));
+        });
+    });
+    group.bench_function("naive/clustered", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_clustered.len()];
+            black_box(naive_deduplicate(
+                black_box(&mut out),
+                black_box(&data_clustered),
+            ));
+        });
+    });
+    group.bench_function("std_dedup/clustered", |bencher| {
+        bencher.iter(|| {
+            let mut case = data_clustered.clone();
+            black_box(case.dedup());
+        });
+    });
+
+    // Database IDs (~10% duplicates, mostly unique)
+    let data_db_ids = database_ids_data();
+    group.bench_function("sosorted/database_ids", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_db_ids.len()];
+            black_box(deduplicate(black_box(&mut out), black_box(&data_db_ids)));
+        });
+    });
+    group.bench_function("scan/database_ids", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_db_ids.len()];
+            black_box(deduplicate_scan(
+                black_box(&mut out),
+                black_box(&data_db_ids),
+            ));
+        });
+    });
+    group.bench_function("naive/database_ids", |bencher| {
+        bencher.iter(|| {
+            let mut out = vec![0u64; data_db_ids.len()];
+            black_box(naive_deduplicate(
+                black_box(&mut out),
+                black_box(&data_db_ids),
+            ));
+        });
+    });
+    group.bench_function("std_dedup/database_ids", |bencher| {
+        bencher.iter(|| {
+            let mut case = data_db_ids.clone();
+            black_box(case.dedup());
+        });
+    });
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_deduplicate,
+    bench_deduplicate_realistic,
     bench_deduplicate_scaling,
     bench_lemire_duplicate_density,
     bench_lemire_run_length,
