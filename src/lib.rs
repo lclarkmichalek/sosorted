@@ -4,7 +4,7 @@ mod simd_element;
 pub use simd_element::{SimdMaskOps, SortedSimdElement, SIMD_WIDTH_BITS};
 
 mod deduplicate;
-pub use deduplicate::{deduplicate, deduplicate_scan};
+pub use deduplicate::deduplicate;
 
 mod find_first_duplicate;
 pub use find_first_duplicate::find_first_duplicate;

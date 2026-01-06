@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
-use sosorted::{deduplicate, deduplicate_scan};
+use sosorted::deduplicate;
 use std::collections::HashSet;
 use std::ops::Range;
 
@@ -197,13 +197,6 @@ fn bench_deduplicate(c: &mut Criterion) {
         });
     });
 
-    group.bench_function("scan/all_unique", |bencher| {
-        bencher.iter(|| {
-            let mut out = vec![0u64; data.len()];
-            black_box(deduplicate_scan(black_box(&mut out), black_box(&data)));
-        });
-    });
-
     group.bench_function("naive/all_unique", |bencher| {
         bencher.iter(|| {
             let mut out = vec![0u64; data.len()];
@@ -232,13 +225,6 @@ fn bench_deduplicate(c: &mut Criterion) {
         bencher.iter(|| {
             let mut out = vec![0u64; data_some.len()];
             black_box(deduplicate(black_box(&mut out), black_box(&data_some)));
-        });
-    });
-
-    group.bench_function("scan/some_duplicates", |bencher| {
-        bencher.iter(|| {
-            let mut out = vec![0u64; data_some.len()];
-            black_box(deduplicate_scan(black_box(&mut out), black_box(&data_some)));
         });
     });
 
@@ -273,13 +259,6 @@ fn bench_deduplicate(c: &mut Criterion) {
         bencher.iter(|| {
             let mut out = vec![0u64; data_none.len()];
             black_box(deduplicate(black_box(&mut out), black_box(&data_none)));
-        });
-    });
-
-    group.bench_function("scan/no_unique", |bencher| {
-        bencher.iter(|| {
-            let mut out = vec![0u64; data_none.len()];
-            black_box(deduplicate_scan(black_box(&mut out), black_box(&data_none)));
         });
     });
 
@@ -334,13 +313,6 @@ fn bench_deduplicate_scaling(c: &mut Criterion) {
             bencher.iter(|| {
                 let mut out = vec![0u64; data.len()];
                 black_box(deduplicate(black_box(&mut out), black_box(&data)));
-            });
-        });
-
-        group.bench_with_input(BenchmarkId::new("scan", size), size, |bencher, _| {
-            bencher.iter(|| {
-                let mut out = vec![0u64; data.len()];
-                black_box(deduplicate_scan(black_box(&mut out), black_box(&data)));
             });
         });
 
@@ -455,13 +427,6 @@ fn bench_lemire_duplicate_density(c: &mut Criterion) {
             },
         );
 
-        group.bench_with_input(BenchmarkId::new("scan", name), &data, |bencher, data| {
-            bencher.iter(|| {
-                let mut out = vec![0u64; data.len()];
-                black_box(deduplicate_scan(black_box(&mut out), black_box(data)))
-            });
-        });
-
         group.bench_with_input(BenchmarkId::new("naive", name), &data, |bencher, data| {
             bencher.iter(|| {
                 let mut out = vec![0u64; data.len()];
@@ -522,13 +487,6 @@ fn bench_lemire_run_length(c: &mut Criterion) {
             },
         );
 
-        group.bench_with_input(BenchmarkId::new("scan", name), &data, |bencher, data| {
-            bencher.iter(|| {
-                let mut out = vec![0u64; data.len()];
-                black_box(deduplicate_scan(black_box(&mut out), black_box(data)))
-            });
-        });
-
         group.bench_with_input(BenchmarkId::new("naive", name), &data, |bencher, data| {
             bencher.iter(|| {
                 let mut out = vec![0u64; data.len()];
@@ -581,13 +539,6 @@ fn bench_algorithm_comparison(c: &mut Criterion) {
             },
         );
 
-        group.bench_with_input(BenchmarkId::new("scan", size), &data, |bencher, data| {
-            bencher.iter(|| {
-                let mut out = vec![0u64; data.len()];
-                black_box(deduplicate_scan(black_box(&mut out), black_box(data)))
-            });
-        });
-
         group.bench_with_input(BenchmarkId::new("naive", size), &data, |bencher, data| {
             bencher.iter(|| {
                 let mut out = vec![0u64; data.len()];
@@ -631,15 +582,6 @@ fn bench_deduplicate_realistic(c: &mut Criterion) {
             ));
         });
     });
-    group.bench_function("scan/scattered_50pct_unique", |bencher| {
-        bencher.iter(|| {
-            let mut out = vec![0u64; data_scattered_50.len()];
-            black_box(deduplicate_scan(
-                black_box(&mut out),
-                black_box(&data_scattered_50),
-            ));
-        });
-    });
     group.bench_function("naive/scattered_50pct_unique", |bencher| {
         bencher.iter(|| {
             let mut out = vec![0u64; data_scattered_50.len()];
@@ -662,15 +604,6 @@ fn bench_deduplicate_realistic(c: &mut Criterion) {
         bencher.iter(|| {
             let mut out = vec![0u64; data_scattered_10.len()];
             black_box(deduplicate(
-                black_box(&mut out),
-                black_box(&data_scattered_10),
-            ));
-        });
-    });
-    group.bench_function("scan/scattered_10pct_unique", |bencher| {
-        bencher.iter(|| {
-            let mut out = vec![0u64; data_scattered_10.len()];
-            black_box(deduplicate_scan(
                 black_box(&mut out),
                 black_box(&data_scattered_10),
             ));
@@ -700,12 +633,6 @@ fn bench_deduplicate_realistic(c: &mut Criterion) {
             black_box(deduplicate(black_box(&mut out), black_box(&data_zipf)));
         });
     });
-    group.bench_function("scan/zipf", |bencher| {
-        bencher.iter(|| {
-            let mut out = vec![0u64; data_zipf.len()];
-            black_box(deduplicate_scan(black_box(&mut out), black_box(&data_zipf)));
-        });
-    });
     group.bench_function("naive/zipf", |bencher| {
         bencher.iter(|| {
             let mut out = vec![0u64; data_zipf.len()];
@@ -728,15 +655,6 @@ fn bench_deduplicate_realistic(c: &mut Criterion) {
         bencher.iter(|| {
             let mut out = vec![0u64; data_small_runs.len()];
             black_box(deduplicate(
-                black_box(&mut out),
-                black_box(&data_small_runs),
-            ));
-        });
-    });
-    group.bench_function("scan/small_runs", |bencher| {
-        bencher.iter(|| {
-            let mut out = vec![0u64; data_small_runs.len()];
-            black_box(deduplicate_scan(
                 black_box(&mut out),
                 black_box(&data_small_runs),
             ));
@@ -766,15 +684,6 @@ fn bench_deduplicate_realistic(c: &mut Criterion) {
             black_box(deduplicate(black_box(&mut out), black_box(&data_clustered)));
         });
     });
-    group.bench_function("scan/clustered", |bencher| {
-        bencher.iter(|| {
-            let mut out = vec![0u64; data_clustered.len()];
-            black_box(deduplicate_scan(
-                black_box(&mut out),
-                black_box(&data_clustered),
-            ));
-        });
-    });
     group.bench_function("naive/clustered", |bencher| {
         bencher.iter(|| {
             let mut out = vec![0u64; data_clustered.len()];
@@ -797,15 +706,6 @@ fn bench_deduplicate_realistic(c: &mut Criterion) {
         bencher.iter(|| {
             let mut out = vec![0u64; data_db_ids.len()];
             black_box(deduplicate(black_box(&mut out), black_box(&data_db_ids)));
-        });
-    });
-    group.bench_function("scan/database_ids", |bencher| {
-        bencher.iter(|| {
-            let mut out = vec![0u64; data_db_ids.len()];
-            black_box(deduplicate_scan(
-                black_box(&mut out),
-                black_box(&data_db_ids),
-            ));
         });
     });
     group.bench_function("naive/database_ids", |bencher| {
