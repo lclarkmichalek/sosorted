@@ -11,11 +11,11 @@ This document provides guidance for AI agents working with the `sosorted` codeba
 The library provides seven main public APIs (all in `src/lib.rs`):
 
 1. **`find_first_duplicate`** (`src/find_first_duplicate.rs:23`) - Locates the index of the first duplicate element in a sorted slice
-2. **`deduplicate`** (`src/deduplicate.rs:19`) - Removes consecutive duplicate elements in-place
+2. **`deduplicate`** (`src/deduplicate.rs:19`) - Removes consecutive duplicate elements, writing to a destination buffer
 3. **`intersect`** (`src/intersect.rs:6`) - Computes the intersection of two sorted slices
 4. **`union`** (`src/union.rs:92`) - Merges two sorted arrays into a destination buffer with deduplication
 5. **`union_size`** (`src/union.rs:17`) - Calculates the size of the union without allocation
-6. **`difference`** (`src/difference.rs:142`) - Computes the set difference (a \ b) in-place
+6. **`difference`** (`src/difference.rs:142`) - Computes the set difference (a \ b), writing to a destination buffer
 7. **`difference_size`** (`src/difference.rs:20`) - Calculates the size of the set difference without allocation
 
 ## Architecture
@@ -58,7 +58,7 @@ The codebase requires nightly Rust with the `portable_simd` feature flag. Key SI
 
 1. **Alignment handling**: Code uses `.as_simd()` to split slices into aligned chunks
 2. **Threshold checks**: Operations only use SIMD when array size justifies overhead
-3. **In-place mutations**: `deduplicate` and `intersect` modify arrays in-place to avoid allocations
+3. **Memory efficiency**: Operations write to a provided destination buffer to avoid implicit allocations
 
 ### Common Patterns
 
@@ -233,6 +233,7 @@ When adding a new operation:
 - **`deduplicate`** - Compares against naive loop, `Vec::dedup()`, and `HashSet`
 - **`find_first_duplicate`** - Compares against naive loop and `.windows(2)` iterator
 - **`union`** - Compares against naive merge and `HashSet::union()` with sort
+- **`difference`** - Compares against naive loop and `HashSet` difference
 
 ### Benchmark Data Generation
 
