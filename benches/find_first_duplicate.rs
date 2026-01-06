@@ -191,9 +191,112 @@ fn bench_find_first_duplicate_scaling(c: &mut Criterion) {
     group.finish();
 }
 
+/// Benchmark to simulate database IDs with scattered duplicates and small runs
+fn bench_database_ids(c: &mut Criterion) {
+    let mut group = c.benchmark_group("database_ids");
+    let size = 1_000_000;
+    group.throughput(Throughput::Bytes((size * 8) as u64));
+
+    let seed: [u8; 32] = [
+        123, 135, 33, 192, 12, 223, 5, 179, 181, 27, 17, 101, 197, 110, 171, 236, 10, 48, 200, 178,
+        22, 106, 209, 27, 213, 179, 143, 64, 78, 135, 141, 242,
+    ];
+    let mut rng = SmallRng::from_seed(seed);
+
+    // 1. Scattered duplicates (randomly chosen elements duplicated)
+    // Simulates "almost unique" data, e.g., a primary key column with a few constraint violations
+    let mut data_scattered = Vec::with_capacity(size);
+    for _ in 0..size {
+        data_scattered.push(rng.next_u64());
+    }
+    data_scattered.sort();
+    // Insert a duplicate near the end to force scanning most of the array
+    let last_idx = size - 100;
+    data_scattered[last_idx] = data_scattered[last_idx - 1];
+
+    group.bench_function("sosorted/scattered_duplicates", |bencher| {
+        bencher.iter(|| {
+            black_box(find_first_duplicate(black_box(&data_scattered)));
+        });
+    });
+    group.bench_function("naive/scattered_duplicates", |bencher| {
+        bencher.iter(|| {
+            black_box(naive_find_first_duplicate(black_box(&data_scattered)));
+        });
+    });
+
+    // 2. Small runs of duplicates
+    // Simulates a foreign key column or categorical data
+    let mut data_runs = Vec::with_capacity(size);
+    for _ in 0..size / 4 {
+        let val = rng.next_u64();
+        // Create small runs of 1-4 elements
+        let run_len = (rng.next_u64() % 4) + 1;
+        for _ in 0..run_len {
+            data_runs.push(val);
+        }
+    }
+    data_runs.sort();
+    // Ensure we actually search: remove early duplicates if we want to test scanning speed
+    // But for "find_first_duplicate", usually we stop at the FIRST one.
+    // So this benchmark essentially tests how fast we find a duplicate at index 0 or 1.
+    // To make it interesting for scanning, we need a dataset that is unique for a while, then has runs.
+    let mut data_runs_delayed = Vec::with_capacity(size);
+    for _ in 0..size / 2 {
+        data_runs_delayed.push(rng.next_u64());
+    }
+    // ensure first half is unique (mostly likely is with u64, but let's assume so for perf test)
+    data_runs_delayed.sort();
+    data_runs_delayed.dedup();
+    // Fill the rest with runs
+    while data_runs_delayed.len() < size {
+        let val = rng.next_u64();
+        data_runs_delayed.push(val);
+        data_runs_delayed.push(val);
+    }
+    data_runs_delayed.sort();
+    // Force uniqueness in the first half again just in case sorting mixed things up
+    // (It's easier to just generate unique, then append runs, then sort, but sorting mixes them.
+    //  If we want to test "scanning through unique data until we hit a duplicate run",
+    //  we should construct it carefully.)
+    
+    // Better construction:
+    // Generate N unique numbers.
+    // Take the last few and duplicate them.
+    // This forces scanning N-k elements.
+    let mut data_long_unique = Vec::with_capacity(size);
+    for _ in 0..size {
+        data_long_unique.push(rng.next_u64());
+    }
+    data_long_unique.sort();
+    data_long_unique.dedup(); 
+    // Make sure we have enough
+    while data_long_unique.len() < size {
+         data_long_unique.push(rng.next_u64());
+    }
+    data_long_unique.sort();
+    // Create a duplicate at 90%
+    let pos = (size as f64 * 0.9) as usize;
+    data_long_unique[pos] = data_long_unique[pos - 1];
+
+    group.bench_function("sosorted/long_unique_run", |bencher| {
+        bencher.iter(|| {
+            black_box(find_first_duplicate(black_box(&data_long_unique)));
+        });
+    });
+    group.bench_function("naive/long_unique_run", |bencher| {
+        bencher.iter(|| {
+            black_box(naive_find_first_duplicate(black_box(&data_long_unique)));
+        });
+    });
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_find_first_duplicate,
-    bench_find_first_duplicate_scaling
+    bench_find_first_duplicate_scaling,
+    bench_database_ids
 );
 criterion_main!(benches);
