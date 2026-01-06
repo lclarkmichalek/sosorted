@@ -61,14 +61,16 @@ where
 /// use sosorted::intersect;
 ///
 /// // Works with u64
-/// let mut a = [1u64, 2, 3, 4, 5];
+/// let a = [1u64, 2, 3, 4, 5];
 /// let b = [2, 4];
-/// assert_eq!(intersect(&mut a, &b), 2);
+/// let mut dest = [0u64; 5];
+/// assert_eq!(intersect(&mut dest, &a, &b), 2);
 ///
 /// // Works with i32
-/// let mut c = [1i32, 3, 5, 7];
+/// let c = [1i32, 3, 5, 7];
 /// let d = [1, 5, 9];
-/// assert_eq!(intersect(&mut c, &d), 2);
+/// let mut dest = [0i32; 4];
+/// assert_eq!(intersect(&mut dest, &c, &d), 2);
 /// ```
 pub trait SortedSimdElement:
     sealed::Sealed + SimdElement + Copy + PartialOrd + PartialEq + Default + Sized

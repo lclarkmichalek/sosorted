@@ -96,13 +96,10 @@ fn bench_difference(c: &mut Criterion) {
     let set_b: HashSet<_> = b.iter().copied().collect();
 
     group.bench_function("sosorted/no_overlap", |bencher| {
-        bencher.iter_batched(
-            || a.clone(),
-            |mut a_clone| {
-                black_box(difference(&mut a_clone, black_box(&b)));
-            },
-            criterion::BatchSize::LargeInput,
-        );
+        bencher.iter(|| {
+            let mut dest = vec![0u64; a.len()];
+            black_box(difference(&mut dest, black_box(&a), black_box(&b)));
+        });
     });
 
     group.bench_function("naive/no_overlap", |bencher| {
@@ -124,13 +121,14 @@ fn bench_difference(c: &mut Criterion) {
     let set_b_sparse: HashSet<_> = b_sparse.iter().copied().collect();
 
     group.bench_function("sosorted/sparse_overlap", |bencher| {
-        bencher.iter_batched(
-            || a_sparse.clone(),
-            |mut a_clone| {
-                black_box(difference(&mut a_clone, black_box(&b_sparse)));
-            },
-            criterion::BatchSize::LargeInput,
-        );
+        bencher.iter(|| {
+            let mut dest = vec![0u64; a_sparse.len()];
+            black_box(difference(
+                &mut dest,
+                black_box(&a_sparse),
+                black_box(&b_sparse),
+            ));
+        });
     });
 
     group.bench_function("naive/sparse_overlap", |bencher| {
@@ -154,13 +152,14 @@ fn bench_difference(c: &mut Criterion) {
     let set_b_identical: HashSet<_> = b_identical.iter().copied().collect();
 
     group.bench_function("sosorted/complete_overlap", |bencher| {
-        bencher.iter_batched(
-            || a_identical.clone(),
-            |mut a_clone| {
-                black_box(difference(&mut a_clone, black_box(&b_identical)));
-            },
-            criterion::BatchSize::LargeInput,
-        );
+        bencher.iter(|| {
+            let mut dest = vec![0u64; a_identical.len()];
+            black_box(difference(
+                &mut dest,
+                black_box(&a_identical),
+                black_box(&b_identical),
+            ));
+        });
     });
 
     group.bench_function("naive/complete_overlap", |bencher| {
