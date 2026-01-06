@@ -1,7 +1,7 @@
-use std::simd::{cmp::SimdPartialEq, Simd};
+use std::simd::cmp::SimdPartialEq;
 
 use crate::find_first_duplicate;
-use crate::simd_element::{SimdMask, SortedSimdElement, SIMD_LANES};
+use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
 /// Removes repeated elements in the slice. Returns the length of the prefix that does not contain
 /// repeated elements.
@@ -20,59 +20,48 @@ use crate::simd_element::{SimdMask, SortedSimdElement, SIMD_LANES};
 pub fn deduplicate<T>(data: &mut [T]) -> usize
 where
     T: SortedSimdElement,
-    Simd<T, SIMD_LANES>: SimdPartialEq<Mask = SimdMask<T>>,
+    T::SimdVec: SimdPartialEq<Mask = T::SimdMask>,
 {
     let dupe_ix = find_first_duplicate(data);
     if dupe_ix == data.len() {
         return data.len();
     }
 
+    let lanes = T::LANES;
+
     // Ok, so how we've found the first dupe. How do we proceed? Start from the position before,
     // so we "detect" the dupe again
     let mut dupe_count = 0;
     let mut i = dupe_ix - 1;
-    if data.len() > 5 {
-        while i < data.len() - 5 {
-            let src: Simd<T, SIMD_LANES> = Simd::from_slice(&data[i..i + SIMD_LANES]);
-            let cmp: Simd<T, SIMD_LANES> = Simd::from_slice(&data[i + 1..i + SIMD_LANES + 1]);
+    if data.len() > lanes + 1 {
+        while i < data.len() - (lanes + 1) {
+            let src = T::simd_from_slice(&data[i..i + lanes]);
+            let cmp = T::simd_from_slice(&data[i + 1..i + lanes + 1]);
             let mask = src.simd_eq(cmp);
 
             if mask.all() {
                 // Fast path - all dupes
-                dupe_count += SIMD_LANES;
-                i += SIMD_LANES;
+                dupe_count += lanes;
+                i += lanes;
                 continue;
             }
             if !mask.any() {
                 // Fast path - no dupes
-                data.copy_within(i..i + SIMD_LANES, i - dupe_count);
-                i += SIMD_LANES;
+                data.copy_within(i..i + lanes, i - dupe_count);
+                i += lanes;
                 continue;
             }
 
-            // Slow path
-            if mask.test(0) {
-                dupe_count += 1;
-            } else {
-                data[i - dupe_count] = data[i];
-            }
-            if mask.test(1) {
-                dupe_count += 1;
-            } else {
-                data[i + 1 - dupe_count] = data[i + 1];
-            }
-            if mask.test(2) {
-                dupe_count += 1;
-            } else {
-                data[i + 2 - dupe_count] = data[i + 2];
-            }
-            if mask.test(3) {
-                dupe_count += 1;
-            } else {
-                data[i + 3 - dupe_count] = data[i + 3];
+            // Slow path - process each lane individually
+            for lane in 0..lanes {
+                if mask.test(lane) {
+                    dupe_count += 1;
+                } else {
+                    data[i + lane - dupe_count] = data[i + lane];
+                }
             }
 
-            i += SIMD_LANES;
+            i += lanes;
         }
     }
 
@@ -130,7 +119,7 @@ mod tests {
 
     #[test]
     fn test_deduplicate_many() {
-        let mut data = vec![1, 1, 2, 3, 4, 5, 5, 6];
+        let mut data = [1, 1, 2, 3, 4, 5, 5, 6];
         let new_len = deduplicate(&mut data[..]);
         assert_eq!(data[0..6], [1, 2, 3, 4, 5, 6]);
         assert_eq!(new_len, 6);

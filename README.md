@@ -54,6 +54,57 @@ let d = [1, 5, 9];
 assert_eq!(intersect(&mut c, &d), 2);
 ```
 
+## SIMD Hardware Compatibility
+
+This crate uses Rust's portable SIMD (`std::simd`) and automatically selects optimal SIMD lane counts at compile time based on the target CPU features.
+
+### Supported Architectures
+
+| Target Feature | Register Width | Detection |
+|----------------|----------------|-----------|
+| AVX-512        | 512-bit        | `target_feature = "avx512f"` |
+| AVX2           | 256-bit        | `target_feature = "avx2"` |
+| SSE2 (fallback)| 128-bit        | Default for x86_64 |
+
+### Type-Specific Lane Counts
+
+Each element type uses the optimal number of SIMD lanes to fully utilize the available register width:
+
+| Element Type | AVX-512 (512-bit) | AVX2 (256-bit) | SSE2 (128-bit) |
+|--------------|-------------------|----------------|----------------|
+| `u8` / `i8`  | 64 lanes          | 32 lanes       | 16 lanes       |
+| `u16` / `i16`| 32 lanes          | 16 lanes       | 8 lanes        |
+| `u32` / `i32`| 16 lanes          | 8 lanes        | 4 lanes        |
+| `u64` / `i64`| 8 lanes           | 4 lanes        | 2 lanes        |
+
+### Configuring Target CPU
+
+To enable AVX2 or AVX-512 optimizations, set the target CPU at compile time:
+
+```bash
+# For AVX2 (most modern x86_64 CPUs)
+RUSTFLAGS="-C target-cpu=native" cargo build --release
+
+# Or specify a specific CPU
+RUSTFLAGS="-C target-cpu=skylake" cargo build --release
+
+# For AVX-512 (Intel Skylake-X, Ice Lake, or newer)
+RUSTFLAGS="-C target-cpu=skylake-avx512" cargo build --release
+```
+
+Alternatively, create a `.cargo/config.toml` in your project:
+
+```toml
+[build]
+rustflags = ["-C", "target-cpu=native"]
+```
+
+### Runtime Detection
+
+The SIMD width is determined at compile time, not runtime. If you need to support multiple CPU generations with a single binary, compile with the lowest common denominator (SSE2) or use separate binaries for different targets.
+
+The `SIMD_WIDTH_BITS` constant is exported and indicates the detected register width (128, 256, or 512 bits).
+
 ## References
 
 The intersection algorithm is based on the following paper:

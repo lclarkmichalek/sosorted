@@ -1,6 +1,6 @@
-use std::simd::{cmp::SimdPartialEq, simd_swizzle, Simd};
+use std::simd::cmp::SimdPartialEq;
 
-use crate::simd_element::{SimdMask, SortedSimdElement, SIMD_LANES};
+use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
 /// Returns the index of the first duplicate entry. If there are no duplicates, the length of the
 /// slice is returned.
@@ -16,70 +16,48 @@ use crate::simd_element::{SimdMask, SortedSimdElement, SIMD_LANES};
 pub fn find_first_duplicate<T>(vec: &[T]) -> usize
 where
     T: SortedSimdElement,
-    Simd<T, SIMD_LANES>: SimdPartialEq<Mask = SimdMask<T>>,
+    T::SimdVec: SimdPartialEq<Mask = T::SimdMask>,
 {
-    // The SIMD loop works on 4 chunks of 4, plus one additional chunk for the look ahead.
-    // Practically speaking, there's no point going down that path unless we have less than 5
-    // chunks
-    if vec.len() < (4 + 1) * SIMD_LANES {
+    let lanes = T::LANES;
+
+    // Need at least 2 elements for there to be a duplicate
+    if vec.len() < 2 {
+        return vec.len();
+    }
+
+    // For small arrays or when SIMD won't help much, use scalar
+    // We need at least lanes + 1 elements for the SIMD loop to make sense
+    if vec.len() < lanes + 1 {
         return find_first_duplicate_scalar(vec);
     }
 
-    let (pref, middle, _suffix) = vec.as_simd::<SIMD_LANES>();
-    match find_first_duplicate_scalar(&vec[0..pref.len()]) {
-        x if x != pref.len() => return x,
-        _ => {}
-    };
+    // Process in chunks, comparing adjacent elements using overlapping SIMD loads
+    // For each position i, we compare vec[i..i+lanes] with vec[i+1..i+lanes+1]
+    let mut i = 0;
+    while i + lanes < vec.len() {
+        let current = T::simd_from_slice(&vec[i..i + lanes]);
+        let next = T::simd_from_slice(&vec[i + 1..i + lanes + 1]);
+        let mask = current.simd_eq(next);
 
-    // Check that the last element of prefix isn't a duplicate with the next
-    if !pref.is_empty() && vec.len() > pref.len() && vec[pref.len() - 1] == vec[pref.len()] {
-        return pref.len();
-    }
-
-    let mut i = 4;
-    while i < middle.len() {
-        let chunk1 = middle[i - 4];
-        let chunk2 = middle[i - 3];
-        let chunk3 = middle[i - 2];
-        let chunk4 = middle[i - 1];
-        let cmp1 = simd_swizzle!(middle[i - 4], middle[i - 3], [1, 2, 3, 4]);
-        let cmp2 = simd_swizzle!(middle[i - 3], middle[i - 2], [1, 2, 3, 4]);
-        let cmp3 = simd_swizzle!(middle[i - 2], middle[i - 1], [1, 2, 3, 4]);
-        let cmp4 = simd_swizzle!(middle[i - 1], middle[i], [1, 2, 3, 4]);
-
-        let mask1 = cmp1.simd_eq(chunk1);
-        let mask2 = cmp2.simd_eq(chunk2);
-        let mask3 = cmp3.simd_eq(chunk3);
-        let mask4 = cmp4.simd_eq(chunk4);
-
-        if mask1.any() || mask2.any() || mask3.any() || mask4.any() {
-            let (chunk_offset, mask) = if mask1.any() {
-                (0, mask1)
-            } else if mask2.any() {
-                (1, mask2)
-            } else if mask3.any() {
-                (2, mask3)
-            } else {
-                (3, mask4)
-            };
-            let lane_offset = if mask.test(0) {
-                1
-            } else if mask.test(1) {
-                2
-            } else if mask.test(2) {
-                3
-            } else {
-                4
-            };
-            return pref.len() + (i - 4 + chunk_offset) * SIMD_LANES + lane_offset;
+        if mask.any() {
+            // Found a duplicate in this chunk - find the exact position
+            for lane in 0..lanes {
+                if mask.test(lane) {
+                    return i + lane + 1; // Return index of the second element in the pair
+                }
+            }
         }
-        i += 4;
+
+        i += lanes;
     }
 
-    // test the rest by hand. we have not checked the last chunk
-    let suffix_start = pref.len() + (i - 4) * SIMD_LANES;
-    let suffix_dupe_index = find_first_duplicate_scalar(&vec[suffix_start..]);
-    suffix_start + suffix_dupe_index
+    // Scalar fallback for remaining elements
+    let scalar_result = find_first_duplicate_scalar(&vec[i..]);
+    if scalar_result < vec.len() - i {
+        i + scalar_result
+    } else {
+        vec.len()
+    }
 }
 
 #[inline(always)]
