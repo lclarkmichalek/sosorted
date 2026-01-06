@@ -124,6 +124,23 @@ When working with SIMD operations:
 - Consider boundary conditions (chunk boundaries, alignment)
 - Profile before optimizing - SIMD isn't always faster for small inputs
 
+### Pre-commit Requirements
+
+Before committing any code, agents must ensure the following:
+
+1. **Formatting**: Code must be formatted using `cargo fmt`.
+   ```bash
+   cargo fmt --all
+   ```
+2. **Linting**: Code must pass all clippy lints with no warnings.
+   ```bash
+   cargo clippy --all-targets --all-features -- -D warnings
+   ```
+3. **Tests**: All tests must pass, including doc tests.
+   ```bash
+   cargo test
+   ```
+
 ## Benchmarking
 
 The project uses **Criterion** for statistical benchmarking with HTML report generation. Every supported operation must have comprehensive benchmarks.

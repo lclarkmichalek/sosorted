@@ -145,7 +145,7 @@ mod tests {
 
     #[test]
     fn test_deduplicate_many() {
-        let input = vec![1u64, 1, 2, 3, 4, 5, 5, 6];
+        let input = [1u64, 1, 2, 3, 4, 5, 5, 6];
         let mut out = vec![0u64; input.len()];
         let new_len = deduplicate(&mut out[..], &input[..]);
         assert_eq!(out[0..6], [1, 2, 3, 4, 5, 6]);

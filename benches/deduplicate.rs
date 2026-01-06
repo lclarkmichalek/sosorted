@@ -147,8 +147,12 @@ fn clustered_data() -> Vec<u64> {
 
         // Make all elements in the cluster the same
         let value = data[cluster_start];
-        for i in cluster_start..cluster_start + cluster_size.min(N - cluster_start) {
-            data[i] = value;
+        for d in data
+            .iter_mut()
+            .skip(cluster_start)
+            .take(cluster_size.min(N - cluster_start))
+        {
+            *d = value;
         }
     }
 
@@ -168,7 +172,7 @@ fn database_ids_data() -> Vec<u64> {
 
     while data.len() < N {
         // 90% chance of unique ID, 10% chance of 2-5 duplicates
-        if rng.next_u32() % 10 == 0 {
+        if rng.next_u32().is_multiple_of(10) {
             let dupes = (rng.next_u32() % 4 + 2) as usize;
             for _ in 0..dupes.min(N - data.len()) {
                 data.push(current_id);
@@ -207,7 +211,8 @@ fn bench_deduplicate(c: &mut Criterion) {
     group.bench_function("std_dedup/all_unique", |bencher| {
         bencher.iter(|| {
             let mut case = data.clone();
-            black_box(case.dedup());
+            case.dedup();
+            black_box(());
         });
     });
 
@@ -241,7 +246,8 @@ fn bench_deduplicate(c: &mut Criterion) {
     group.bench_function("std_dedup/some_duplicates", |bencher| {
         bencher.iter(|| {
             let mut case = data_some.clone();
-            black_box(case.dedup());
+            case.dedup();
+            black_box(());
         });
     });
 
@@ -275,7 +281,8 @@ fn bench_deduplicate(c: &mut Criterion) {
     group.bench_function("std_dedup/no_unique", |bencher| {
         bencher.iter(|| {
             let mut case = data_none.clone();
-            black_box(case.dedup());
+            case.dedup();
+            black_box(());
         });
     });
 
@@ -319,7 +326,8 @@ fn bench_deduplicate_scaling(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("std_dedup", size), size, |bencher, _| {
             bencher.iter(|| {
                 let mut case = data.clone();
-                black_box(case.dedup());
+                case.dedup();
+                black_box(());
             });
         });
 
@@ -594,7 +602,8 @@ fn bench_deduplicate_realistic(c: &mut Criterion) {
     group.bench_function("std_dedup/scattered_50pct_unique", |bencher| {
         bencher.iter(|| {
             let mut case = data_scattered_50.clone();
-            black_box(case.dedup());
+            case.dedup();
+            black_box(());
         });
     });
 
@@ -621,7 +630,8 @@ fn bench_deduplicate_realistic(c: &mut Criterion) {
     group.bench_function("std_dedup/scattered_10pct_unique", |bencher| {
         bencher.iter(|| {
             let mut case = data_scattered_10.clone();
-            black_box(case.dedup());
+            case.dedup();
+            black_box(());
         });
     });
 
@@ -645,7 +655,8 @@ fn bench_deduplicate_realistic(c: &mut Criterion) {
     group.bench_function("std_dedup/zipf", |bencher| {
         bencher.iter(|| {
             let mut case = data_zipf.clone();
-            black_box(case.dedup());
+            case.dedup();
+            black_box(());
         });
     });
 
@@ -672,7 +683,8 @@ fn bench_deduplicate_realistic(c: &mut Criterion) {
     group.bench_function("std_dedup/small_runs", |bencher| {
         bencher.iter(|| {
             let mut case = data_small_runs.clone();
-            black_box(case.dedup());
+            case.dedup();
+            black_box(());
         });
     });
 
@@ -696,7 +708,8 @@ fn bench_deduplicate_realistic(c: &mut Criterion) {
     group.bench_function("std_dedup/clustered", |bencher| {
         bencher.iter(|| {
             let mut case = data_clustered.clone();
-            black_box(case.dedup());
+            case.dedup();
+            black_box(());
         });
     });
 
@@ -720,7 +733,8 @@ fn bench_deduplicate_realistic(c: &mut Criterion) {
     group.bench_function("std_dedup/database_ids", |bencher| {
         bencher.iter(|| {
             let mut case = data_db_ids.clone();
-            black_box(case.dedup());
+            case.dedup();
+            black_box(());
         });
     });
 

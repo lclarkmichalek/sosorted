@@ -31,21 +31,39 @@ where
         return find_first_duplicate_scalar(vec);
     }
 
-    // Process in chunks, comparing adjacent elements using overlapping SIMD loads
-    // For each position i, we compare vec[i..i+lanes] with vec[i+1..i+lanes+1]
     let mut i = 0;
+
+    // Unrolled loop: process 2 chunks at a time
+    // We need enough space for 2 * lanes + 1 (shifted) elements
+    while i + 2 * lanes < vec.len() {
+        let chunk1 = T::simd_from_slice(&vec[i..i + lanes]);
+        let next1 = T::simd_from_slice(&vec[i + 1..i + lanes + 1]);
+
+        let chunk2 = T::simd_from_slice(&vec[i + lanes..i + 2 * lanes]);
+        let next2 = T::simd_from_slice(&vec[i + lanes + 1..i + 2 * lanes + 1]);
+
+        let mask1 = chunk1.simd_eq(next1);
+        let mask2 = chunk2.simd_eq(next2);
+
+        if mask1.any() {
+            return i + mask1.to_bitmask().trailing_zeros() as usize + 1;
+        }
+        if mask2.any() {
+            return i + lanes + mask2.to_bitmask().trailing_zeros() as usize + 1;
+        }
+
+        i += 2 * lanes;
+    }
+
+    // Process remaining chunks (one at a time)
+    // For each position i, we compare vec[i..i+lanes] with vec[i+1..i+lanes+1]
     while i + lanes < vec.len() {
         let current = T::simd_from_slice(&vec[i..i + lanes]);
         let next = T::simd_from_slice(&vec[i + 1..i + lanes + 1]);
         let mask = current.simd_eq(next);
 
         if mask.any() {
-            // Found a duplicate in this chunk - find the exact position
-            for lane in 0..lanes {
-                if mask.test(lane) {
-                    return i + lane + 1; // Return index of the second element in the pair
-                }
-            }
+            return i + mask.to_bitmask().trailing_zeros() as usize + 1;
         }
 
         i += lanes;
