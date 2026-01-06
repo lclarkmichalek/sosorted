@@ -72,19 +72,24 @@ fn disjoint_higher_lower(data: &[u64], pivot_prop: f32) -> Vec<u64> {
     let mut disjoint = data.to_vec();
     let pivot_ix = (data.len() as f32 * pivot_prop + 1.0) as usize;
     let pivot_val = data[pivot_ix];
-    for i in 0..pivot_ix {
-        let val = (disjoint[i] + pivot_val) / 2;
+
+    for (d, &val_a) in disjoint.iter_mut().take(pivot_ix).zip(data.iter()) {
+        let val = (val_a + pivot_val) / 2;
         if data.binary_search(&val).is_ok() {
             panic!("could not make disjoint dataset");
         }
-        disjoint[i] = val
+        *d = val;
     }
-    for i in pivot_ix..data.len() {
-        let val = disjoint[i] + (disjoint[i] + pivot_val) / 2;
+    for (d, &val_a) in disjoint
+        .iter_mut()
+        .skip(pivot_ix)
+        .zip(data.iter().skip(pivot_ix))
+    {
+        let val = val_a + (val_a + pivot_val) / 2;
         if data.binary_search(&val).is_ok() {
             panic!("could not make disjoint dataset");
         }
-        disjoint[i] = val
+        *d = val;
     }
     disjoint
 }

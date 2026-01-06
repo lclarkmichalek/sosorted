@@ -38,7 +38,7 @@ where
     while i + 2 * lanes < vec.len() {
         let chunk1 = T::simd_from_slice(&vec[i..i + lanes]);
         let next1 = T::simd_from_slice(&vec[i + 1..i + lanes + 1]);
-        
+
         let chunk2 = T::simd_from_slice(&vec[i + lanes..i + 2 * lanes]);
         let next2 = T::simd_from_slice(&vec[i + lanes + 1..i + 2 * lanes + 1]);
 
@@ -63,7 +63,7 @@ where
         let mask = current.simd_eq(next);
 
         if mask.any() {
-             return i + mask.to_bitmask().trailing_zeros() as usize + 1;
+            return i + mask.to_bitmask().trailing_zeros() as usize + 1;
         }
 
         i += lanes;

@@ -42,7 +42,7 @@ fn unique_data() -> Vec<u64> {
 fn add_duplicates(data: &mut [u64], range: Range<f32>) {
     let mut start = (range.start * data.len() as f32) as usize;
     let mut end = (range.end * data.len() as f32) as usize;
-    if start <= 0 {
+    if start == 0 {
         start = 1;
     }
     if end > data.len() {
@@ -259,7 +259,7 @@ fn bench_database_ids(c: &mut Criterion) {
     // (It's easier to just generate unique, then append runs, then sort, but sorting mixes them.
     //  If we want to test "scanning through unique data until we hit a duplicate run",
     //  we should construct it carefully.)
-    
+
     // Better construction:
     // Generate N unique numbers.
     // Take the last few and duplicate them.
@@ -269,10 +269,10 @@ fn bench_database_ids(c: &mut Criterion) {
         data_long_unique.push(rng.next_u64());
     }
     data_long_unique.sort();
-    data_long_unique.dedup(); 
+    data_long_unique.dedup();
     // Make sure we have enough
     while data_long_unique.len() < size {
-         data_long_unique.push(rng.next_u64());
+        data_long_unique.push(rng.next_u64());
     }
     data_long_unique.sort();
     // Create a duplicate at 90%
