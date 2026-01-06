@@ -70,10 +70,34 @@ where
     let ratio = larger / smaller.max(1);
 
     match ratio {
-        0..=50 => intersect_v1(dest, a, b),
+        0..=2 => intersect_scalar(dest, a, b),
+        3..=50 => intersect_v1(dest, a, b),
         51..=1000 => intersect_v3(dest, a, b),
         _ => intersect_galloping(dest, a, b),
     }
+}
+
+fn intersect_scalar<T>(dest: &mut [T], a: &[T], b: &[T]) -> usize
+where
+    T: Ord + Copy,
+{
+    let mut i = 0;
+    let mut j = 0;
+    let mut k = 0;
+
+    while i < a.len() && j < b.len() {
+        if a[i] < b[j] {
+            i += 1;
+        } else if b[j] < a[i] {
+            j += 1;
+        } else {
+            dest[k] = a[i];
+            k += 1;
+            i += 1;
+            j += 1;
+        }
+    }
+    k
 }
 
 /// V1 intersection algorithm - SIMD search through the larger array.
@@ -184,12 +208,8 @@ where
                 dest[intersect_count] = rare_val;
                 intersect_count += 1;
                 found = true;
-                for j in 0..lanes {
-                    if freq[search_idx + j] == rare_val {
-                        freq_idx = search_idx + j + 1;
-                        break;
-                    }
-                }
+                let match_idx = eq_mask.to_bitmask().trailing_zeros() as usize;
+                freq_idx = search_idx + match_idx + 1;
                 break;
             }
 
