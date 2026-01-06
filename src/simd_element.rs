@@ -24,6 +24,8 @@ pub trait SimdMaskOps: Copy {
     fn any(self) -> bool;
     /// Tests if a specific lane is set.
     fn test(self, lane: usize) -> bool;
+    /// Finds the index of the first set element.
+    fn first_set(self) -> Option<usize>;
 }
 
 // Implement SimdMaskOps for all Mask types
@@ -44,6 +46,11 @@ where
     #[inline(always)]
     fn test(self, lane: usize) -> bool {
         Mask::test(&self, lane)
+    }
+
+    #[inline(always)]
+    fn first_set(self) -> Option<usize> {
+        Mask::first_set(self)
     }
 }
 

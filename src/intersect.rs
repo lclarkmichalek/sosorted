@@ -184,11 +184,8 @@ where
                 dest[intersect_count] = rare_val;
                 intersect_count += 1;
                 found = true;
-                for j in 0..lanes {
-                    if freq[search_idx + j] == rare_val {
-                        freq_idx = search_idx + j + 1;
-                        break;
-                    }
+                if let Some(idx) = eq_mask.first_set() {
+                    freq_idx = search_idx + idx + 1;
                 }
                 break;
             }
