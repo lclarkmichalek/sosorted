@@ -2,17 +2,32 @@
 
 This crate provides various methods for efficiently manipulating arrays of sorted data using SIMD optimizations.
 
+## API Design
+
+All mutable operations follow a consistent pattern: **the destination buffer is always the first argument**, followed by immutable input slices. This design:
+- Clearly separates output from input
+- Ensures all input data remains immutable
+- Allows callers to control memory allocation
+
+```rust
+// All mutable APIs follow: (dest, inputs...) -> result_length
+let len = intersect(&mut dest, &a, &b);
+let len = union(&mut dest, &a, &b);
+let len = difference(&mut dest, &a, &b);
+let len = deduplicate(&mut dest, &input);
+```
+
 ## Currently Supported Operations
 
 ### Set Operations
-- **`intersect`** - Computes the intersection of two sorted arrays. Modifies the first array in-place to contain only elements present in both arrays.
-- **`union`** - Merges two sorted arrays and removes duplicates. Writes the result to a destination buffer, leveraging SIMD for performance.
+- **`intersect`** - Computes the intersection of two sorted arrays. Writes the result to a destination buffer.
+- **`union`** - Merges two sorted arrays and removes duplicates. Writes the result to a destination buffer.
 - **`union_size`** - Calculates the size of the union without allocating or modifying arrays.
-- **`difference`** - Computes the set difference (a \ b) in-place. Modifies the first array to contain only elements not present in the second.
+- **`difference`** - Computes the set difference (a \ b). Writes the result to a destination buffer.
 - **`difference_size`** - Calculates the size of the set difference (a \ b) without modifying the input.
 
 ### Deduplication
-- **`deduplicate`** - Removes repeated elements from a sorted slice. Returns the length of the deduplicated prefix.
+- **`deduplicate`** - Removes repeated elements from a sorted slice. Writes the result to a destination buffer.
 - **`find_first_duplicate`** - Finds the index of the first duplicate entry in a sorted slice. Returns the length if no duplicates exist.
 
 ## Planned Future Operations
@@ -44,14 +59,16 @@ All operations are generic over integer types via the `SortedSimdElement` trait.
 use sosorted::intersect;
 
 // Works with u64
-let mut a = [1u64, 2, 3, 4, 5];
+let a = [1u64, 2, 3, 4, 5];
 let b = [2, 4];
-assert_eq!(intersect(&mut a, &b), 2);
+let mut dest = [0u64; 5];
+assert_eq!(intersect(&mut dest, &a, &b), 2);
 
 // Works with i32
-let mut c = [1i32, 3, 5, 7];
+let c = [1i32, 3, 5, 7];
 let d = [1, 5, 9];
-assert_eq!(intersect(&mut c, &d), 2);
+let mut dest = [0i32; 4];
+assert_eq!(intersect(&mut dest, &c, &d), 2);
 ```
 
 ## SIMD Hardware Compatibility

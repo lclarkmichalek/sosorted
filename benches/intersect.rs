@@ -6,7 +6,7 @@ use std::collections::HashSet;
 
 static N: usize = 1024 * 1024;
 
-fn naive_intersect(a: &mut [u64], b: &[u64]) -> usize {
+fn naive_intersect(dest: &mut [u64], a: &[u64], b: &[u64]) -> usize {
     let mut i = 0;
     let mut j = 0;
     let mut intersect_count = 0;
@@ -16,7 +16,7 @@ fn naive_intersect(a: &mut [u64], b: &[u64]) -> usize {
             Ordering::Less => i += 1,
             Ordering::Greater => j += 1,
             _ => {
-                a[intersect_count] = b[j];
+                dest[intersect_count] = a[i];
                 j += 1;
                 i += 1;
                 intersect_count += 1;
@@ -134,15 +134,15 @@ fn bench_intersect(c: &mut Criterion) {
 
     group.bench_function("sosorted/no_intersections", |bencher| {
         bencher.iter(|| {
-            let mut case = a.clone();
-            black_box(intersect(&mut case, black_box(&b)));
+            let mut dest = vec![0u64; a.len().min(b.len())];
+            black_box(intersect(&mut dest, black_box(&a), black_box(&b)));
         });
     });
 
     group.bench_function("naive/no_intersections", |bencher| {
         bencher.iter(|| {
-            let mut case = a.clone();
-            black_box(naive_intersect(&mut case, black_box(&b)));
+            let mut dest = vec![0u64; a.len().min(b.len())];
+            black_box(naive_intersect(&mut dest, black_box(&a), black_box(&b)));
         });
     });
 
@@ -161,15 +161,15 @@ fn bench_intersect(c: &mut Criterion) {
 
     group.bench_function("sosorted/sparse_intersections", |bencher| {
         bencher.iter(|| {
-            let mut case = a_sparse.clone();
-            black_box(intersect(&mut case, black_box(&b_sparse)));
+            let mut dest = vec![0u64; a_sparse.len().min(b_sparse.len())];
+            black_box(intersect(&mut dest, black_box(&a_sparse), black_box(&b_sparse)));
         });
     });
 
     group.bench_function("naive/sparse_intersections", |bencher| {
         bencher.iter(|| {
-            let mut case = a_sparse.clone();
-            black_box(naive_intersect(&mut case, black_box(&b_sparse)));
+            let mut dest = vec![0u64; a_sparse.len().min(b_sparse.len())];
+            black_box(naive_intersect(&mut dest, black_box(&a_sparse), black_box(&b_sparse)));
         });
     });
 
@@ -190,15 +190,15 @@ fn bench_intersect(c: &mut Criterion) {
 
     group.bench_function("sosorted/all_intersections", |bencher| {
         bencher.iter(|| {
-            let mut case = a_all.clone();
-            black_box(intersect(&mut case, black_box(&b_all)));
+            let mut dest = vec![0u64; a_all.len().min(b_all.len())];
+            black_box(intersect(&mut dest, black_box(&a_all), black_box(&b_all)));
         });
     });
 
     group.bench_function("naive/all_intersections", |bencher| {
         bencher.iter(|| {
-            let mut case = a_all.clone();
-            black_box(naive_intersect(&mut case, black_box(&b_all)));
+            let mut dest = vec![0u64; a_all.len().min(b_all.len())];
+            black_box(naive_intersect(&mut dest, black_box(&a_all), black_box(&b_all)));
         });
     });
 
@@ -242,8 +242,8 @@ fn bench_intersect_scaling(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("sosorted", size), size, |bencher, _| {
             bencher.iter(|| {
-                let mut case = data.clone();
-                black_box(intersect(&mut case, black_box(&b)));
+                let mut dest = vec![0u64; data.len().min(b.len())];
+                black_box(intersect(&mut dest, black_box(&data), black_box(&b)));
             });
         });
 
@@ -297,8 +297,8 @@ fn bench_lemire_asymmetric(c: &mut Criterion) {
             &(&freq, &rare),
             |bencher, (freq, rare)| {
                 bencher.iter(|| {
-                    let mut a = (*rare).clone();
-                    black_box(intersect(&mut a, black_box(freq)));
+                    let mut dest = vec![0u64; rare.len().min(freq.len())];
+                    black_box(intersect(&mut dest, black_box(rare), black_box(freq)));
                 });
             },
         );
@@ -309,8 +309,8 @@ fn bench_lemire_asymmetric(c: &mut Criterion) {
             &(&freq, &rare),
             |bencher, (freq, rare)| {
                 bencher.iter(|| {
-                    let mut a = (*rare).clone();
-                    black_box(naive_intersect(&mut a, black_box(freq)));
+                    let mut dest = vec![0u64; rare.len().min(freq.len())];
+                    black_box(naive_intersect(&mut dest, black_box(rare), black_box(freq)));
                 });
             },
         );
@@ -358,8 +358,8 @@ fn bench_intersection_density(c: &mut Criterion) {
             &(&base, &other),
             |bencher, (base, other)| {
                 bencher.iter(|| {
-                    let mut a = (*base).clone();
-                    black_box(intersect(&mut a, black_box(other)));
+                    let mut dest = vec![0u64; base.len().min(other.len())];
+                    black_box(intersect(&mut dest, black_box(base), black_box(other)));
                 });
             },
         );
@@ -369,8 +369,8 @@ fn bench_intersection_density(c: &mut Criterion) {
             &(&base, &other),
             |bencher, (base, other)| {
                 bencher.iter(|| {
-                    let mut a = (*base).clone();
-                    black_box(naive_intersect(&mut a, black_box(other)));
+                    let mut dest = vec![0u64; base.len().min(other.len())];
+                    black_box(naive_intersect(&mut dest, black_box(base), black_box(other)));
                 });
             },
         );
@@ -406,8 +406,8 @@ fn bench_algorithm_comparison(c: &mut Criterion) {
             &(&a, &b),
             |bencher, (a, b)| {
                 bencher.iter(|| {
-                    let mut arr = (*a).clone();
-                    black_box(intersect(&mut arr, black_box(b)));
+                    let mut dest = vec![0u64; a.len().min(b.len())];
+                    black_box(intersect(&mut dest, black_box(a), black_box(b)));
                 });
             },
         );
@@ -417,8 +417,8 @@ fn bench_algorithm_comparison(c: &mut Criterion) {
             &(&a, &b),
             |bencher, (a, b)| {
                 bencher.iter(|| {
-                    let mut arr = (*a).clone();
-                    black_box(naive_intersect(&mut arr, black_box(b)));
+                    let mut dest = vec![0u64; a.len().min(b.len())];
+                    black_box(naive_intersect(&mut dest, black_box(a), black_box(b)));
                 });
             },
         );
