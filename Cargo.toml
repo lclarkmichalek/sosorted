@@ -9,6 +9,9 @@ license = "MIT"
 
 exclude = ['perf.*', 'target', 'Cargo.lock', '.sl']
 
+[lib]
+bench = false
+
 [dev-dependencies]
 anyhow = "1.0.100"
 rand = { version = "0.9.2", features = ["small_rng"] }
