@@ -1,12 +1,16 @@
 name: Benchmark
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches: ['**']
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
+  deployments: write
 
 jobs:
   benchmark:
@@ -23,89 +27,33 @@ jobs:
           toolchain: nightly-2026-01-05
 
       - name: Run benchmarks
-        id: bench
-        run: |
-          set +e  # Don't fail on non-zero exit
-          cargo bench --no-fail-fast 2>&1 | tee bench_output.txt
-          BENCH_EXIT=$?
-          set -e
+        run: cargo bench -- --output-format bencher | tee output.txt
 
-          # Create summary markdown
-          echo "## 📊 Benchmark Results" > summary.md
-          echo "" >> summary.md
-
-          if [ $BENCH_EXIT -eq 0 ]; then
-            echo "✅ All benchmarks completed successfully" >> summary.md
-          else
-            echo "⚠️ Benchmarks completed with warnings (exit code: $BENCH_EXIT)" >> summary.md
-          fi
-          echo "" >> summary.md
-
-          # Parse and format benchmark results
-          # Criterion outputs benchmark names followed by time/throughput lines
-          echo "<details>" >> summary.md
-          echo "<summary>View Results</summary>" >> summary.md
-          echo "" >> summary.md
-          echo "\`\`\`" >> summary.md
-
-          # Extract benchmark results - look for benchmark names and their results
-          awk '
-            /^test result:/ { next }
-            /^running/ { next }
-            /^     Running/ { next }
-            /^    Finished/ { next }
-            /^   Compiling/ { next }
-            /^Benchmarking/ {
-              gsub(/Benchmarking /, "");
-              bench_name = $0;
-              getline;
-              while (getline > 0) {
-                if (/time:/) {
-                  print bench_name ":";
-                  print "  " $0;
-                  if (getline > 0 && /thrpt:/) {
-                    print "  " $0;
-                  }
-                  print "";
-                  break;
-                }
-                if (/^Benchmarking/) break;
-              }
-            }
-          ' bench_output.txt >> summary.md || echo "No benchmark data found" >> summary.md
-
-          echo "\`\`\`" >> summary.md
-          echo "</details>" >> summary.md
-          echo "" >> summary.md
-
-          echo "### 📥 Download Full Report" >> summary.md
-          echo "" >> summary.md
-          echo "For detailed analysis including charts and historical comparisons:" >> summary.md
-          echo "1. Go to the **Actions** tab above" >> summary.md
-          echo "2. Click on this workflow run" >> summary.md
-          echo "3. Download the \`benchmark-results\` artifact" >> summary.md
-          echo "4. Extract and open \`target/criterion/report/index.html\`" >> summary.md
-          echo "" >> summary.md
-          echo "<sub>Benchmarks run on ubuntu-latest with Rust nightly-2026-01-05</sub>" >> summary.md
-
-          cat summary.md
-
-          exit 0  # Don't fail the job even if benchmarks had issues
-
-      - name: Upload benchmark results
-        uses: actions/upload-artifact@v4
-        if: always()
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
         with:
-          name: benchmark-results
-          path: |
-            target/criterion/
-            bench_output.txt
-          retention-days: 30
+          name: sosorted Benchmarks
+          tool: cargo
+          output-file-path: output.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          summary-always: true
+          comment-on-alert: false
+          fail-on-alert: false
+          benchmark-data-dir-path: dev/bench
+          gh-pages-branch: gh-pages
 
       - name: Comment on PR
-        uses: peter-evans/create-or-update-comment@v4
         if: github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          body-path: summary.md
+          body: |
+            ## Benchmark Results
+
+            Benchmark comparison available in the [Job Summary](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+
+            **[View Historical Charts](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/dev/bench/)**
+
+            <sub>Benchmarks run on ubuntu-latest with Rust nightly-2026-01-05</sub>
           edit-mode: replace
