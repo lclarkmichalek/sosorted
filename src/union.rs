@@ -1,9 +1,6 @@
-use std::{
-    cmp::Ordering,
-    simd::{cmp::SimdPartialOrd, Simd},
-};
+use std::{cmp::Ordering, simd::cmp::SimdPartialOrd};
 
-use crate::simd_element::{SimdMask, SortedSimdElement, SIMD_LANES};
+use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
 /// Calculates the size of the union of two sorted arrays without allocating.
 ///
@@ -97,7 +94,7 @@ where
 pub fn union<T>(dest: &mut [T], a: &[T], b: &[T]) -> usize
 where
     T: SortedSimdElement + Ord,
-    Simd<T, SIMD_LANES>: SimdPartialOrd<Mask = SimdMask<T>>,
+    T::SimdVec: SimdPartialOrd<Mask = T::SimdMask>,
 {
     // Handle edge cases
     if a.is_empty() && b.is_empty() {
@@ -186,6 +183,8 @@ where
         return write;
     }
 
+    let lanes = T::LANES;
+
     // Hybrid SIMD + scalar merge - clean and simple with separate destination buffer
     let mut i = 0;
     let mut j = 0;
@@ -193,14 +192,14 @@ where
     let mut last_written: Option<T> = None;
 
     // SIMD-accelerated merge loop
-    while i < a.len() && j + SIMD_LANES <= b.len() {
-        let b_chunk: Simd<T, SIMD_LANES> = Simd::from_slice(&b[j..j + SIMD_LANES]);
-        let a_splat = Simd::<T, SIMD_LANES>::splat(a[i]);
+    while i < a.len() && j + lanes <= b.len() {
+        let b_chunk = T::simd_from_slice(&b[j..j + lanes]);
+        let a_splat = T::simd_splat(a[i]);
 
         // If all elements in b_chunk are less than a[i], we can bulk copy from b
         if b_chunk.simd_lt(a_splat).all() {
-            // Copy up to SIMD_LANES elements from b (with deduplication)
-            for k in 0..SIMD_LANES {
+            // Copy up to lanes elements from b (with deduplication)
+            for k in 0..lanes {
                 let val = b[j + k];
                 if last_written != Some(val) {
                     dest[write] = val;
@@ -208,7 +207,7 @@ where
                     last_written = Some(val);
                 }
             }
-            j += SIMD_LANES;
+            j += lanes;
             continue;
         }
 
@@ -225,8 +224,8 @@ where
         }
 
         // Overlap detected - fall back to scalar for this chunk
-        // Process up to SIMD_LANES elements carefully
-        for _ in 0..SIMD_LANES {
+        // Process up to lanes elements carefully
+        for _ in 0..lanes {
             if i >= a.len() || j >= b.len() {
                 break;
             }

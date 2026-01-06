@@ -9,9 +9,9 @@
 //! - V3: Best for ratios from ~50:1 to ~1000:1
 //! - SIMD Galloping: Best for ratios > 1000:1
 
-use std::simd::{cmp::SimdPartialEq, Simd};
+use std::simd::cmp::SimdPartialEq;
 
-use crate::simd_element::{SimdMask, SortedSimdElement, SIMD_LANES};
+use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
 /// Computes the intersection of two sorted arrays.
 ///
@@ -39,7 +39,7 @@ use crate::simd_element::{SimdMask, SortedSimdElement, SIMD_LANES};
 pub fn intersect<T>(a: &mut [T], b: &[T]) -> usize
 where
     T: SortedSimdElement + Ord,
-    Simd<T, SIMD_LANES>: SimdPartialEq<Mask = SimdMask<T>>,
+    T::SimdVec: SimdPartialEq<Mask = T::SimdMask>,
 {
     if a.is_empty() || b.is_empty() {
         return 0;
@@ -63,18 +63,20 @@ where
 /// V1 intersection algorithm adapted for SIMD.
 ///
 /// This algorithm iterates through the smaller "rare" array element by element,
-/// and uses SIMD to compare each element against SIMD_LANES elements from the larger "freq" array.
+/// and uses SIMD to compare each element against LANES elements from the larger "freq" array.
 ///
 /// The algorithm assumes `rare.len() <= freq.len()`. If arrays are passed in the wrong
 /// order, they are swapped internally.
 fn intersect_v1<T>(a: &mut [T], b: &[T]) -> usize
 where
     T: SortedSimdElement + Ord,
-    Simd<T, SIMD_LANES>: SimdPartialEq<Mask = SimdMask<T>>,
+    T::SimdVec: SimdPartialEq<Mask = T::SimdMask>,
 {
     if a.is_empty() || b.is_empty() {
         return 0;
     }
+
+    let lanes = T::LANES;
 
     // Ensure we iterate over the smaller array (rare) and search in the larger (freq)
     // For the in-place interface, we need to handle this carefully
@@ -96,11 +98,10 @@ where
 
     for &rare_val in rare.iter() {
         // Skip forward in freq until we might find a match
-        // Using SIMD to check SIMD_LANES elements at once
-        while freq_idx + SIMD_LANES <= freq.len() {
-            let freq_block: Simd<T, SIMD_LANES> =
-                Simd::from_slice(&freq[freq_idx..freq_idx + SIMD_LANES]);
-            let rare_splat = Simd::<T, SIMD_LANES>::splat(rare_val);
+        // Using SIMD to check LANES elements at once
+        while freq_idx + lanes <= freq.len() {
+            let freq_block = T::simd_from_slice(&freq[freq_idx..freq_idx + lanes]);
+            let rare_splat = T::simd_splat(rare_val);
 
             // Check if any element in the block equals rare_val
             let eq_mask = rare_splat.simd_eq(freq_block);
@@ -114,14 +115,14 @@ where
 
             // Check if we've passed where rare_val could be
             // If the last element in the block is >= rare_val, we need to check more carefully
-            if freq[freq_idx + SIMD_LANES - 1] >= rare_val {
+            if freq[freq_idx + lanes - 1] >= rare_val {
                 // The match would be in this block if it exists, but eq_mask said no match
                 // So rare_val is not in freq, move to next rare element
                 break;
             }
 
             // All elements in block are less than rare_val, skip forward
-            freq_idx += SIMD_LANES;
+            freq_idx += lanes;
         }
 
         // Handle remaining elements that don't fill a SIMD register
@@ -150,11 +151,13 @@ where
 fn intersect_v3<T>(a: &mut [T], b: &[T]) -> usize
 where
     T: SortedSimdElement + Ord,
-    Simd<T, SIMD_LANES>: SimdPartialEq<Mask = SimdMask<T>>,
+    T::SimdVec: SimdPartialEq<Mask = T::SimdMask>,
 {
     if a.is_empty() || b.is_empty() {
         return 0;
     }
+
+    let lanes = T::LANES;
 
     // Ensure we iterate over the smaller array (rare) and search in the larger (freq)
     let (rare, freq, output) = if a.len() <= b.len() {
@@ -169,30 +172,29 @@ where
     let mut intersect_count = 0;
     let mut freq_idx = 0;
 
-    // Block size for hierarchical search (4 SIMD vectors of SIMD_LANES elements each)
-    const BLOCK_SIZE: usize = SIMD_LANES * 4;
+    // Block size for hierarchical search (4 SIMD vectors)
+    let block_size = lanes * 4;
 
     for &rare_val in rare.iter() {
         // First level: skip blocks of BLOCK_SIZE elements
-        while freq_idx + BLOCK_SIZE <= freq.len() {
+        while freq_idx + block_size <= freq.len() {
             // Check if rare_val could be in this block
-            if freq[freq_idx + BLOCK_SIZE - 1] >= rare_val {
+            if freq[freq_idx + block_size - 1] >= rare_val {
                 break;
             }
-            freq_idx += BLOCK_SIZE;
+            freq_idx += block_size;
         }
 
         // Second level: within the block, use SIMD to find the right sub-block
-        let block_end = (freq_idx + BLOCK_SIZE).min(freq.len());
+        let block_end = (freq_idx + block_size).min(freq.len());
 
         // Try SIMD comparison within the current range
         let mut found = false;
         let mut search_idx = freq_idx;
 
-        while search_idx + SIMD_LANES <= block_end {
-            let freq_block: Simd<T, SIMD_LANES> =
-                Simd::from_slice(&freq[search_idx..search_idx + SIMD_LANES]);
-            let rare_splat = Simd::<T, SIMD_LANES>::splat(rare_val);
+        while search_idx + lanes <= block_end {
+            let freq_block = T::simd_from_slice(&freq[search_idx..search_idx + lanes]);
+            let rare_splat = T::simd_splat(rare_val);
 
             let eq_mask = rare_splat.simd_eq(freq_block);
             if eq_mask.any() {
@@ -200,7 +202,7 @@ where
                 intersect_count += 1;
                 found = true;
                 // Advance freq_idx to just past the match
-                for i in 0..SIMD_LANES {
+                for i in 0..lanes {
                     if freq[search_idx + i] == rare_val {
                         freq_idx = search_idx + i + 1;
                         break;
@@ -209,12 +211,12 @@ where
                 break;
             }
 
-            if freq[search_idx + SIMD_LANES - 1] >= rare_val {
+            if freq[search_idx + lanes - 1] >= rare_val {
                 // No match in this block
                 break;
             }
 
-            search_idx += SIMD_LANES;
+            search_idx += lanes;
         }
 
         if found {
@@ -325,7 +327,7 @@ mod tests {
     #[test]
     fn test_intersect_all() {
         let mut a = [1u64, 2, 3, 4, 5];
-        let b = a.clone();
+        let b = a;
         let new_len = intersect(&mut a, &b);
         assert_eq!(new_len, a.len());
         assert_eq!(a, b);

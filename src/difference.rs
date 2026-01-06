@@ -1,9 +1,6 @@
-use std::{
-    cmp::Ordering,
-    simd::{cmp::SimdPartialOrd, Simd},
-};
+use std::{cmp::Ordering, simd::cmp::SimdPartialOrd};
 
-use crate::simd_element::{SimdMask, SortedSimdElement, SIMD_LANES};
+use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
 /// Calculates the size of the set difference (a \ b) without modifying the input.
 ///
@@ -24,7 +21,7 @@ use crate::simd_element::{SimdMask, SortedSimdElement, SIMD_LANES};
 pub fn difference_size<T>(a: &[T], b: &[T]) -> usize
 where
     T: SortedSimdElement + Ord,
-    Simd<T, SIMD_LANES>: SimdPartialOrd<Mask = SimdMask<T>>,
+    T::SimdVec: SimdPartialOrd<Mask = T::SimdMask>,
 {
     // Handle edge cases
     if a.is_empty() {
@@ -44,19 +41,20 @@ where
         return a.len();
     }
 
+    let lanes = T::LANES;
     let mut i = 0;
     let mut j = 0;
     let mut count = 0;
 
     // SIMD-accelerated loop
-    while i < a.len() && j + SIMD_LANES <= b.len() {
-        let b_chunk: Simd<T, SIMD_LANES> = Simd::from_slice(&b[j..j + SIMD_LANES]);
-        let a_splat = Simd::<T, SIMD_LANES>::splat(a[i]);
+    while i < a.len() && j + lanes <= b.len() {
+        let b_chunk = T::simd_from_slice(&b[j..j + lanes]);
+        let a_splat = T::simd_splat(a[i]);
 
         // Fast path: all elements in b_chunk are less than a[i]
         // We can skip this entire chunk of b
         if b_chunk.simd_lt(a_splat).all() {
-            j += SIMD_LANES;
+            j += lanes;
             continue;
         }
 
@@ -69,7 +67,7 @@ where
         }
 
         // Slow path: mixed comparison, process element by element
-        for _ in 0..SIMD_LANES {
+        for _ in 0..lanes {
             if i >= a.len() || j >= b.len() {
                 break;
             }
@@ -160,7 +158,7 @@ where
 pub fn difference<T>(a: &mut [T], b: &[T]) -> usize
 where
     T: SortedSimdElement + Ord,
-    Simd<T, SIMD_LANES>: SimdPartialOrd<Mask = SimdMask<T>>,
+    T::SimdVec: SimdPartialOrd<Mask = T::SimdMask>,
 {
     // Handle edge cases
     if a.is_empty() {
@@ -181,19 +179,20 @@ where
         return a.len();
     }
 
+    let lanes = T::LANES;
     let mut i = 0; // Read position in a
     let mut j = 0; // Position in b
     let mut write = 0; // Write position in a
 
     // SIMD-accelerated loop
-    while i < a.len() && j + SIMD_LANES <= b.len() {
-        let b_chunk: Simd<T, SIMD_LANES> = Simd::from_slice(&b[j..j + SIMD_LANES]);
-        let a_splat = Simd::<T, SIMD_LANES>::splat(a[i]);
+    while i < a.len() && j + lanes <= b.len() {
+        let b_chunk = T::simd_from_slice(&b[j..j + lanes]);
+        let a_splat = T::simd_splat(a[i]);
 
         // Fast path: all elements in b_chunk are less than a[i]
         // We can skip this entire chunk of b
         if b_chunk.simd_lt(a_splat).all() {
-            j += SIMD_LANES;
+            j += lanes;
             continue;
         }
 
@@ -207,7 +206,7 @@ where
         }
 
         // Slow path: mixed comparison, process element by element
-        for _ in 0..SIMD_LANES {
+        for _ in 0..lanes {
             if i >= a.len() || j >= b.len() {
                 break;
             }
@@ -588,8 +587,8 @@ mod tests {
         assert_eq!(len, 500); // Odd numbers 1, 3, 5, ..., 999
 
         // Verify result is correct
-        for i in 0..len {
-            assert_eq!(a_data[i], (i * 2 + 1) as u64);
+        for (i, &value) in a_data.iter().enumerate().take(len) {
+            assert_eq!(value, (i * 2 + 1) as u64);
         }
     }
 
