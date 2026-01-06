@@ -162,14 +162,22 @@ fn bench_intersect(c: &mut Criterion) {
     group.bench_function("sosorted/sparse_intersections", |bencher| {
         bencher.iter(|| {
             let mut dest = vec![0u64; a_sparse.len().min(b_sparse.len())];
-            black_box(intersect(&mut dest, black_box(&a_sparse), black_box(&b_sparse)));
+            black_box(intersect(
+                &mut dest,
+                black_box(&a_sparse),
+                black_box(&b_sparse),
+            ));
         });
     });
 
     group.bench_function("naive/sparse_intersections", |bencher| {
         bencher.iter(|| {
             let mut dest = vec![0u64; a_sparse.len().min(b_sparse.len())];
-            black_box(naive_intersect(&mut dest, black_box(&a_sparse), black_box(&b_sparse)));
+            black_box(naive_intersect(
+                &mut dest,
+                black_box(&a_sparse),
+                black_box(&b_sparse),
+            ));
         });
     });
 
@@ -198,7 +206,11 @@ fn bench_intersect(c: &mut Criterion) {
     group.bench_function("naive/all_intersections", |bencher| {
         bencher.iter(|| {
             let mut dest = vec![0u64; a_all.len().min(b_all.len())];
-            black_box(naive_intersect(&mut dest, black_box(&a_all), black_box(&b_all)));
+            black_box(naive_intersect(
+                &mut dest,
+                black_box(&a_all),
+                black_box(&b_all),
+            ));
         });
     });
 
@@ -370,7 +382,11 @@ fn bench_intersection_density(c: &mut Criterion) {
             |bencher, (base, other)| {
                 bencher.iter(|| {
                     let mut dest = vec![0u64; base.len().min(other.len())];
-                    black_box(naive_intersect(&mut dest, black_box(base), black_box(other)));
+                    black_box(naive_intersect(
+                        &mut dest,
+                        black_box(base),
+                        black_box(other),
+                    ));
                 });
             },
         );

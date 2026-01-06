@@ -123,7 +123,11 @@ fn bench_difference(c: &mut Criterion) {
     group.bench_function("sosorted/sparse_overlap", |bencher| {
         bencher.iter(|| {
             let mut dest = vec![0u64; a_sparse.len()];
-            black_box(difference(&mut dest, black_box(&a_sparse), black_box(&b_sparse)));
+            black_box(difference(
+                &mut dest,
+                black_box(&a_sparse),
+                black_box(&b_sparse),
+            ));
         });
     });
 
@@ -150,7 +154,11 @@ fn bench_difference(c: &mut Criterion) {
     group.bench_function("sosorted/complete_overlap", |bencher| {
         bencher.iter(|| {
             let mut dest = vec![0u64; a_identical.len()];
-            black_box(difference(&mut dest, black_box(&a_identical), black_box(&b_identical)));
+            black_box(difference(
+                &mut dest,
+                black_box(&a_identical),
+                black_box(&b_identical),
+            ));
         });
     });
 
