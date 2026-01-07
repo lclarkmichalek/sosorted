@@ -4,19 +4,19 @@ This document provides guidance for AI agents working with the `sosorted` codeba
 
 ## Project Overview
 
-`sosorted` is a high-performance Rust library providing SIMD-accelerated operations for manipulating sorted arrays of `u64` values. The library focuses on efficiency by leveraging portable SIMD instructions to process data in parallel.
+`sosorted` is a high-performance Rust library providing SIMD-accelerated operations for manipulating sorted arrays of integer types (`u8` through `u64`, and signed equivalents). The library focuses on efficiency by leveraging portable SIMD instructions to process data in parallel.
 
 ## Key Operations
 
 The library provides seven main public APIs (all in `src/lib.rs`):
 
-1. **`find_first_duplicate`** (`src/find_first_duplicate.rs:23`) - Locates the index of the first duplicate element in a sorted slice
-2. **`deduplicate`** (`src/deduplicate.rs:19`) - Removes consecutive duplicate elements in-place
-3. **`intersect`** (`src/intersect.rs:6`) - Computes the intersection of two sorted slices
-4. **`union`** (`src/union.rs:92`) - Merges two sorted arrays into a destination buffer with deduplication
-5. **`union_size`** (`src/union.rs:17`) - Calculates the size of the union without allocation
-6. **`difference`** (`src/difference.rs:142`) - Computes the set difference (a \ b) in-place
-7. **`difference_size`** (`src/difference.rs:20`) - Calculates the size of the set difference without allocation
+1. **`find_first_duplicate`** (`src/find_first_duplicate.rs`) - Locates the index of the first duplicate element in a sorted slice
+2. **`deduplicate`** (`src/deduplicate.rs`) - Removes consecutive duplicate elements, writing to a destination buffer
+3. **`intersect`** (`src/intersect.rs`) - Computes the intersection of two sorted slices
+4. **`union`** (`src/union.rs`) - Merges two sorted arrays into a destination buffer with deduplication
+5. **`union_size`** (`src/union.rs`) - Calculates the size of the union without allocation
+6. **`difference`** (`src/difference.rs`) - Computes the set difference (a \ b), writing to a destination buffer
+7. **`difference_size`** (`src/difference.rs`) - Calculates the size of the set difference without allocation
 
 ## Architecture
 
@@ -25,6 +25,7 @@ The library provides seven main public APIs (all in `src/lib.rs`):
 ```
 src/
 ├── lib.rs                      # Public API exports
+├── simd_element.rs             # Generic SIMD trait definitions and impls
 ├── find_first_duplicate.rs     # First duplicate detection
 ├── deduplicate.rs              # Deduplication using SIMD
 ├── intersect.rs                # Set intersection
@@ -40,8 +41,8 @@ benches/
 ### Implementation Strategy
 
 All operations use a hybrid approach:
-- **SIMD fast path**: Process 4 elements at a time using `u64x4` SIMD vectors
-- **Scalar fallback**: Handle edge cases, small arrays, and remainder elements
+- **SIMD fast path**: Process multiple elements at a time using SIMD vectors. The number of lanes depends on the element size (e.g., 64 lanes for `u8` on AVX-512, 4 lanes for `u64` on AVX2).
+- **Scalar fallback**: Handle edge cases, small arrays, and remainder elements.
 
 ## Technical Details
 
@@ -49,29 +50,33 @@ All operations use a hybrid approach:
 
 The codebase requires nightly Rust with the `portable_simd` feature flag. Key SIMD operations:
 
-- **Vector types**: `u64x4` (4-wide vectors of u64)
-- **Comparisons**: `simd_eq`, `simd_lt`, `simd_gt`
-- **Swizzling**: Used in `find_first_duplicate` to shift elements for comparison
-- **Masking**: Check `.any()` and `.all()` to determine if any/all lanes match a condition
+- **Vector types**: `Simd<T, N>` where `T` is the element type and `N` is the lane count.
+- **Lane counts**: Determined at compile time based on the element type and target CPU features (AVX-512, AVX2, or SSE2 fallback).
+- **Traits**: `SortedSimdElement` provides generic SIMD capabilities for all primitive integer types.
+- **Masking**: Check `.any()` and `.all()` to determine if any/all lanes match a condition.
 
 ### Performance Considerations
 
-1. **Alignment handling**: Code uses `.as_simd()` to split slices into aligned chunks
-2. **Threshold checks**: Operations only use SIMD when array size justifies overhead
-3. **In-place mutations**: `deduplicate` and `intersect` modify arrays in-place to avoid allocations
+1. **Alignment handling**: Code uses `.as_simd()` (via `simd_from_slice`) to handle slices.
+2. **Threshold checks**: Operations only use SIMD when array size justifies overhead.
+3. **Memory efficiency**: Operations write to a provided destination buffer to avoid implicit allocations.
 
 ### Common Patterns
 
 ```rust
 // Standard SIMD loop structure
-if vec.len() < SIMD_THRESHOLD {
+let lanes = T::LANES;
+if vec.len() < lanes + 1 {
     return scalar_fallback(vec);
 }
 
-let (prefix, middle, suffix) = vec.as_simd();
-// Process prefix with scalar
-// Process middle with SIMD
-// Process suffix with scalar
+// SIMD processing loop
+while i + lanes <= vec.len() {
+    let block = T::simd_from_slice(&vec[i..i + lanes]);
+    // Process block
+    i += lanes;
+}
+// Scalar cleanup
 ```
 
 ## Development Guidelines
@@ -100,8 +105,9 @@ rustup install nightly
 
 Each operation includes:
 - Unit tests for edge cases (empty, single element, all duplicates)
-- Fuzz tests comparing SIMD implementation against scalar reference
+- Fuzz tests comparing SIMD implementation against scalar reference or stdlib
 - Example-based tests in doc comments
+- Tests for different integer types (via macros)
 
 ### Adding New Operations
 
@@ -109,7 +115,7 @@ When adding new sorted array operations:
 
 1. Create a new file in `src/`
 2. Export the public function in `src/lib.rs`
-3. Implement both SIMD and scalar versions
+3. Implement both SIMD and scalar versions (generic over `SortedSimdElement`)
 4. Add comprehensive tests including fuzz tests
 5. Create a benchmark in `benches/<operation>.rs`
 6. **Register the benchmark in `Cargo.toml`** (see Benchmarking section below)
@@ -120,13 +126,30 @@ When adding new sorted array operations:
 When working with SIMD operations:
 
 - Always test against a scalar reference implementation
-- Use fuzz tests with randomized input (see `test_find_first_dupe_fuzz`)
-- Consider boundary conditions (chunk boundaries, alignment)
+- Use fuzz tests with randomized input
+- Consider boundary conditions (chunk boundaries)
 - Profile before optimizing - SIMD isn't always faster for small inputs
+
+### Pre-commit Requirements
+
+Before committing any code, agents must ensure the following:
+
+1. **Formatting**: Code must be formatted using `cargo fmt`.
+   ```bash
+   cargo fmt --all
+   ```
+2. **Linting**: Code must pass all clippy lints with no warnings.
+   ```bash
+   cargo clippy --all-targets --all-features -- -D warnings
+   ```
+3. **Tests**: All tests must pass, including doc tests.
+   ```bash
+   cargo test
+   ```
 
 ## Benchmarking
 
-The project uses **Criterion** for statistical benchmarking with HTML report generation. Every supported operation must have comprehensive benchmarks.
+The project uses **Criterion** for statistical benchmarking with HTML report generation. Every supported operation must have comprehensive benchmarks. Note that current benchmarks primarily focus on `u64`, but the library supports all primitive integer types.
 
 ### Running Benchmarks
 
@@ -216,6 +239,7 @@ When adding a new operation:
 - **`deduplicate`** - Compares against naive loop, `Vec::dedup()`, and `HashSet`
 - **`find_first_duplicate`** - Compares against naive loop and `.windows(2)` iterator
 - **`union`** - Compares against naive merge and `HashSet::union()` with sort
+- **`difference`** - Compares against naive loop and `HashSet` difference
 
 ### Benchmark Data Generation
 
@@ -233,14 +257,14 @@ This ensures:
 
 ## Type System
 
-Currently, all operations work on `&[u64]` or `&mut [u64]`. Future work may extend to:
-- Other primitive scalar types (u32, i64, etc.)
-- Generic implementations over `PartialOrd + PartialEq`
+All operations are generic via the `SortedSimdElement` trait.
+- **Supported types**: `u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`.
+- **Method signatures**: Generally `fn op<T>(dest: &mut [T], a: &[T], ...) -> usize`
 
 ## Common Pitfalls
 
 1. **Off-by-one errors**: SIMD comparisons shift elements, watch indices carefully
-2. **Undefined behavior**: `deduplicate` leaves garbage past the returned length
+2. **Undefined behavior**: `deduplicate` (and other mutable ops) leaves garbage past the returned length
 3. **Sorting requirement**: All functions assume input is already sorted
 4. **Nightly features**: Code requires nightly Rust for `portable_simd`
 
@@ -254,16 +278,7 @@ Currently, all operations work on `&[u64]` or `&mut [u64]`. Future work may exte
 
 ## Performance Notes
 
-- SIMD operations process 4 elements per iteration
-- Threshold for SIMD usage: typically 20+ elements
+- SIMD operations process `LANES` elements per iteration (varies by type/CPU)
+- Threshold for SIMD usage: typically `LANES + 1` elements
 - In-place algorithms minimize memory allocation
 - Benchmark on target hardware as SIMD performance varies by CPU
-
-## Questions to Consider
-
-When modifying code, ask:
-- Does this maintain the sorted array invariant?
-- Is the SIMD path correctly aligned with the scalar fallback?
-- Are edge cases (empty, length < 4, unaligned) handled?
-- Does the benchmark show improvement?
-- Is the test coverage sufficient (including fuzz tests)?

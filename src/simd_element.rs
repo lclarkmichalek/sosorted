@@ -17,7 +17,7 @@ mod sealed {
 }
 
 /// Trait for SIMD mask operations.
-pub trait SimdMaskOps: Copy {
+pub trait SimdMaskOps: Copy + std::ops::BitOr<Output = Self> {
     /// Returns true if all lanes are set.
     fn all(self) -> bool;
     /// Returns true if any lane is set.
@@ -26,6 +26,8 @@ pub trait SimdMaskOps: Copy {
     fn test(self, lane: usize) -> bool;
     /// Finds the index of the first set element.
     fn first_set(self) -> Option<usize>;
+    /// Returns the bitmask of the mask.
+    fn to_bitmask(self) -> u64;
 }
 
 // Implement SimdMaskOps for all Mask types
@@ -51,6 +53,11 @@ where
     #[inline(always)]
     fn first_set(self) -> Option<usize> {
         Mask::first_set(self)
+    }
+
+    #[inline(always)]
+    fn to_bitmask(self) -> u64 {
+        Mask::to_bitmask(self)
     }
 }
 
