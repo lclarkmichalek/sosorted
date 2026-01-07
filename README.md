@@ -1,6 +1,6 @@
 # sosorted: Methods for efficiently manipulating sorted arrays
 
-This crate provides various methods for efficiently manipulating arrays of sorted data using SIMD optimizations.
+This crate provides various methods for efficiently manipulating arrays of sorted data using SIMD optimizations. It supports all primitive integer types (`u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`).
 
 ## API Design
 
