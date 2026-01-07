@@ -45,11 +45,14 @@ where
         let mask1 = chunk1.simd_eq(next1);
         let mask2 = chunk2.simd_eq(next2);
 
-        if mask1.any() {
-            return i + mask1.to_bitmask().trailing_zeros() as usize + 1;
-        }
-        if mask2.any() {
-            return i + lanes + mask2.to_bitmask().trailing_zeros() as usize + 1;
+        // Optimization: Check combined mask to reduce branching in the common case (no duplicates)
+        if (mask1 | mask2).any() {
+            if mask1.any() {
+                return i + mask1.to_bitmask().trailing_zeros() as usize + 1;
+            }
+            if mask2.any() {
+                return i + lanes + mask2.to_bitmask().trailing_zeros() as usize + 1;
+            }
         }
 
         i += 2 * lanes;
