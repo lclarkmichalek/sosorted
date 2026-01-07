@@ -17,7 +17,7 @@ mod sealed {
 }
 
 /// Trait for SIMD mask operations.
-pub trait SimdMaskOps: Copy {
+pub trait SimdMaskOps: Copy + std::ops::BitOr<Output = Self> {
     /// Returns true if all lanes are set.
     fn all(self) -> bool;
     /// Returns true if any lane is set.
