@@ -5,7 +5,9 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// Calculates the size of the set difference (a \ b) without modifying the input.
 ///
 /// Returns the count of elements in `a` that are NOT in `b`.
-/// Duplicates in `a` are preserved in the count (each duplicate is checked independently).
+///
+/// If an element appears in `b`, *all* occurrences of that element in `a` are excluded from the count.
+/// Duplicates in `a` that are NOT in `b` are preserved in the count.
 ///
 /// Uses SIMD acceleration to quickly skip over non-overlapping regions.
 ///
@@ -130,7 +132,8 @@ where
 /// Returns elements in `a` that are NOT in `b`. The result is written to `dest`,
 /// and the function returns the count of elements in the result.
 ///
-/// Duplicates in `a` are preserved (each duplicate is checked independently against `b`).
+/// If an element appears in `b`, *all* occurrences of that element in `a` are removed.
+/// Duplicates in `a` that are NOT in `b` are preserved.
 ///
 /// Uses SIMD acceleration to quickly skip over non-overlapping regions.
 ///
