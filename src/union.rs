@@ -4,6 +4,8 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
 /// Calculates the size of the union of two sorted arrays without allocating.
 ///
+/// This counts unique elements in the union (deduplicated).
+///
 /// # Examples
 ///
 /// ```
@@ -69,10 +71,13 @@ where
     count
 }
 
-/// Computes the union of two sorted arrays, merging them into a destination buffer.
+/// Computes the **set union** of two sorted arrays, merging them into a destination buffer.
 ///
 /// The destination buffer must have sufficient capacity to hold the union result.
 /// In the worst case (no overlapping elements), the required capacity is `a.len() + b.len()`.
+///
+/// This operation **deduplicates** the result. If an element appears multiple times in `a` or `b`,
+/// it will appear exactly once in the destination.
 ///
 /// Returns the length of the union. Elements past this length contain undefined data.
 ///
@@ -86,6 +91,18 @@ where
 /// let mut dest = [0u64; 6];  // Max possible size
 /// let union_len = union(&mut dest, &a, &b);
 /// assert_eq!(&dest[..union_len], &[1, 2, 3, 4, 5]);
+/// ```
+///
+/// # Example with duplicates
+///
+/// ```
+/// use sosorted::union;
+///
+/// let a = [1u64, 1, 2];
+/// let b = [2u64, 3, 3];
+/// let mut dest = [0u64; 6];
+/// let union_len = union(&mut dest, &a, &b);
+/// assert_eq!(&dest[..union_len], &[1, 2, 3]); // Result is always unique
 /// ```
 ///
 /// # Panics
