@@ -71,6 +71,11 @@ where
 
 /// Computes the union of two sorted arrays, merging them into a destination buffer.
 ///
+/// This implementation uses a hybrid approach:
+/// 1. **SIMD Merge**: Processes chunks of elements using SIMD instructions when possible,
+///    checking if all elements in a chunk from `b` are less than or greater than the current `a` element.
+/// 2. **Scalar Fallback**: Handles overlapping regions and remaining elements with a standard scalar merge.
+///
 /// The destination buffer must have sufficient capacity to hold the union result.
 /// In the worst case (no overlapping elements), the required capacity is `a.len() + b.len()`.
 ///
