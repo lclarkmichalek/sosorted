@@ -5,7 +5,8 @@
 //!
 //! The main `intersect` function uses an adaptive algorithm that selects the
 //! best strategy based on the size ratio between arrays:
-//! - V1: Best for ratios up to ~50:1
+//! - Scalar: For very small ratios (up to 2:1)
+//! - V1: Best for ratios from ~3:1 to ~50:1
 //! - V3: Best for ratios from ~50:1 to ~1000:1
 //! - Galloping: Best for ratios > 1000:1
 //!
@@ -18,7 +19,7 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// Computes the **multiset intersection** of two sorted arrays.
 ///
 /// Uses an adaptive algorithm that selects the best strategy based on the
-/// size ratio between arrays. The result is written to `dest`.
+/// size ratio between arrays (Scalar, V1, V3, or Galloping). The result is written to `dest`.
 ///
 /// This operation follows multiset semantics: if an element appears `n` times in `a`
 /// and `m` times in `b`, it will appear `min(n, m)` times in the result.
