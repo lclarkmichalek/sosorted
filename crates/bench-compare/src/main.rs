@@ -228,6 +228,7 @@ fn build_benchmarks(workdir: &Path, git_ref: &str, label: &str, bench_filter: Op
     std::fs::create_dir_all(&output_dir)?;
 
     // Copy benchmark binaries
+    let mut copied_count = 0;
     for entry in std::fs::read_dir(&target_dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -238,6 +239,7 @@ fn build_benchmarks(workdir: &Path, git_ref: &str, label: &str, bench_filter: Op
             if is_benchmark_binary(&path, bench_filter)? {
                 let dest = output_dir.join(name);
                 std::fs::copy(&path, &dest)?;
+                copied_count += 1;
 
                 // Make executable on Unix
                 #[cfg(unix)]
@@ -251,7 +253,10 @@ fn build_benchmarks(workdir: &Path, git_ref: &str, label: &str, bench_filter: Op
         }
     }
 
-    eprintln!("   ✓ Built {} binaries to {}\n", label, output_dir.display());
+    if copied_count == 0 {
+        eprintln!("   ⚠ Warning: No benchmark binaries found in {}", target_dir.display());
+    }
+    eprintln!("   ✓ Built {} binaries ({} copied) to {}\n", label, copied_count, output_dir.display());
     Ok(output_dir)
 }
 
@@ -300,12 +305,13 @@ fn is_benchmark_binary(path: &Path, bench_filter: Option<&str>) -> Result<bool> 
 
 fn run_benchmarks(
     bench_dir: &Path,
-    bench_filter: Option<&str>,
+    _bench_filter: Option<&str>,
     sample_size: usize,
 ) -> Result<Vec<BenchmarkResult>> {
     eprintln!("🏃 Running benchmarks from {}...", bench_dir.display());
 
     let mut results = Vec::new();
+    let mut file_count = 0;
 
     for entry in std::fs::read_dir(bench_dir)? {
         let entry = entry?;
@@ -314,6 +320,9 @@ fn run_benchmarks(
         if !path.is_file() {
             continue;
         }
+        file_count += 1;
+
+        eprintln!("   Running: {}", path.display());
 
         // Run the benchmark with Criterion options
         let output = Command::new(&path)
@@ -328,55 +337,64 @@ fn run_benchmarks(
             .with_context(|| format!("Failed to run benchmark: {}", path.display()))?;
 
         if !output.status.success() {
-            eprintln!("Warning: Benchmark {} exited with non-zero status", path.display());
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            eprintln!("   ⚠ Benchmark exited with non-zero status");
+            eprintln!("   stderr: {}", stderr.lines().take(5).collect::<Vec<_>>().join("\n"));
             continue;
         }
 
         // Parse Criterion output
         let stdout = String::from_utf8_lossy(&output.stdout);
-        results.extend(parse_criterion_output(&stdout, bench_filter));
+        let parsed = parse_criterion_output(&stdout);
+        eprintln!("   ✓ Parsed {} results", parsed.len());
+        results.extend(parsed);
+    }
+
+    if file_count == 0 {
+        eprintln!("   ⚠ No benchmark files found in directory");
     }
 
     eprintln!("   ✓ Collected {} benchmark results\n", results.len());
     Ok(results)
 }
 
-fn parse_criterion_output(output: &str, _bench_filter: Option<&str>) -> Vec<BenchmarkResult> {
+fn parse_criterion_output(output: &str) -> Vec<BenchmarkResult> {
     let mut results = Vec::new();
     let mut current_name: Option<String> = None;
-    let mut current_mean: Option<f64> = None;
-    let mut current_std_dev: Option<f64> = None;
 
     for line in output.lines() {
         let line = line.trim();
 
-        // Criterion outputs benchmark names followed by timing info
-        // Format: "benchmark_name    time:   [low mean high]"
-        if line.contains("time:") {
-            // Extract benchmark name (everything before "time:")
-            if let Some(idx) = line.find("time:") {
-                let name = line[..idx].trim().to_string();
-                if !name.is_empty() {
-                    current_name = Some(name);
-                }
-
-                // Parse timing: "time:   [1.2345 µs 1.3456 µs 1.4567 µs]"
-                if let Some(timing) = parse_criterion_timing(&line[idx..]) {
-                    current_mean = Some(timing.0);
-                    current_std_dev = Some(timing.1);
-                }
-            }
+        // Skip empty lines and info lines
+        if line.is_empty()
+            || line.starts_with("Benchmarking")
+            || line.starts_with("Gnuplot")
+            || line.starts_with("Found")
+            || line.contains("outliers")
+            || line.contains("thrpt:")
+        {
+            continue;
         }
 
-        // When we have both name and timing, record the result
-        if let (Some(name), Some(mean), Some(std_dev)) =
-            (current_name.take(), current_mean.take(), current_std_dev.take())
-        {
-            results.push(BenchmarkResult {
-                name,
-                mean_ns: mean,
-                std_dev_ns: std_dev,
-            });
+        // Criterion outputs benchmark names on their own line, followed by timing on next line
+        // Format:
+        //   benchmark_name
+        //                         time:   [low mean high]
+        if line.contains("time:") && line.contains('[') && line.contains(']') {
+            // This is a timing line - parse it and combine with stored name
+            if let Some(name) = current_name.take() {
+                if let Some((mean_ns, std_dev_ns)) = parse_criterion_timing(line) {
+                    results.push(BenchmarkResult {
+                        name,
+                        mean_ns,
+                        std_dev_ns,
+                    });
+                }
+            }
+        } else if !line.contains(':') && !line.starts_with('[') {
+            // This looks like a benchmark name (no colons, not a bracket line)
+            // Benchmark names typically look like "group/variant/case"
+            current_name = Some(line.to_string());
         }
     }
 
