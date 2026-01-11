@@ -38,7 +38,9 @@ bench-compare --baseline <GIT_REF> --test <GIT_REF> [OPTIONS]
 | `--significance <P>` | 0.05 | P-value threshold for hypothesis testing |
 | `--threshold <PCT>` | 2.0 | Minimum effect size (%) to flag as significant |
 | `--workdir <PATH>` | `.` | Git repository with Cargo benchmarks |
-| `--output <FORMAT>` | text | Output format: `text` or `json` |
+| `--output <FORMAT>` | text | Output format: `text`, `json`, or `html` |
+| `--html-output <PATH>` | stdout | File path for HTML report (when `--output html`) |
+| `--artifact-url <URL>` | none | Base URL for linking to Criterion artifacts |
 | `--keep-binaries` | false | Keep built binaries after comparison |
 
 ### Examples
@@ -52,6 +54,14 @@ bench-compare --baseline abc123 --test def456 --significance 0.01 --threshold 5.
 
 # Run only intersection benchmarks with JSON output for CI
 bench-compare --baseline main --test HEAD --bench intersect --output json
+
+# Generate HTML report to a file
+bench-compare --baseline main --test HEAD --output html --html-output report.html
+
+# Generate HTML report with links to Criterion artifact
+bench-compare --baseline main --test HEAD --output html \
+  --html-output report.html \
+  --artifact-url https://github.com/owner/repo/actions/artifacts/123456
 ```
 
 ## How It Works
@@ -92,9 +102,23 @@ intersect/sosorted/sparse                        10.234 µs    9.876 µs     -3.
 
 JSON output includes all comparison data for programmatic processing in CI pipelines.
 
+### HTML Output
+
+HTML reports provide a styled, interactive view of benchmark results:
+
+- Dark theme matching GitHub's aesthetic
+- Summary cards showing regression/improvement/unchanged counts
+- Detailed tables with timing data, percent changes, and confidence levels
+- Visual confidence bars showing statistical confidence
+- Color-coded verdicts (red for regressions, green for improvements)
+- Optional links to Criterion reports when `--artifact-url` is provided
+- Responsive design for mobile viewing
+
+The HTML report is ideal for uploading as a CI artifact and viewing in a browser.
+
 ## CI Integration
 
-### GitHub Actions Example
+### GitHub Actions Example (JSON)
 
 ```yaml
 - name: Benchmark Comparison
@@ -103,6 +127,40 @@ JSON output includes all comparison data for programmatic processing in CI pipel
       --baseline ${{ github.base_ref }} \
       --test ${{ github.sha }} \
       --output json > benchmark-results.json
+```
+
+### GitHub Actions Example (HTML with Artifacts)
+
+```yaml
+- name: Run benchmark comparison
+  id: bench-compare
+  run: |
+    set +e
+    cargo run --package bench-compare --release -- \
+      --baseline ${{ github.event.pull_request.base.sha }} \
+      --test ${{ github.event.pull_request.head.sha }} \
+      --output html \
+      --html-output benchmark-report.html \
+      --keep-binaries
+    echo "exit_code=$?" >> $GITHUB_OUTPUT
+    exit 0
+
+- name: Upload HTML Report
+  uses: actions/upload-artifact@v4
+  with:
+    name: benchmark-report
+    path: benchmark-report.html
+
+- name: Upload Criterion Reports
+  uses: actions/upload-artifact@v4
+  with:
+    name: criterion-reports
+    path: target/bench-compare-test/criterion/
+    if-no-files-found: ignore
+
+- name: Fail on regressions
+  if: steps.bench-compare.outputs.exit_code == '1'
+  run: exit 1
 ```
 
 ### Exit Codes
