@@ -1,3 +1,4 @@
+// Test selective benchmarks - only deduplicate benchmark should run
 use std::simd::cmp::SimdPartialEq;
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
