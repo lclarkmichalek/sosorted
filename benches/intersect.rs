@@ -1,459 +1,165 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use rand::{rngs::SmallRng, RngCore, SeedableRng};
 use sosorted::intersect;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
-static N: usize = 1024 * 1024;
+mod common;
+use common::{standard_binary_datasets, BinaryDatasetGroup, DEFAULT_SIZE};
 
+// =============================================================================
+// Baseline implementations
+// =============================================================================
+
+/// Naive intersect: two-pointer merge algorithm.
 fn naive_intersect(dest: &mut [u64], a: &[u64], b: &[u64]) -> usize {
     let mut i = 0;
     let mut j = 0;
-    let mut intersect_count = 0;
+    let mut count = 0;
 
     while i < a.len() && j < b.len() {
         match a[i].cmp(&b[j]) {
             Ordering::Less => i += 1,
             Ordering::Greater => j += 1,
-            _ => {
-                dest[intersect_count] = a[i];
-                j += 1;
+            Ordering::Equal => {
+                dest[count] = a[i];
                 i += 1;
-                intersect_count += 1;
+                j += 1;
+                count += 1;
             }
         }
     }
-    intersect_count
+    count
 }
 
+/// HashSet-based intersect.
 fn hashset_intersect(set_a: &HashSet<u64>, set_b: &HashSet<u64>) -> Vec<u64> {
     let mut result: Vec<_> = set_a.intersection(set_b).copied().collect();
     result.sort_unstable();
     result
 }
 
-fn unique_data() -> Vec<u64> {
-    let seed: [u8; 32] = [
-        165, 35, 33, 192, 12, 223, 5, 179, 181, 27, 17, 101, 197, 110, 171, 236, 10, 48, 200, 178,
-        22, 106, 209, 27, 213, 179, 143, 64, 78, 135, 141, 242,
+// =============================================================================
+// Benchmarks
+// =============================================================================
+
+/// Benchmark intersect with standard binary datasets.
+///
+/// Naming pattern: intersect/<dataset_group>/<implementation>/<dataset_name>
+fn bench_standard_datasets(c: &mut Criterion) {
+    let datasets = standard_binary_datasets(DEFAULT_SIZE);
+
+    for group in &datasets {
+        let mut g = c.benchmark_group(format!("intersect/{}", group.name));
+
+        for dataset in &group.datasets {
+            let throughput = (dataset.a.len() + dataset.b.len()) * 8;
+            g.throughput(Throughput::Bytes(throughput as u64));
+
+            g.bench_with_input(
+                BenchmarkId::new("sosorted", dataset.name),
+                &(&dataset.a, &dataset.b),
+                |b, (a, b_arr)| {
+                    b.iter(|| {
+                        let mut dest = vec![0u64; a.len().min(b_arr.len())];
+                        black_box(intersect(&mut dest, black_box(a), black_box(b_arr)))
+                    })
+                },
+            );
+
+            g.bench_with_input(
+                BenchmarkId::new("naive", dataset.name),
+                &(&dataset.a, &dataset.b),
+                |b, (a, b_arr)| {
+                    b.iter(|| {
+                        let mut dest = vec![0u64; a.len().min(b_arr.len())];
+                        black_box(naive_intersect(&mut dest, black_box(a), black_box(b_arr)))
+                    })
+                },
+            );
+
+            let set_a: HashSet<_> = dataset.a.iter().copied().collect();
+            let set_b: HashSet<_> = dataset.b.iter().copied().collect();
+            g.bench_with_input(
+                BenchmarkId::new("hashset", dataset.name),
+                &(&set_a, &set_b),
+                |b, (sa, sb)| b.iter(|| black_box(hashset_intersect(black_box(sa), black_box(sb)))),
+            );
+        }
+        g.finish();
+    }
+}
+
+/// Custom datasets specific to intersect (Lemire-style density benchmarks).
+fn custom_intersect_datasets(size: usize) -> Vec<BinaryDatasetGroup> {
+    use common::rng::{SEED_A, SEED_B};
+    use common::{generate_sorted_unique_bounded, generate_with_intersections, BinaryDataset};
+
+    let max_val = size as u64 * 10;
+    let base = generate_sorted_unique_bounded(SEED_A, size, max_val);
+
+    // Intersection density tests
+    let densities = vec![
+        (0, "0pct"),
+        (1, "1pct"),
+        (10, "10pct"),
+        (50, "50pct"),
+        (100, "100pct"),
     ];
 
-    let mut rng = SmallRng::from_seed(seed);
-
-    let mut data = Vec::with_capacity(N);
-    for _ in 0..N {
-        data.push(rng.next_u64());
-    }
-
-    data.sort();
-    data
-}
-
-/// Generate a sorted array of `size` unique random values within [0, max_val)
-fn generate_sorted_unique(seed: [u8; 32], size: usize, max_val: u64) -> Vec<u64> {
-    let mut rng = SmallRng::from_seed(seed);
-    let mut data: Vec<u64> = (0..size * 2).map(|_| rng.next_u64() % max_val).collect();
-    data.sort();
-    data.dedup();
-    data.truncate(size);
-    data
-}
-
-/// Generate a second array that has `intersect_count` elements in common with `base`
-fn generate_with_intersections(
-    seed: [u8; 32],
-    base: &[u64],
-    size: usize,
-    intersect_count: usize,
-    max_val: u64,
-) -> Vec<u64> {
-    let mut rng = SmallRng::from_seed(seed);
-
-    // Start with some elements from base
-    let stride = base.len() / intersect_count.max(1);
-    let mut result: Vec<u64> = (0..intersect_count)
-        .map(|i| base[(i * stride).min(base.len() - 1)])
+    let density_datasets: Vec<BinaryDataset> = densities
+        .into_iter()
+        .map(|(pct, name)| {
+            let intersect_count = (size * pct) / 100;
+            let other = generate_with_intersections(SEED_B, &base, size, intersect_count, max_val);
+            BinaryDataset {
+                name,
+                a: base.clone(),
+                b: other,
+            }
+        })
         .collect();
 
-    // Add random non-intersecting elements
-    while result.len() < size {
-        let val = rng.next_u64() % max_val;
-        // Check it's not in base (simple linear check is fine for benchmarks)
-        if base.binary_search(&val).is_err() {
-            result.push(val);
+    vec![BinaryDatasetGroup {
+        name: "density",
+        datasets: density_datasets,
+    }]
+}
+
+/// Benchmark intersect with custom datasets.
+fn bench_custom_datasets(c: &mut Criterion) {
+    let datasets = custom_intersect_datasets(100_000);
+
+    for group in &datasets {
+        let mut g = c.benchmark_group(format!("intersect/{}", group.name));
+
+        for dataset in &group.datasets {
+            g.throughput(Throughput::Elements(dataset.a.len() as u64));
+
+            g.bench_with_input(
+                BenchmarkId::new("sosorted", dataset.name),
+                &(&dataset.a, &dataset.b),
+                |b, (a, b_arr)| {
+                    b.iter(|| {
+                        let mut dest = vec![0u64; a.len().min(b_arr.len())];
+                        black_box(intersect(&mut dest, black_box(a), black_box(b_arr)))
+                    })
+                },
+            );
+
+            g.bench_with_input(
+                BenchmarkId::new("naive", dataset.name),
+                &(&dataset.a, &dataset.b),
+                |b, (a, b_arr)| {
+                    b.iter(|| {
+                        let mut dest = vec![0u64; a.len().min(b_arr.len())];
+                        black_box(naive_intersect(&mut dest, black_box(a), black_box(b_arr)))
+                    })
+                },
+            );
         }
-    }
-
-    result.sort();
-    result.dedup();
-    result.truncate(size);
-    result
-}
-
-// Generate a dataset that is disjoint - initially due to all values being higher, and then after
-// `pivot_prop`, lower
-fn disjoint_higher_lower(data: &[u64], pivot_prop: f32) -> Vec<u64> {
-    let mut disjoint = data.to_vec();
-    let pivot_ix = (data.len() as f32 * pivot_prop + 1.0) as usize;
-    let pivot_val = data[pivot_ix];
-
-    for (d, &val_a) in disjoint.iter_mut().take(pivot_ix).zip(data.iter()) {
-        let val = (val_a + pivot_val) / 2;
-        if data.binary_search(&val).is_ok() {
-            panic!("could not make disjoint dataset");
-        }
-        *d = val;
-    }
-    for (d, &val_a) in disjoint
-        .iter_mut()
-        .skip(pivot_ix)
-        .zip(data.iter().skip(pivot_ix))
-    {
-        let val = val_a + (val_a + pivot_val) / 2;
-        if data.binary_search(&val).is_ok() {
-            panic!("could not make disjoint dataset");
-        }
-        *d = val;
-    }
-    disjoint
-}
-
-// Generate a dataset that intersects with `data` `intersect_count` times. Intersections will be
-// evenly spread
-fn add_intersections(data: &mut [u64], intersect_with: &[u64], intersect_count: usize) {
-    let stride = data.len() / intersect_count;
-    for i in 0..intersect_count {
-        data[i * stride] = intersect_with[i * stride];
+        g.finish();
     }
 }
 
-fn bench_intersect(c: &mut Criterion) {
-    let mut group = c.benchmark_group("intersect");
-    group.throughput(Throughput::Bytes((N * 8) as u64));
-
-    // No intersections
-    let a = unique_data();
-    let b = disjoint_higher_lower(&a, 0.5);
-    let set_a: HashSet<_> = a.iter().copied().collect();
-    let set_b: HashSet<_> = b.iter().copied().collect();
-
-    group.bench_function("sosorted/no_intersections", |bencher| {
-        bencher.iter(|| {
-            let mut dest = vec![0u64; a.len().min(b.len())];
-            black_box(intersect(&mut dest, black_box(&a), black_box(&b)));
-        });
-    });
-
-    group.bench_function("naive/no_intersections", |bencher| {
-        bencher.iter(|| {
-            let mut dest = vec![0u64; a.len().min(b.len())];
-            black_box(naive_intersect(&mut dest, black_box(&a), black_box(&b)));
-        });
-    });
-
-    group.bench_function("hashset/no_intersections", |bencher| {
-        bencher.iter(|| {
-            black_box(hashset_intersect(black_box(&set_a), black_box(&set_b)));
-        });
-    });
-
-    // Sparse intersections (1 in 64 elements)
-    let a_sparse = unique_data();
-    let mut b_sparse = disjoint_higher_lower(&a_sparse, 0.5);
-    add_intersections(&mut b_sparse, &a_sparse, a_sparse.len() / 64);
-    let set_a_sparse: HashSet<_> = a_sparse.iter().copied().collect();
-    let set_b_sparse: HashSet<_> = b_sparse.iter().copied().collect();
-
-    group.bench_function("sosorted/sparse_intersections", |bencher| {
-        bencher.iter(|| {
-            let mut dest = vec![0u64; a_sparse.len().min(b_sparse.len())];
-            black_box(intersect(
-                &mut dest,
-                black_box(&a_sparse),
-                black_box(&b_sparse),
-            ));
-        });
-    });
-
-    group.bench_function("naive/sparse_intersections", |bencher| {
-        bencher.iter(|| {
-            let mut dest = vec![0u64; a_sparse.len().min(b_sparse.len())];
-            black_box(naive_intersect(
-                &mut dest,
-                black_box(&a_sparse),
-                black_box(&b_sparse),
-            ));
-        });
-    });
-
-    group.bench_function("hashset/sparse_intersections", |bencher| {
-        bencher.iter(|| {
-            black_box(hashset_intersect(
-                black_box(&set_a_sparse),
-                black_box(&set_b_sparse),
-            ));
-        });
-    });
-
-    // All intersections
-    let a_all = unique_data();
-    let b_all = a_all.clone();
-    let set_a_all: HashSet<_> = a_all.iter().copied().collect();
-    let set_b_all: HashSet<_> = b_all.iter().copied().collect();
-
-    group.bench_function("sosorted/all_intersections", |bencher| {
-        bencher.iter(|| {
-            let mut dest = vec![0u64; a_all.len().min(b_all.len())];
-            black_box(intersect(&mut dest, black_box(&a_all), black_box(&b_all)));
-        });
-    });
-
-    group.bench_function("naive/all_intersections", |bencher| {
-        bencher.iter(|| {
-            let mut dest = vec![0u64; a_all.len().min(b_all.len())];
-            black_box(naive_intersect(
-                &mut dest,
-                black_box(&a_all),
-                black_box(&b_all),
-            ));
-        });
-    });
-
-    group.bench_function("hashset/all_intersections", |bencher| {
-        bencher.iter(|| {
-            black_box(hashset_intersect(
-                black_box(&set_a_all),
-                black_box(&set_b_all),
-            ));
-        });
-    });
-
-    group.finish();
-}
-
-fn bench_intersect_scaling(c: &mut Criterion) {
-    let mut group = c.benchmark_group("intersect_scaling");
-
-    let sizes = [1024, 8192, 262144, 1048576];
-
-    for size in sizes.iter() {
-        group.throughput(Throughput::Bytes((*size * 8) as u64));
-
-        let seed: [u8; 32] = [
-            165, 35, 33, 192, 12, 223, 5, 179, 181, 27, 17, 101, 197, 110, 171, 236, 10, 48, 200,
-            178, 22, 106, 209, 27, 213, 179, 143, 64, 78, 135, 141, 242,
-        ];
-        let mut rng = SmallRng::from_seed(seed);
-
-        let mut data = Vec::with_capacity(*size);
-        for _ in 0..*size {
-            data.push(rng.next_u64());
-        }
-        data.sort();
-
-        let mut b = disjoint_higher_lower(&data, 0.5);
-        add_intersections(&mut b, &data, data.len() / 64);
-
-        let set_data: HashSet<_> = data.iter().copied().collect();
-        let set_b: HashSet<_> = b.iter().copied().collect();
-
-        group.bench_with_input(BenchmarkId::new("sosorted", size), size, |bencher, _| {
-            bencher.iter(|| {
-                let mut dest = vec![0u64; data.len().min(b.len())];
-                black_box(intersect(&mut dest, black_box(&data), black_box(&b)));
-            });
-        });
-
-        group.bench_with_input(BenchmarkId::new("hashset", size), size, |bencher, _| {
-            bencher.iter(|| {
-                black_box(hashset_intersect(black_box(&set_data), black_box(&set_b)));
-            });
-        });
-    }
-
-    group.finish();
-}
-
-/// Lemire-style benchmarks testing asymmetric array sizes
-/// Based on the paper "SIMD Compression and the Intersection of Sorted Integers"
-fn bench_lemire_asymmetric(c: &mut Criterion) {
-    let mut group = c.benchmark_group("lemire_asymmetric");
-
-    // Test various size ratios as in the paper
-    // Format: (freq_size, rare_size, ratio_name)
-    let test_cases = [
-        (100_000, 100_000, "1:1"),
-        (100_000, 10_000, "10:1"),
-        (100_000, 2_000, "50:1"),
-        (100_000, 1_000, "100:1"),
-        (1_000_000, 1_000, "1000:1"),
-        (1_000_000, 100, "10000:1"),
-    ];
-
-    let seed1: [u8; 32] = [
-        165, 35, 33, 192, 12, 223, 5, 179, 181, 27, 17, 101, 197, 110, 171, 236, 10, 48, 200, 178,
-        22, 106, 209, 27, 213, 179, 143, 64, 78, 135, 141, 242,
-    ];
-    let seed2: [u8; 32] = [
-        42, 135, 233, 92, 112, 23, 105, 79, 81, 127, 217, 1, 97, 10, 71, 36, 110, 148, 100, 78,
-        122, 6, 9, 127, 13, 79, 43, 164, 178, 35, 41, 142,
-    ];
-
-    for (freq_size, rare_size, ratio_name) in test_cases.iter() {
-        // Generate test data
-        let max_val = (*freq_size as u64) * 10;
-        let freq = generate_sorted_unique(seed1, *freq_size, max_val);
-        let rare = generate_sorted_unique(seed2, *rare_size, max_val);
-
-        // Throughput based on smaller array (rare) since that's the bottleneck
-        group.throughput(Throughput::Elements(*rare_size as u64));
-
-        // sosorted (uses adaptive algorithm internally)
-        group.bench_with_input(
-            BenchmarkId::new("sosorted", ratio_name),
-            &(&freq, &rare),
-            |bencher, (freq, rare)| {
-                bencher.iter(|| {
-                    let mut dest = vec![0u64; rare.len().min(freq.len())];
-                    black_box(intersect(&mut dest, black_box(rare), black_box(freq)));
-                });
-            },
-        );
-
-        // Naive scalar baseline
-        group.bench_with_input(
-            BenchmarkId::new("naive", ratio_name),
-            &(&freq, &rare),
-            |bencher, (freq, rare)| {
-                bencher.iter(|| {
-                    let mut dest = vec![0u64; rare.len().min(freq.len())];
-                    black_box(naive_intersect(&mut dest, black_box(rare), black_box(freq)));
-                });
-            },
-        );
-    }
-
-    group.finish();
-}
-
-/// Benchmark intersection with varying intersection densities
-/// Tests how algorithms perform with different amounts of actual matches
-fn bench_intersection_density(c: &mut Criterion) {
-    let mut group = c.benchmark_group("intersection_density");
-
-    let size = 100_000;
-    let seed: [u8; 32] = [
-        165, 35, 33, 192, 12, 223, 5, 179, 181, 27, 17, 101, 197, 110, 171, 236, 10, 48, 200, 178,
-        22, 106, 209, 27, 213, 179, 143, 64, 78, 135, 141, 242,
-    ];
-
-    let base = generate_sorted_unique(seed, size, size as u64 * 10);
-
-    // Test cases: (intersection_percentage, name)
-    let densities = [
-        (0, "0%"),
-        (1, "1%"),
-        (10, "10%"),
-        (50, "50%"),
-        (100, "100%"),
-    ];
-
-    for (pct, name) in densities.iter() {
-        let intersect_count = (size * pct) / 100;
-        let seed2: [u8; 32] = [
-            42, 135, 233, 92, 112, 23, 105, 79, 81, 127, 217, 1, 97, 10, 71, 36, 110, 148, 100, 78,
-            122, 6, 9, 127, 13, 79, 43, 164, 178, 35, 41, 142,
-        ];
-
-        let other =
-            generate_with_intersections(seed2, &base, size, intersect_count, size as u64 * 10);
-
-        group.throughput(Throughput::Elements(size as u64));
-
-        group.bench_with_input(
-            BenchmarkId::new("sosorted", name),
-            &(&base, &other),
-            |bencher, (base, other)| {
-                bencher.iter(|| {
-                    let mut dest = vec![0u64; base.len().min(other.len())];
-                    black_box(intersect(&mut dest, black_box(base), black_box(other)));
-                });
-            },
-        );
-
-        group.bench_with_input(
-            BenchmarkId::new("naive", name),
-            &(&base, &other),
-            |bencher, (base, other)| {
-                bencher.iter(|| {
-                    let mut dest = vec![0u64; base.len().min(other.len())];
-                    black_box(naive_intersect(
-                        &mut dest,
-                        black_box(base),
-                        black_box(other),
-                    ));
-                });
-            },
-        );
-    }
-
-    group.finish();
-}
-
-/// Size scaling comparison
-fn bench_algorithm_comparison(c: &mut Criterion) {
-    let mut group = c.benchmark_group("algorithm_comparison");
-
-    let sizes = [1_000, 10_000, 100_000, 1_000_000];
-
-    let seed1: [u8; 32] = [
-        165, 35, 33, 192, 12, 223, 5, 179, 181, 27, 17, 101, 197, 110, 171, 236, 10, 48, 200, 178,
-        22, 106, 209, 27, 213, 179, 143, 64, 78, 135, 141, 242,
-    ];
-    let seed2: [u8; 32] = [
-        42, 135, 233, 92, 112, 23, 105, 79, 81, 127, 217, 1, 97, 10, 71, 36, 110, 148, 100, 78,
-        122, 6, 9, 127, 13, 79, 43, 164, 178, 35, 41, 142,
-    ];
-
-    for size in sizes.iter() {
-        let max_val = (*size as u64) * 10;
-        let a = generate_sorted_unique(seed1, *size, max_val);
-        let b = generate_sorted_unique(seed2, *size, max_val);
-
-        group.throughput(Throughput::Elements(*size as u64));
-
-        group.bench_with_input(
-            BenchmarkId::new("sosorted", size),
-            &(&a, &b),
-            |bencher, (a, b)| {
-                bencher.iter(|| {
-                    let mut dest = vec![0u64; a.len().min(b.len())];
-                    black_box(intersect(&mut dest, black_box(a), black_box(b)));
-                });
-            },
-        );
-
-        group.bench_with_input(
-            BenchmarkId::new("naive", size),
-            &(&a, &b),
-            |bencher, (a, b)| {
-                bencher.iter(|| {
-                    let mut dest = vec![0u64; a.len().min(b.len())];
-                    black_box(naive_intersect(&mut dest, black_box(a), black_box(b)));
-                });
-            },
-        );
-    }
-
-    group.finish();
-}
-
-criterion_group!(
-    benches,
-    bench_intersect,
-    bench_intersect_scaling,
-    bench_lemire_asymmetric,
-    bench_intersection_density,
-    bench_algorithm_comparison
-);
+criterion_group!(benches, bench_standard_datasets, bench_custom_datasets);
 criterion_main!(benches);
