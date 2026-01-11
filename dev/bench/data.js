@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768170552590,
+  "lastUpdate": 1768173912944,
   "repoUrl": "https://github.com/lclarkmichalek/sosorted",
   "entries": {
     "sosorted Benchmarks": [
@@ -12797,6 +12797,2196 @@ window.BENCHMARK_DATA = {
             "name": "union_size/sosorted/complete_overlap",
             "value": 1212948,
             "range": "± 9314",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "lclarkmichalek@gmail.com",
+            "name": "Laurie Clark-Michalek",
+            "username": "lclarkmichalek"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ea67eccc78a3105f81998fbe82f7f7346f701a59",
+          "message": "refactor: Restructure benchmarks with consistent naming and shared datasets (#39)\n\n* refactor: Restructure benchmarks with consistent naming and shared datasets\n\nIntroduces a new benchmark organization structure with:\n- Consistent naming pattern: <operation>/<dataset_group>/<implementation>/<dataset_name>\n- Shared datasets via new benches/common/ module for better consistency\n- Separate data generation for unary vs binary operations\n- Operations can still define custom datasets when needed\n\nNew benchmark naming examples:\n- deduplicate/basic/sosorted/all_unique\n- difference/asymmetric/sosorted/10:1\n- intersect/overlap/hashset/100pct\n\nThis restructuring reduces code duplication (1895 lines removed, 1299 added)\nwhile providing a clearer, more maintainable benchmark organization that makes\nit easier to compare implementations across operations and dataset types.\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\n\n* refactor: Keep baseline implementations alongside benchmark definitions\n\nMove baseline implementations (naive_*, hashset_*, windows_*) back into\ntheir respective benchmark files instead of a shared baselines.rs.\nThis keeps related code together and avoids grouping implementations\nfor unrelated operations.\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Opus 4.5 <noreply@anthropic.com>",
+          "timestamp": "2026-01-11T14:11:36-08:00",
+          "tree_id": "8c86ae2f12953c9839ee6c883dfe4d8579b814a6",
+          "url": "https://github.com/lclarkmichalek/sosorted/commit/ea67eccc78a3105f81998fbe82f7f7346f701a59"
+        },
+        "date": 1768173912112,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "deduplicate/basic/sosorted/all_unique",
+            "value": 569817,
+            "range": "± 6941",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/basic/naive/all_unique",
+            "value": 780757,
+            "range": "± 5637",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/basic/std_dedup/all_unique",
+            "value": 877854,
+            "range": "± 14591",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/basic/hashset/all_unique",
+            "value": 67061329,
+            "range": "± 3070927",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/basic/sosorted/early_dup",
+            "value": 535325,
+            "range": "± 3017",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/basic/naive/early_dup",
+            "value": 809771,
+            "range": "± 2952",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/basic/std_dedup/early_dup",
+            "value": 739697,
+            "range": "± 4677",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/basic/hashset/early_dup",
+            "value": 68343926,
+            "range": "± 3711774",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/basic/sosorted/mid_dup",
+            "value": 536760,
+            "range": "± 2570",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/basic/naive/mid_dup",
+            "value": 780951,
+            "range": "± 3964",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/basic/std_dedup/mid_dup",
+            "value": 773315,
+            "range": "± 3898",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/basic/hashset/mid_dup",
+            "value": 66526304,
+            "range": "± 3164395",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/basic/sosorted/late_dup",
+            "value": 538925,
+            "range": "± 11089",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/basic/naive/late_dup",
+            "value": 765389,
+            "range": "± 4768",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/basic/std_dedup/late_dup",
+            "value": 848709,
+            "range": "± 4357",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/basic/hashset/late_dup",
+            "value": 67314816,
+            "range": "± 3756442",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/basic/sosorted/all_duplicates",
+            "value": 521855,
+            "range": "± 2880",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/basic/naive/all_duplicates",
+            "value": 765589,
+            "range": "± 5032",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/basic/std_dedup/all_duplicates",
+            "value": 942047,
+            "range": "± 4427",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/basic/hashset/all_duplicates",
+            "value": 67199370,
+            "range": "± 3160884",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/sosorted/0pct",
+            "value": 556724,
+            "range": "± 3374",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/naive/0pct",
+            "value": 801338,
+            "range": "± 4735",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/std_dedup/0pct",
+            "value": 942144,
+            "range": "± 3749",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/hashset/0pct",
+            "value": 66915520,
+            "range": "± 3742026",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/sosorted/1pct",
+            "value": 520333,
+            "range": "± 3951",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/naive/1pct",
+            "value": 761208,
+            "range": "± 2446",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/std_dedup/1pct",
+            "value": 936155,
+            "range": "± 5439",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/hashset/1pct",
+            "value": 64438772,
+            "range": "± 2460405",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/sosorted/10pct",
+            "value": 538769,
+            "range": "± 3622",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/naive/10pct",
+            "value": 732630,
+            "range": "± 2444",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/std_dedup/10pct",
+            "value": 905716,
+            "range": "± 3162",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/hashset/10pct",
+            "value": 61674369,
+            "range": "± 3439486",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/sosorted/50pct",
+            "value": 854447,
+            "range": "± 6257",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/naive/50pct",
+            "value": 1926224,
+            "range": "± 91488",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/std_dedup/50pct",
+            "value": 621840,
+            "range": "± 3160",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/hashset/50pct",
+            "value": 48034774,
+            "range": "± 5041563",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/sosorted/90pct",
+            "value": 486220,
+            "range": "± 2230",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/naive/90pct",
+            "value": 469304,
+            "range": "± 2484",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/std_dedup/90pct",
+            "value": 561610,
+            "range": "± 6468",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/hashset/90pct",
+            "value": 30861431,
+            "range": "± 1545449",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/sosorted/99pct",
+            "value": 367590,
+            "range": "± 3735",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/naive/99pct",
+            "value": 510640,
+            "range": "± 3353",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/std_dedup/99pct",
+            "value": 502339,
+            "range": "± 1924",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/density/hashset/99pct",
+            "value": 22916038,
+            "range": "± 160421",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/sosorted/1",
+            "value": 521705,
+            "range": "± 4749",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/naive/1",
+            "value": 764855,
+            "range": "± 3552",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/std_dedup/1",
+            "value": 868767,
+            "range": "± 3207",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/hashset/1",
+            "value": 69546322,
+            "range": "± 4544793",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/sosorted/2",
+            "value": 4158751,
+            "range": "± 9466",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/naive/2",
+            "value": 3189778,
+            "range": "± 10638",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/std_dedup/2",
+            "value": 3485979,
+            "range": "± 15518",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/hashset/2",
+            "value": 52468896,
+            "range": "± 4010358",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/sosorted/4",
+            "value": 2230557,
+            "range": "± 8553",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/naive/4",
+            "value": 1820750,
+            "range": "± 12462",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/std_dedup/4",
+            "value": 1899848,
+            "range": "± 16024",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/hashset/4",
+            "value": 36263993,
+            "range": "± 1874271",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/sosorted/16",
+            "value": 785868,
+            "range": "± 3751",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/naive/16",
+            "value": 804810,
+            "range": "± 4930",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/std_dedup/16",
+            "value": 900326,
+            "range": "± 3189",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/hashset/16",
+            "value": 28100839,
+            "range": "± 803697",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/sosorted/64",
+            "value": 466442,
+            "range": "± 4236",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/naive/64",
+            "value": 576421,
+            "range": "± 4740",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/std_dedup/64",
+            "value": 575950,
+            "range": "± 3707",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/hashset/64",
+            "value": 23827457,
+            "range": "± 252899",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/sosorted/256",
+            "value": 403267,
+            "range": "± 2287",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/naive/256",
+            "value": 464717,
+            "range": "± 3174",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/std_dedup/256",
+            "value": 530584,
+            "range": "± 5064",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/run_length/hashset/256",
+            "value": 21829624,
+            "range": "± 70933",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/realistic/sosorted/zipf",
+            "value": 356185,
+            "range": "± 2853",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/realistic/naive/zipf",
+            "value": 441432,
+            "range": "± 2199",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/realistic/std_dedup/zipf",
+            "value": 570691,
+            "range": "± 36893",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/realistic/hashset/zipf",
+            "value": 20912760,
+            "range": "± 381865",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/realistic/sosorted/database_ids",
+            "value": 2510498,
+            "range": "± 8291",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/realistic/naive/database_ids",
+            "value": 1802279,
+            "range": "± 6860",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/realistic/std_dedup/database_ids",
+            "value": 1766555,
+            "range": "± 9237",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/realistic/hashset/database_ids",
+            "value": 57605747,
+            "range": "± 2618518",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/realistic/sosorted/clustered",
+            "value": 544734,
+            "range": "± 2499",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/realistic/naive/clustered",
+            "value": 742313,
+            "range": "± 3092",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/realistic/std_dedup/clustered",
+            "value": 706137,
+            "range": "± 2485",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/realistic/hashset/clustered",
+            "value": 61035623,
+            "range": "± 2109250",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/realistic/sosorted/small_runs",
+            "value": 2791455,
+            "range": "± 12817",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/realistic/naive/small_runs",
+            "value": 1974638,
+            "range": "± 15603",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/realistic/std_dedup/small_runs",
+            "value": 2106699,
+            "range": "± 14242",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/realistic/hashset/small_runs",
+            "value": 36237867,
+            "range": "± 1560100",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scaling/sosorted/1K",
+            "value": 864,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scaling/naive/1K",
+            "value": 636,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scaling/std_dedup/1K",
+            "value": 580,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scaling/hashset/1K",
+            "value": 28722,
+            "range": "± 98",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scaling/sosorted/10K",
+            "value": 7956,
+            "range": "± 39",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scaling/naive/10K",
+            "value": 5771,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scaling/std_dedup/10K",
+            "value": 5684,
+            "range": "± 49",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scaling/hashset/10K",
+            "value": 302452,
+            "range": "± 607",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scaling/sosorted/100K",
+            "value": 81254,
+            "range": "± 583",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scaling/naive/100K",
+            "value": 153740,
+            "range": "± 5022",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scaling/std_dedup/100K",
+            "value": 59245,
+            "range": "± 281",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scaling/hashset/100K",
+            "value": 3314126,
+            "range": "± 7930",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scaling/sosorted/1M",
+            "value": 811841,
+            "range": "± 8815",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scaling/naive/1M",
+            "value": 1755508,
+            "range": "± 65278",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scaling/std_dedup/1M",
+            "value": 664006,
+            "range": "± 4006",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scaling/hashset/1M",
+            "value": 41171518,
+            "range": "± 2720103",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scattered/sosorted/50pct_unique",
+            "value": 4332181,
+            "range": "± 17950",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scattered/naive/50pct_unique",
+            "value": 3574166,
+            "range": "± 18915",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scattered/std_dedup/50pct_unique",
+            "value": 3986632,
+            "range": "± 15691",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scattered/sosorted/10pct_unique",
+            "value": 1654531,
+            "range": "± 10200",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scattered/naive/10pct_unique",
+            "value": 1212846,
+            "range": "± 10368",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/scattered/std_dedup/10pct_unique",
+            "value": 1358603,
+            "range": "± 5507",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/distribution/sosorted/zipf",
+            "value": 363734,
+            "range": "± 2156",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/distribution/naive/zipf",
+            "value": 448998,
+            "range": "± 5070",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/distribution/std_dedup/zipf",
+            "value": 507908,
+            "range": "± 3610",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/distribution/sosorted/small_runs",
+            "value": 2791270,
+            "range": "± 11132",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/distribution/naive/small_runs",
+            "value": 1974565,
+            "range": "± 17845",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/distribution/std_dedup/small_runs",
+            "value": 2099547,
+            "range": "± 17909",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/distribution/sosorted/clustered",
+            "value": 529081,
+            "range": "± 3145",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/distribution/naive/clustered",
+            "value": 756737,
+            "range": "± 3345",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/distribution/std_dedup/clustered",
+            "value": 707843,
+            "range": "± 2462",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/distribution/sosorted/database_ids",
+            "value": 2509505,
+            "range": "± 6668",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/distribution/naive/database_ids",
+            "value": 1792985,
+            "range": "± 20059",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "deduplicate/distribution/std_dedup/database_ids",
+            "value": 1697998,
+            "range": "± 19875",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/overlap/sosorted/0pct",
+            "value": 5139439,
+            "range": "± 76919",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/overlap/naive/0pct",
+            "value": 5179615,
+            "range": "± 15848",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/overlap/hashset/0pct",
+            "value": 24174436,
+            "range": "± 996157",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/overlap/sosorted/1pct",
+            "value": 5121501,
+            "range": "± 30754",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/overlap/naive/1pct",
+            "value": 5182226,
+            "range": "± 22752",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/overlap/hashset/1pct",
+            "value": 24234032,
+            "range": "± 730662",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/overlap/sosorted/10pct",
+            "value": 4823701,
+            "range": "± 391717",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/overlap/naive/10pct",
+            "value": 5175851,
+            "range": "± 9112",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/overlap/hashset/10pct",
+            "value": 27089416,
+            "range": "± 1807218",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/overlap/sosorted/50pct",
+            "value": 3858031,
+            "range": "± 29382",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/overlap/naive/50pct",
+            "value": 4936335,
+            "range": "± 16096",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/overlap/hashset/50pct",
+            "value": 28710954,
+            "range": "± 4004204",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/overlap/sosorted/100pct",
+            "value": 2965241,
+            "range": "± 22348",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/overlap/naive/100pct",
+            "value": 692698,
+            "range": "± 2332",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/overlap/hashset/100pct",
+            "value": 27767745,
+            "range": "± 2217602",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/asymmetric/sosorted/1:1",
+            "value": 12359422,
+            "range": "± 38769",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/asymmetric/naive/1:1",
+            "value": 11622309,
+            "range": "± 13434",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/asymmetric/hashset/1:1",
+            "value": 31872353,
+            "range": "± 1532284",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/asymmetric/sosorted/10:1",
+            "value": 3251471,
+            "range": "± 12847",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/asymmetric/naive/10:1",
+            "value": 2539922,
+            "range": "± 8262",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/asymmetric/hashset/10:1",
+            "value": 26331385,
+            "range": "± 92240",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/asymmetric/sosorted/50:1",
+            "value": 2002395,
+            "range": "± 17792",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/asymmetric/naive/50:1",
+            "value": 1730524,
+            "range": "± 3901",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/asymmetric/hashset/50:1",
+            "value": 20069340,
+            "range": "± 33956",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/asymmetric/sosorted/100:1",
+            "value": 1810560,
+            "range": "± 8991",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/asymmetric/naive/100:1",
+            "value": 1626358,
+            "range": "± 5910",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/asymmetric/hashset/100:1",
+            "value": 19800557,
+            "range": "± 41376",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/asymmetric/sosorted/1000:1",
+            "value": 1638462,
+            "range": "± 15141",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/asymmetric/naive/1000:1",
+            "value": 1519907,
+            "range": "± 18104",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/asymmetric/hashset/1000:1",
+            "value": 18877876,
+            "range": "± 26662",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/scaling/sosorted/1K",
+            "value": 2968,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/scaling/naive/1K",
+            "value": 2852,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/scaling/hashset/1K",
+            "value": 18934,
+            "range": "± 33",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/scaling/sosorted/10K",
+            "value": 30260,
+            "range": "± 90",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/scaling/naive/10K",
+            "value": 73792,
+            "range": "± 305",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/scaling/hashset/10K",
+            "value": 208069,
+            "range": "± 295",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/scaling/sosorted/100K",
+            "value": 1144351,
+            "range": "± 5678",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/scaling/naive/100K",
+            "value": 1098472,
+            "range": "± 3615",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/scaling/hashset/100K",
+            "value": 2689745,
+            "range": "± 28445",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/scaling/sosorted/1M",
+            "value": 11764286,
+            "range": "± 24230",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/scaling/naive/1M",
+            "value": 11076920,
+            "range": "± 19257",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference/scaling/hashset/1M",
+            "value": 30519400,
+            "range": "± 1571318",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference_size/overlap/sosorted/0pct",
+            "value": 4615193,
+            "range": "± 15161",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference_size/overlap/sosorted/1pct",
+            "value": 4598042,
+            "range": "± 25075",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference_size/overlap/sosorted/10pct",
+            "value": 4309532,
+            "range": "± 12613",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference_size/overlap/sosorted/50pct",
+            "value": 3406272,
+            "range": "± 9459",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference_size/overlap/sosorted/100pct",
+            "value": 2786575,
+            "range": "± 12369",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference_size/asymmetric/sosorted/1:1",
+            "value": 12074766,
+            "range": "± 13071",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference_size/asymmetric/sosorted/10:1",
+            "value": 2909683,
+            "range": "± 2713",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference_size/asymmetric/sosorted/50:1",
+            "value": 1574583,
+            "range": "± 16363",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference_size/asymmetric/sosorted/100:1",
+            "value": 1385194,
+            "range": "± 8032",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference_size/asymmetric/sosorted/1000:1",
+            "value": 1198425,
+            "range": "± 15731",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference_size/scaling/sosorted/1K",
+            "value": 2607,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference_size/scaling/sosorted/10K",
+            "value": 27270,
+            "range": "± 382",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference_size/scaling/sosorted/100K",
+            "value": 1118125,
+            "range": "± 7984",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "difference_size/scaling/sosorted/1M",
+            "value": 11506397,
+            "range": "± 17572",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/basic/sosorted/all_unique",
+            "value": 166961,
+            "range": "± 1744",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/basic/naive/all_unique",
+            "value": 544222,
+            "range": "± 1537",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/basic/windows/all_unique",
+            "value": 327950,
+            "range": "± 1767",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/basic/sosorted/early_dup",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/basic/naive/early_dup",
+            "value": 5,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/basic/windows/early_dup",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/basic/sosorted/mid_dup",
+            "value": 83729,
+            "range": "± 812",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/basic/naive/mid_dup",
+            "value": 272533,
+            "range": "± 2163",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/basic/windows/mid_dup",
+            "value": 164116,
+            "range": "± 808",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/basic/sosorted/late_dup",
+            "value": 152997,
+            "range": "± 2035",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/basic/naive/late_dup",
+            "value": 489762,
+            "range": "± 4272",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/basic/windows/late_dup",
+            "value": 295489,
+            "range": "± 1769",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/basic/sosorted/all_duplicates",
+            "value": 166804,
+            "range": "± 872",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/basic/naive/all_duplicates",
+            "value": 544132,
+            "range": "± 3054",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/basic/windows/all_duplicates",
+            "value": 328149,
+            "range": "± 1624",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/density/sosorted/0pct",
+            "value": 154194,
+            "range": "± 5808",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/density/naive/0pct",
+            "value": 545229,
+            "range": "± 1943",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/density/windows/0pct",
+            "value": 328369,
+            "range": "± 1877",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/density/sosorted/1pct",
+            "value": 146228,
+            "range": "± 1197",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/density/naive/1pct",
+            "value": 540156,
+            "range": "± 1728",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/density/windows/1pct",
+            "value": 324818,
+            "range": "± 1392",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/density/sosorted/10pct",
+            "value": 132994,
+            "range": "± 855",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/density/naive/10pct",
+            "value": 490917,
+            "range": "± 4393",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/density/windows/10pct",
+            "value": 295776,
+            "range": "± 1274",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/density/sosorted/50pct",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/density/naive/50pct",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/density/windows/50pct",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/density/sosorted/90pct",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/density/naive/90pct",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/density/windows/90pct",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/density/sosorted/99pct",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/density/naive/99pct",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/density/windows/99pct",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/run_length/sosorted/1",
+            "value": 151574,
+            "range": "± 1560",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/run_length/naive/1",
+            "value": 545268,
+            "range": "± 3641",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/run_length/windows/1",
+            "value": 327983,
+            "range": "± 1496",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/run_length/sosorted/2",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/run_length/naive/2",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/run_length/windows/2",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/run_length/sosorted/4",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/run_length/naive/4",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/run_length/windows/4",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/run_length/sosorted/16",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/run_length/naive/16",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/run_length/windows/16",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/run_length/sosorted/64",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/run_length/naive/64",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/run_length/windows/64",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/run_length/sosorted/256",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/run_length/naive/256",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/run_length/windows/256",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/realistic/sosorted/zipf",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/realistic/naive/zipf",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/realistic/windows/zipf",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/realistic/sosorted/database_ids",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/realistic/naive/database_ids",
+            "value": 7,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/realistic/windows/database_ids",
+            "value": 7,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/realistic/sosorted/clustered",
+            "value": 12563,
+            "range": "± 230",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/realistic/naive/clustered",
+            "value": 45438,
+            "range": "± 263",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/realistic/windows/clustered",
+            "value": 26948,
+            "range": "± 443",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/realistic/sosorted/small_runs",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/realistic/naive/small_runs",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/realistic/windows/small_runs",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/scaling/sosorted/1K",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/scaling/naive/1K",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/scaling/windows/1K",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/scaling/sosorted/10K",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/scaling/naive/10K",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/scaling/windows/10K",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/scaling/sosorted/100K",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/scaling/naive/100K",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/scaling/windows/100K",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/scaling/sosorted/1M",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/scaling/naive/1M",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/scaling/windows/1M",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/database_ids/sosorted/scattered",
+            "value": 152174,
+            "range": "± 2695",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/database_ids/naive/scattered",
+            "value": 545510,
+            "range": "± 1314",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/database_ids/sosorted/long_unique_run",
+            "value": 132713,
+            "range": "± 589",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "find_first_duplicate/database_ids/naive/long_unique_run",
+            "value": 490356,
+            "range": "± 4620",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/overlap/sosorted/0pct",
+            "value": 3594161,
+            "range": "± 36662",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/overlap/naive/0pct",
+            "value": 4252805,
+            "range": "± 44251",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/overlap/hashset/0pct",
+            "value": 23566625,
+            "range": "± 631651",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/overlap/sosorted/1pct",
+            "value": 3564328,
+            "range": "± 38750",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/overlap/naive/1pct",
+            "value": 4242496,
+            "range": "± 33682",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/overlap/hashset/1pct",
+            "value": 24072728,
+            "range": "± 684830",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/overlap/sosorted/10pct",
+            "value": 3542794,
+            "range": "± 35880",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/overlap/naive/10pct",
+            "value": 4218520,
+            "range": "± 79750",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/overlap/hashset/10pct",
+            "value": 32658690,
+            "range": "± 1418736",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/overlap/sosorted/50pct",
+            "value": 3342434,
+            "range": "± 16629",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/overlap/naive/50pct",
+            "value": 4135756,
+            "range": "± 26831",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/overlap/hashset/50pct",
+            "value": 56579739,
+            "range": "± 3538642",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/overlap/sosorted/100pct",
+            "value": 1101914,
+            "range": "± 11448",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/overlap/naive/100pct",
+            "value": 1460762,
+            "range": "± 8065",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/overlap/hashset/100pct",
+            "value": 58686339,
+            "range": "± 3792388",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/asymmetric/sosorted/1:1",
+            "value": 8813456,
+            "range": "± 25201",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/asymmetric/naive/1:1",
+            "value": 10149070,
+            "range": "± 34059",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/asymmetric/hashset/1:1",
+            "value": 35621325,
+            "range": "± 2977528",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/asymmetric/sosorted/10:1",
+            "value": 1840713,
+            "range": "± 4377",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/asymmetric/naive/10:1",
+            "value": 1852335,
+            "range": "± 8890",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/asymmetric/hashset/10:1",
+            "value": 2938471,
+            "range": "± 8769",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/asymmetric/sosorted/50:1",
+            "value": 504907,
+            "range": "± 1092",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/asymmetric/naive/50:1",
+            "value": 1099501,
+            "range": "± 8234",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/asymmetric/hashset/50:1",
+            "value": 575985,
+            "range": "± 1657",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/asymmetric/sosorted/100:1",
+            "value": 268625,
+            "range": "± 694",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/asymmetric/naive/100:1",
+            "value": 937021,
+            "range": "± 24836",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/asymmetric/hashset/100:1",
+            "value": 277444,
+            "range": "± 1422",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/asymmetric/sosorted/1000:1",
+            "value": 94234,
+            "range": "± 377",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/asymmetric/naive/1000:1",
+            "value": 759894,
+            "range": "± 6378",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/asymmetric/hashset/1000:1",
+            "value": 20296,
+            "range": "± 48",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/scaling/sosorted/1K",
+            "value": 2084,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/scaling/naive/1K",
+            "value": 2501,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/scaling/hashset/1K",
+            "value": 19320,
+            "range": "± 203",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/scaling/sosorted/10K",
+            "value": 19031,
+            "range": "± 882",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/scaling/naive/10K",
+            "value": 65446,
+            "range": "± 368",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/scaling/hashset/10K",
+            "value": 228087,
+            "range": "± 1035",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/scaling/sosorted/100K",
+            "value": 819116,
+            "range": "± 1204",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/scaling/naive/100K",
+            "value": 951444,
+            "range": "± 2259",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/scaling/hashset/100K",
+            "value": 2942066,
+            "range": "± 4622",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/scaling/sosorted/1M",
+            "value": 8442233,
+            "range": "± 30826",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/scaling/naive/1M",
+            "value": 9622691,
+            "range": "± 30135",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/scaling/hashset/1M",
+            "value": 33621221,
+            "range": "± 1609603",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/density/sosorted/0pct",
+            "value": 429982,
+            "range": "± 1274",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/density/naive/0pct",
+            "value": 540488,
+            "range": "± 1601",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/density/sosorted/1pct",
+            "value": 435273,
+            "range": "± 648",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/density/naive/1pct",
+            "value": 606777,
+            "range": "± 1109",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/density/sosorted/10pct",
+            "value": 478190,
+            "range": "± 803",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/density/naive/10pct",
+            "value": 583146,
+            "range": "± 2778",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/density/sosorted/50pct",
+            "value": 265050,
+            "range": "± 606",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/density/naive/50pct",
+            "value": 331488,
+            "range": "± 542",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/density/sosorted/100pct",
+            "value": 108684,
+            "range": "± 344",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "intersect/density/naive/100pct",
+            "value": 140184,
+            "range": "± 824",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/overlap/sosorted/0pct",
+            "value": 6251828,
+            "range": "± 99107",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/overlap/naive/0pct",
+            "value": 6168706,
+            "range": "± 12348",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/overlap/hashset/0pct",
+            "value": 78059436,
+            "range": "± 837098",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/overlap/sosorted/1pct",
+            "value": 6276550,
+            "range": "± 38409",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/overlap/naive/1pct",
+            "value": 6169094,
+            "range": "± 13698",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/overlap/hashset/1pct",
+            "value": 79130173,
+            "range": "± 802602",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/overlap/sosorted/10pct",
+            "value": 5899617,
+            "range": "± 59069",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/overlap/naive/10pct",
+            "value": 6173375,
+            "range": "± 12148",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/overlap/hashset/10pct",
+            "value": 81734725,
+            "range": "± 1248015",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/overlap/sosorted/50pct",
+            "value": 4990381,
+            "range": "± 60288",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/overlap/naive/50pct",
+            "value": 5904631,
+            "range": "± 18972",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/overlap/hashset/50pct",
+            "value": 83715489,
+            "range": "± 3421759",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/overlap/sosorted/100pct",
+            "value": 1915321,
+            "range": "± 25092",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/overlap/naive/100pct",
+            "value": 1971749,
+            "range": "± 27475",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/overlap/hashset/100pct",
+            "value": 61345490,
+            "range": "± 2892256",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/asymmetric/sosorted/1:1",
+            "value": 12710989,
+            "range": "± 75167",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/asymmetric/naive/1:1",
+            "value": 12650352,
+            "range": "± 32755",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/asymmetric/hashset/1:1",
+            "value": 81268766,
+            "range": "± 1576402",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/asymmetric/sosorted/10:1",
+            "value": 3284261,
+            "range": "± 15732",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/asymmetric/naive/10:1",
+            "value": 2690331,
+            "range": "± 3441",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/asymmetric/hashset/10:1",
+            "value": 27243357,
+            "range": "± 494572",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/asymmetric/sosorted/50:1",
+            "value": 2271405,
+            "range": "± 7360",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/asymmetric/naive/50:1",
+            "value": 1766512,
+            "range": "± 8028",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/asymmetric/hashset/50:1",
+            "value": 22986309,
+            "range": "± 192314",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/asymmetric/sosorted/100:1",
+            "value": 2129478,
+            "range": "± 12492",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/asymmetric/naive/100:1",
+            "value": 1646847,
+            "range": "± 10102",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/asymmetric/hashset/100:1",
+            "value": 22520368,
+            "range": "± 111928",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/asymmetric/sosorted/1000:1",
+            "value": 2006567,
+            "range": "± 14235",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/asymmetric/naive/1000:1",
+            "value": 1525215,
+            "range": "± 16918",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/asymmetric/hashset/1000:1",
+            "value": 21968050,
+            "range": "± 64486",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/scaling/sosorted/1K",
+            "value": 3458,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/scaling/naive/1K",
+            "value": 3831,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/scaling/hashset/1K",
+            "value": 41231,
+            "range": "± 123",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/scaling/sosorted/10K",
+            "value": 64649,
+            "range": "± 3546",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/scaling/naive/10K",
+            "value": 96914,
+            "range": "± 259",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/scaling/hashset/10K",
+            "value": 505695,
+            "range": "± 4083",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/scaling/sosorted/100K",
+            "value": 1178487,
+            "range": "± 3203",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/scaling/naive/100K",
+            "value": 1198767,
+            "range": "± 10269",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/scaling/hashset/100K",
+            "value": 6190345,
+            "range": "± 18632",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/scaling/sosorted/1M",
+            "value": 12092923,
+            "range": "± 68649",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/scaling/naive/1M",
+            "value": 12065257,
+            "range": "± 36629",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union/scaling/hashset/1M",
+            "value": 78688472,
+            "range": "± 2197178",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union_size/overlap/sosorted/0pct",
+            "value": 4748356,
+            "range": "± 9920",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union_size/overlap/sosorted/1pct",
+            "value": 4751426,
+            "range": "± 9974",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union_size/overlap/sosorted/10pct",
+            "value": 4751684,
+            "range": "± 65685",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union_size/overlap/sosorted/50pct",
+            "value": 4646232,
+            "range": "± 28272",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union_size/overlap/sosorted/100pct",
+            "value": 1309818,
+            "range": "± 7032",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union_size/asymmetric/sosorted/1:1",
+            "value": 10239763,
+            "range": "± 20594",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union_size/asymmetric/sosorted/10:1",
+            "value": 2211124,
+            "range": "± 2547",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union_size/asymmetric/sosorted/50:1",
+            "value": 1413963,
+            "range": "± 6191",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union_size/asymmetric/sosorted/100:1",
+            "value": 1310250,
+            "range": "± 5076",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union_size/asymmetric/sosorted/1000:1",
+            "value": 1204571,
+            "range": "± 9717",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union_size/scaling/sosorted/1K",
+            "value": 2458,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union_size/scaling/sosorted/10K",
+            "value": 72841,
+            "range": "± 152",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union_size/scaling/sosorted/100K",
+            "value": 961836,
+            "range": "± 1230",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "union_size/scaling/sosorted/1M",
+            "value": 9769165,
+            "range": "± 8329",
             "unit": "ns/iter"
           }
         ]
