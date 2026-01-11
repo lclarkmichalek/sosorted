@@ -122,6 +122,10 @@ The SIMD width is determined at compile time, not runtime. If you need to suppor
 
 The `SIMD_WIDTH_BITS` constant is exported and indicates the detected register width (128, 256, or 512 bits).
 
+## Tools
+
+This repository includes `bench-compare`, a CLI tool for A/B benchmark comparison with statistical hypothesis testing. See [crates/bench-compare](crates/bench-compare/README.md) for details.
+
 ## References
 
 The intersection algorithm is based on the following paper:
