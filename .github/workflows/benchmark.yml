@@ -1,66 +1,14 @@
 name: Benchmark
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
     branches: ['**']
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
-  deployments: write
 
 jobs:
-  benchmark:
-    name: Run Benchmarks
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Need full history for bench-compare
-
-      - name: Install nightly toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly-2026-01-05
-
-      - name: Run benchmarks
-        run: cargo bench -- --output-format bencher | tee output.txt
-
-      - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@v1
-        with:
-          name: sosorted Benchmarks
-          tool: cargo
-          output-file-path: output.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-          summary-always: true
-          comment-on-alert: false
-          fail-on-alert: false
-          benchmark-data-dir-path: dev/bench
-          gh-pages-branch: gh-pages
-
-      - name: Comment on PR
-        if: github.event_name == 'pull_request'
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body: |
-            ## Benchmark Results
-
-            Benchmark comparison available in the [Job Summary](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
-
-            **[View Historical Charts](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/dev/bench/)**
-
-            <sub>Benchmarks run on ubuntu-latest with Rust nightly-2026-01-05</sub>
-          edit-mode: replace
-
-  # Statistical hypothesis testing for PRs
   bench-compare:
     name: Statistical Benchmark Comparison
     runs-on: ubuntu-latest
