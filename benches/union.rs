@@ -1,9 +1,54 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use sosorted::{union, union_size};
+use std::cmp::Ordering;
 use std::collections::HashSet;
 
 mod common;
-use common::{hashset_union, naive_union, standard_binary_datasets, DEFAULT_SIZE};
+use common::{standard_binary_datasets, DEFAULT_SIZE};
+
+// =============================================================================
+// Baseline implementations
+// =============================================================================
+
+/// Naive union: two-pointer merge algorithm.
+fn naive_union(a: &[u64], b: &[u64]) -> Vec<u64> {
+    let mut result = Vec::with_capacity(a.len() + b.len());
+    let mut i = 0;
+    let mut j = 0;
+
+    while i < a.len() && j < b.len() {
+        match a[i].cmp(&b[j]) {
+            Ordering::Less => {
+                result.push(a[i]);
+                i += 1;
+            }
+            Ordering::Greater => {
+                result.push(b[j]);
+                j += 1;
+            }
+            Ordering::Equal => {
+                result.push(a[i]);
+                i += 1;
+                j += 1;
+            }
+        }
+    }
+
+    result.extend_from_slice(&a[i..]);
+    result.extend_from_slice(&b[j..]);
+    result
+}
+
+/// HashSet-based union.
+fn hashset_union(set_a: &HashSet<u64>, set_b: &HashSet<u64>) -> Vec<u64> {
+    let mut result: Vec<_> = set_a.union(set_b).copied().collect();
+    result.sort_unstable();
+    result
+}
+
+// =============================================================================
+// Benchmarks
+// =============================================================================
 
 /// Benchmark union with standard binary datasets.
 ///

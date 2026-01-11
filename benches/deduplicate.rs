@@ -1,11 +1,42 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use sosorted::deduplicate;
+use std::collections::HashSet;
 
 mod common;
-use common::{
-    hashset_deduplicate, naive_deduplicate, standard_unary_datasets, UnaryDatasetGroup,
-    DEFAULT_SIZE,
-};
+use common::{standard_unary_datasets, UnaryDatasetGroup, DEFAULT_SIZE};
+
+// =============================================================================
+// Baseline implementations
+// =============================================================================
+
+/// Naive deduplicate: simple loop writing unique elements.
+fn naive_deduplicate(out: &mut [u64], input: &[u64]) -> usize {
+    if input.is_empty() {
+        return 0;
+    }
+
+    out[0] = input[0];
+    let mut write_pos = 1;
+    for i in 1..input.len() {
+        if input[i] != input[i - 1] {
+            out[write_pos] = input[i];
+            write_pos += 1;
+        }
+    }
+    write_pos
+}
+
+/// HashSet-based deduplicate (not order-preserving, re-sorts).
+fn hashset_deduplicate(data: &[u64]) -> Vec<u64> {
+    let set: HashSet<_> = data.iter().copied().collect();
+    let mut result: Vec<_> = set.into_iter().collect();
+    result.sort_unstable();
+    result
+}
+
+// =============================================================================
+// Benchmarks
+// =============================================================================
 
 /// Benchmark deduplicate with standard unary datasets.
 ///

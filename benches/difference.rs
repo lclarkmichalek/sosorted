@@ -1,9 +1,51 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use sosorted::{difference, difference_size};
+use std::cmp::Ordering;
 use std::collections::HashSet;
 
 mod common;
-use common::{hashset_difference, naive_difference, standard_binary_datasets, DEFAULT_SIZE};
+use common::{standard_binary_datasets, DEFAULT_SIZE};
+
+// =============================================================================
+// Baseline implementations
+// =============================================================================
+
+/// Naive difference: two-pointer algorithm.
+fn naive_difference(a: &[u64], b: &[u64]) -> Vec<u64> {
+    let mut result = Vec::with_capacity(a.len());
+    let mut i = 0;
+    let mut j = 0;
+
+    while i < a.len() && j < b.len() {
+        match a[i].cmp(&b[j]) {
+            Ordering::Less => {
+                result.push(a[i]);
+                i += 1;
+            }
+            Ordering::Greater => {
+                j += 1;
+            }
+            Ordering::Equal => {
+                i += 1;
+                j += 1;
+            }
+        }
+    }
+
+    result.extend_from_slice(&a[i..]);
+    result
+}
+
+/// HashSet-based difference.
+fn hashset_difference(a: &[u64], set_b: &HashSet<u64>) -> Vec<u64> {
+    let mut result: Vec<_> = a.iter().copied().filter(|x| !set_b.contains(x)).collect();
+    result.sort_unstable();
+    result
+}
+
+// =============================================================================
+// Benchmarks
+// =============================================================================
 
 /// Benchmark difference with standard binary datasets.
 ///

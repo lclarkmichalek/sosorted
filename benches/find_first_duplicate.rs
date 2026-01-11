@@ -2,10 +2,33 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use sosorted::find_first_duplicate;
 
 mod common;
-use common::{
-    naive_find_first_duplicate, standard_unary_datasets, windows_find_first_duplicate,
-    UnaryDatasetGroup, DEFAULT_SIZE,
-};
+use common::{standard_unary_datasets, UnaryDatasetGroup, DEFAULT_SIZE};
+
+// =============================================================================
+// Baseline implementations
+// =============================================================================
+
+/// Naive find_first_duplicate: simple loop comparing adjacent elements.
+fn naive_find_first_duplicate(vec: &[u64]) -> usize {
+    for i in 1..vec.len() {
+        if vec[i] == vec[i - 1] {
+            return i;
+        }
+    }
+    vec.len()
+}
+
+/// Windows-based find_first_duplicate using idiomatic Rust iterators.
+fn windows_find_first_duplicate(vec: &[u64]) -> usize {
+    vec.windows(2)
+        .position(|w| w[0] == w[1])
+        .map(|i| i + 1)
+        .unwrap_or(vec.len())
+}
+
+// =============================================================================
+// Benchmarks
+// =============================================================================
 
 /// Benchmark find_first_duplicate with standard unary datasets.
 ///

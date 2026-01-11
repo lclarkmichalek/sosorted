@@ -1,11 +1,46 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use sosorted::intersect;
+use std::cmp::Ordering;
 use std::collections::HashSet;
 
 mod common;
-use common::{
-    hashset_intersect, naive_intersect, standard_binary_datasets, BinaryDatasetGroup, DEFAULT_SIZE,
-};
+use common::{standard_binary_datasets, BinaryDatasetGroup, DEFAULT_SIZE};
+
+// =============================================================================
+// Baseline implementations
+// =============================================================================
+
+/// Naive intersect: two-pointer merge algorithm.
+fn naive_intersect(dest: &mut [u64], a: &[u64], b: &[u64]) -> usize {
+    let mut i = 0;
+    let mut j = 0;
+    let mut count = 0;
+
+    while i < a.len() && j < b.len() {
+        match a[i].cmp(&b[j]) {
+            Ordering::Less => i += 1,
+            Ordering::Greater => j += 1,
+            Ordering::Equal => {
+                dest[count] = a[i];
+                i += 1;
+                j += 1;
+                count += 1;
+            }
+        }
+    }
+    count
+}
+
+/// HashSet-based intersect.
+fn hashset_intersect(set_a: &HashSet<u64>, set_b: &HashSet<u64>) -> Vec<u64> {
+    let mut result: Vec<_> = set_a.intersection(set_b).copied().collect();
+    result.sort_unstable();
+    result
+}
+
+// =============================================================================
+// Benchmarks
+// =============================================================================
 
 /// Benchmark intersect with standard binary datasets.
 ///
