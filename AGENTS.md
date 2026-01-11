@@ -147,6 +147,18 @@ Before committing any code, agents must ensure the following:
    cargo test
    ```
 
+### Pull Request Policy
+
+When merging pull requests, **always use squash merge, never regular merge**. This keeps the commit history clean and ensures each PR results in a single, atomic commit on main.
+
+```bash
+# Correct: squash merge
+gh pr merge <PR> --squash
+
+# Incorrect: regular merge (do not use)
+gh pr merge <PR> --merge
+```
+
 ## Benchmarking
 
 The project uses **Criterion** for statistical benchmarking with HTML report generation. Every supported operation must have comprehensive benchmarks. Note that current benchmarks primarily focus on `u64`, but the library supports all primitive integer types.
