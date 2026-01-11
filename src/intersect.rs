@@ -5,7 +5,8 @@
 //!
 //! The main `intersect` function uses an adaptive algorithm that selects the
 //! best strategy based on the size ratio between arrays:
-//! - V1: Best for ratios up to ~50:1
+//! - Scalar: For very small ratios (up to 2:1)
+//! - V1: Best for ratios from ~3:1 to ~50:1
 //! - V3: Best for ratios from ~50:1 to ~1000:1
 //! - Galloping: Best for ratios > 1000:1
 //!
@@ -15,10 +16,13 @@ use std::simd::cmp::SimdPartialEq;
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
-/// Computes the intersection of two sorted arrays.
+/// Computes the **multiset intersection** of two sorted arrays.
 ///
 /// Uses an adaptive algorithm that selects the best strategy based on the
-/// size ratio between arrays. The result is written to `dest`.
+/// size ratio between arrays (Scalar, V1, V3, or Galloping). The result is written to `dest`.
+///
+/// This operation follows multiset semantics: if an element appears `n` times in `a`
+/// and `m` times in `b`, it will appear `min(n, m)` times in the result.
 ///
 /// # Arguments
 /// * `dest` - Destination buffer for the intersection result
@@ -42,6 +46,22 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// let new_len = intersect(&mut dest, &a, &b);
 /// assert_eq!(new_len, 3);
 /// assert_eq!(&dest[..new_len], &[1, 3, 5]);
+/// ```
+///
+/// # Example with duplicates
+///
+/// ```
+/// use sosorted::intersect;
+///
+/// let a = [1u64, 1, 2, 2];
+/// let b = [1u64, 2, 2, 2];
+/// let mut dest = [0u64; 4];
+/// let new_len = intersect(&mut dest, &a, &b);
+///
+/// // Result matches min(count_a, count_b) for each element
+/// // 1 appears 2 times in a, 1 time in b -> 1 time in result
+/// // 2 appears 2 times in a, 3 times in b -> 2 times in result
+/// assert_eq!(&dest[..new_len], &[1, 2, 2]);
 /// ```
 pub fn intersect<T>(dest: &mut [T], a: &[T], b: &[T]) -> usize
 where
