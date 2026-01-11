@@ -112,9 +112,15 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     // Validate working directory
-    let workdir = args.workdir.canonicalize().context("Invalid working directory")?;
+    let workdir = args
+        .workdir
+        .canonicalize()
+        .context("Invalid working directory")?;
     if !workdir.join(".git").exists() {
-        bail!("Working directory is not a git repository: {}", workdir.display());
+        bail!(
+            "Working directory is not a git repository: {}",
+            workdir.display()
+        );
     }
 
     // Save current git state to restore later
@@ -124,12 +130,18 @@ fn main() -> Result<()> {
         bail!("Working directory has uncommitted changes. Please commit or stash them first.");
     }
 
-    eprintln!("🔬 Benchmark Comparison: {} vs {}", args.baseline, args.test);
-    eprintln!("   Sample size: {}, Significance: {}, Threshold: {}%\n",
-              args.sample_size, args.significance, args.threshold);
+    eprintln!(
+        "🔬 Benchmark Comparison: {} vs {}",
+        args.baseline, args.test
+    );
+    eprintln!(
+        "   Sample size: {}, Significance: {}, Threshold: {}%\n",
+        args.sample_size, args.significance, args.threshold
+    );
 
     // Build binaries for both refs
-    let baseline_dir = build_benchmarks(&workdir, &args.baseline, "baseline", args.bench.as_deref())?;
+    let baseline_dir =
+        build_benchmarks(&workdir, &args.baseline, "baseline", args.bench.as_deref())?;
     let test_dir = build_benchmarks(&workdir, &args.test, "test", args.bench.as_deref())?;
 
     // Restore original ref
@@ -140,7 +152,12 @@ fn main() -> Result<()> {
     let test_results = run_benchmarks(&test_dir, args.bench.as_deref(), args.sample_size)?;
 
     // Compare results
-    let comparisons = compare_results(&baseline_results, &test_results, args.significance, args.threshold)?;
+    let comparisons = compare_results(
+        &baseline_results,
+        &test_results,
+        args.significance,
+        args.threshold,
+    )?;
 
     // Output results
     match args.output {
@@ -197,7 +214,12 @@ fn checkout_ref(workdir: &Path, git_ref: &str) -> Result<()> {
     Ok(())
 }
 
-fn build_benchmarks(workdir: &Path, git_ref: &str, label: &str, bench_filter: Option<&str>) -> Result<PathBuf> {
+fn build_benchmarks(
+    workdir: &Path,
+    git_ref: &str,
+    label: &str,
+    bench_filter: Option<&str>,
+) -> Result<PathBuf> {
     eprintln!("📦 Building {} benchmarks ({})...", label, git_ref);
 
     // Checkout the ref
@@ -205,9 +227,7 @@ fn build_benchmarks(workdir: &Path, git_ref: &str, label: &str, bench_filter: Op
 
     // Build benchmarks
     let mut cmd = Command::new("cargo");
-    cmd.arg("bench")
-        .arg("--no-run")
-        .current_dir(workdir);
+    cmd.arg("bench").arg("--no-run").current_dir(workdir);
 
     if let Some(bench) = bench_filter {
         cmd.args(["--bench", bench]);
@@ -224,7 +244,9 @@ fn build_benchmarks(workdir: &Path, git_ref: &str, label: &str, bench_filter: Op
 
     // Find and copy benchmark binaries to a labeled directory
     let target_dir = workdir.join("target").join("release").join("deps");
-    let output_dir = workdir.join("target").join(format!("bench-compare-{}", label));
+    let output_dir = workdir
+        .join("target")
+        .join(format!("bench-compare-{}", label));
     std::fs::create_dir_all(&output_dir)?;
 
     // Copy benchmark binaries
@@ -254,9 +276,17 @@ fn build_benchmarks(workdir: &Path, git_ref: &str, label: &str, bench_filter: Op
     }
 
     if copied_count == 0 {
-        eprintln!("   ⚠ Warning: No benchmark binaries found in {}", target_dir.display());
+        eprintln!(
+            "   ⚠ Warning: No benchmark binaries found in {}",
+            target_dir.display()
+        );
     }
-    eprintln!("   ✓ Built {} binaries ({} copied) to {}\n", label, copied_count, output_dir.display());
+    eprintln!(
+        "   ✓ Built {} binaries ({} copied) to {}\n",
+        label,
+        copied_count,
+        output_dir.display()
+    );
     Ok(output_dir)
 }
 
@@ -339,7 +369,10 @@ fn run_benchmarks(
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             eprintln!("   ⚠ Benchmark exited with non-zero status");
-            eprintln!("   stderr: {}", stderr.lines().take(5).collect::<Vec<_>>().join("\n"));
+            eprintln!(
+                "   stderr: {}",
+                stderr.lines().take(5).collect::<Vec<_>>().join("\n")
+            );
             continue;
         }
 
@@ -531,14 +564,7 @@ fn compare_single(
     }
 }
 
-fn welch_t_test(
-    mean1: f64,
-    std1: f64,
-    n1: usize,
-    mean2: f64,
-    std2: f64,
-    n2: usize,
-) -> f64 {
+fn welch_t_test(mean1: f64, std1: f64, n1: usize, mean2: f64, std2: f64, n2: usize) -> f64 {
     let n1 = n1 as f64;
     let n2 = n2 as f64;
     let var1 = std1 * std1;
@@ -573,21 +599,36 @@ fn print_text_report(comparisons: &[ComparisonResult], args: &Args) {
     println!("╠══════════════════════════════════════════════════════════════════════════════╣");
     println!("║ Baseline: {:<66} ║", truncate(&args.baseline, 66));
     println!("║ Test:     {:<66} ║", truncate(&args.test, 66));
-    println!("║ Significance level: {:<10} Threshold: {:>5.1}%                            ║",
-             args.significance, args.threshold);
+    println!(
+        "║ Significance level: {:<10} Threshold: {:>5.1}%                            ║",
+        args.significance, args.threshold
+    );
     println!("╚══════════════════════════════════════════════════════════════════════════════╝\n");
 
     // Summary counts
-    let regressions = comparisons.iter().filter(|c| c.verdict == Verdict::Regression).count();
-    let improvements = comparisons.iter().filter(|c| c.verdict == Verdict::Improvement).count();
-    let no_change = comparisons.iter().filter(|c| c.verdict == Verdict::NoChange).count();
+    let regressions = comparisons
+        .iter()
+        .filter(|c| c.verdict == Verdict::Regression)
+        .count();
+    let improvements = comparisons
+        .iter()
+        .filter(|c| c.verdict == Verdict::Improvement)
+        .count();
+    let no_change = comparisons
+        .iter()
+        .filter(|c| c.verdict == Verdict::NoChange)
+        .count();
 
-    println!("Summary: {} regressions, {} improvements, {} no change\n",
-             regressions, improvements, no_change);
+    println!(
+        "Summary: {} regressions, {} improvements, {} no change\n",
+        regressions, improvements, no_change
+    );
 
     // Detailed results
-    println!("{:<50} {:>12} {:>12} {:>10} {:>10} {}",
-             "Benchmark", "Baseline", "Test", "Change", "p-value", "Verdict");
+    println!(
+        "{:<50} {:>12} {:>12} {:>10} {:>10} Verdict",
+        "Benchmark", "Baseline", "Test", "Change", "p-value"
+    );
     println!("{}", "-".repeat(110));
 
     for c in comparisons {
@@ -602,17 +643,30 @@ fn print_text_report(comparisons: &[ComparisonResult], args: &Args) {
             Verdict::NoChange => "no change",
         };
 
-        println!("{:<50} {:>12} {:>12} {:>10} {:>10} {}",
-                 truncate(&c.name, 50), baseline_str, test_str, change_str, p_str, verdict_str);
+        println!(
+            "{:<50} {:>12} {:>12} {:>10} {:>10} {}",
+            truncate(&c.name, 50),
+            baseline_str,
+            test_str,
+            change_str,
+            p_str,
+            verdict_str
+        );
     }
 
     println!();
 
     if regressions > 0 {
-        println!("\x1b[31m⚠ {} benchmark(s) show statistically significant regressions!\x1b[0m", regressions);
+        println!(
+            "\x1b[31m⚠ {} benchmark(s) show statistically significant regressions!\x1b[0m",
+            regressions
+        );
     }
     if improvements > 0 {
-        println!("\x1b[32m✓ {} benchmark(s) show statistically significant improvements.\x1b[0m", improvements);
+        println!(
+            "\x1b[32m✓ {} benchmark(s) show statistically significant improvements.\x1b[0m",
+            improvements
+        );
     }
 }
 
