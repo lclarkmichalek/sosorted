@@ -33,29 +33,43 @@ where
 
     let mut i = 0;
 
-    // Unrolled loop: process 2 chunks at a time
-    // We need enough space for 2 * lanes + 1 (shifted) elements
-    while i + 2 * lanes < vec.len() {
+    // Unrolled loop: process 4 chunks at a time
+    // We need enough space for 4 * lanes + 1 (shifted) elements
+    while i + 4 * lanes < vec.len() {
         let chunk1 = T::simd_from_slice(&vec[i..i + lanes]);
         let next1 = T::simd_from_slice(&vec[i + 1..i + lanes + 1]);
 
         let chunk2 = T::simd_from_slice(&vec[i + lanes..i + 2 * lanes]);
         let next2 = T::simd_from_slice(&vec[i + lanes + 1..i + 2 * lanes + 1]);
 
+        let chunk3 = T::simd_from_slice(&vec[i + 2 * lanes..i + 3 * lanes]);
+        let next3 = T::simd_from_slice(&vec[i + 2 * lanes + 1..i + 3 * lanes + 1]);
+
+        let chunk4 = T::simd_from_slice(&vec[i + 3 * lanes..i + 4 * lanes]);
+        let next4 = T::simd_from_slice(&vec[i + 3 * lanes + 1..i + 4 * lanes + 1]);
+
         let mask1 = chunk1.simd_eq(next1);
         let mask2 = chunk2.simd_eq(next2);
+        let mask3 = chunk3.simd_eq(next3);
+        let mask4 = chunk4.simd_eq(next4);
 
         // Optimization: Check combined mask to reduce branching in the common case (no duplicates)
-        if (mask1 | mask2).any() {
+        if (mask1 | mask2 | mask3 | mask4).any() {
             if mask1.any() {
                 return i + mask1.to_bitmask().trailing_zeros() as usize + 1;
             }
             if mask2.any() {
                 return i + lanes + mask2.to_bitmask().trailing_zeros() as usize + 1;
             }
+            if mask3.any() {
+                return i + 2 * lanes + mask3.to_bitmask().trailing_zeros() as usize + 1;
+            }
+            if mask4.any() {
+                return i + 3 * lanes + mask4.to_bitmask().trailing_zeros() as usize + 1;
+            }
         }
 
-        i += 2 * lanes;
+        i += 4 * lanes;
     }
 
     // Process remaining chunks (one at a time)
