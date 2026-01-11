@@ -20,15 +20,62 @@ jobs:
         with:
           fetch-depth: 0  # Need full history for git ref comparison
 
+      - name: Detect changed files
+        id: changes
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          CHANGED=$(git diff --name-only $BASE HEAD)
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          # Check if any Rust files changed
+          RUST_FILES=$(echo "$CHANGED" | grep '\.rs$' || true)
+          if [ -z "$RUST_FILES" ]; then
+            echo "skip_benchmarks=true" >> $GITHUB_OUTPUT
+            echo "No Rust files changed, skipping benchmarks"
+            exit 0
+          fi
+
+          echo "skip_benchmarks=false" >> $GITHUB_OUTPUT
+
+          # Check if core files changed - if so, run all benchmarks
+          if echo "$CHANGED" | grep -qE "^src/(lib|simd_element)\.rs$|^benches/common/|^crates/bench-compare/"; then
+            echo "Core files changed, running all benchmarks"
+            echo "bench_arg=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check which operation files changed (src/ or benches/)
+          BENCHMARKS=""
+          COUNT=0
+          for op in deduplicate find_first_duplicate intersect union difference; do
+            if echo "$CHANGED" | grep -qE "^(src|benches)/${op}\.rs$"; then
+              BENCHMARKS="${op}"
+              COUNT=$((COUNT + 1))
+            fi
+          done
+
+          # If exactly one operation changed, run only that benchmark
+          if [ "$COUNT" -eq 1 ]; then
+            echo "Single operation changed: $BENCHMARKS"
+            echo "bench_arg=--bench ${BENCHMARKS}" >> $GITHUB_OUTPUT
+          else
+            echo "Multiple or no specific operations changed, running all benchmarks"
+            echo "bench_arg=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Install nightly toolchain
+        if: steps.changes.outputs.skip_benchmarks != 'true'
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly-2026-01-05
 
       - name: Build bench-compare tool
+        if: steps.changes.outputs.skip_benchmarks != 'true'
         run: cargo build --release -p bench-compare
 
       - name: Run benchmark comparison
+        if: steps.changes.outputs.skip_benchmarks != 'true'
         id: bench-compare
         run: |
           set +e  # Don't exit on error
@@ -38,12 +85,14 @@ jobs:
             --output html \
             --html-output benchmark-report.html \
             --sample-size 50 \
-            --keep-binaries
+            --keep-binaries \
+            ${{ steps.changes.outputs.bench_arg }}
           EXIT_CODE=$?
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
           exit 0  # Always succeed so we can upload artifacts
 
       - name: Upload HTML Report
+        if: steps.changes.outputs.skip_benchmarks != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-report
@@ -51,6 +100,7 @@ jobs:
           retention-days: 30
 
       - name: Upload Criterion Reports (Baseline)
+        if: steps.changes.outputs.skip_benchmarks != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: criterion-baseline
@@ -59,6 +109,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload Criterion Reports (Test)
+        if: steps.changes.outputs.skip_benchmarks != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: criterion-test
@@ -67,6 +118,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Generate summary
+        if: steps.changes.outputs.skip_benchmarks != 'true'
         run: |
           echo "## Benchmark Comparison Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -85,7 +137,15 @@ jobs:
           echo "- **Significance level:** 0.05" >> $GITHUB_STEP_SUMMARY
           echo "- **Effect threshold:** 2.0%" >> $GITHUB_STEP_SUMMARY
 
+      - name: Generate summary (skipped)
+        if: steps.changes.outputs.skip_benchmarks == 'true'
+        run: |
+          echo "## Benchmark Comparison Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⏭️ **Benchmarks skipped** - no Rust files changed." >> $GITHUB_STEP_SUMMARY
+
       - name: Post comment with results
+        if: steps.changes.outputs.skip_benchmarks != 'true'
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
@@ -113,8 +173,19 @@ jobs:
             <sub>Run via bench-compare on ubuntu-latest with Rust nightly-2026-01-05</sub>
           edit-mode: replace
 
+      - name: Post comment (skipped)
+        if: steps.changes.outputs.skip_benchmarks == 'true'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ## Statistical Benchmark Comparison
+
+            ⏭️ **Benchmarks skipped** - no Rust files changed.
+          edit-mode: replace
+
       - name: Fail on regressions
-        if: steps.bench-compare.outputs.exit_code == '1'
+        if: steps.changes.outputs.skip_benchmarks != 'true' && steps.bench-compare.outputs.exit_code == '1'
         run: |
           echo "::error::Benchmark regressions detected. See the HTML report for details."
           exit 1
