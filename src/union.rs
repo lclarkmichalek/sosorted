@@ -71,6 +71,8 @@ where
 
 /// Computes the union of two sorted arrays, merging them into a destination buffer.
 ///
+/// This operation implements set union: duplicates are removed.
+///
 /// The destination buffer must have sufficient capacity to hold the union result.
 /// In the worst case (no overlapping elements), the required capacity is `a.len() + b.len()`.
 ///

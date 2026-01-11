@@ -17,6 +17,9 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
 /// Computes the intersection of two sorted arrays.
 ///
+/// This operation implements multiset intersection: if an element appears `n` times in `a`
+/// and `m` times in `b`, it will appear `min(n, m)` times in the result.
+///
 /// Uses an adaptive algorithm that selects the best strategy based on the
 /// size ratio between arrays. The result is written to `dest`.
 ///
@@ -150,10 +153,8 @@ where
         }
 
         if freq_idx < freq.len() && freq[freq_idx] == rare_val {
-            if intersect_count == 0 || dest[intersect_count - 1] != rare_val {
-                dest[intersect_count] = rare_val;
-                intersect_count += 1;
-            }
+            dest[intersect_count] = rare_val;
+            intersect_count += 1;
             freq_idx += 1;
         }
     }
