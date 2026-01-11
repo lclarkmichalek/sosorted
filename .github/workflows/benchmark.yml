@@ -20,16 +20,70 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed files
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+
+          CHANGED=$(git diff --name-only $BASE HEAD)
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          # Check if any Rust files changed
+          RUST_FILES=$(echo "$CHANGED" | grep '\.rs$' || true)
+          if [ -z "$RUST_FILES" ]; then
+            echo "skip_benchmarks=true" >> $GITHUB_OUTPUT
+            echo "No Rust files changed, skipping benchmarks"
+            exit 0
+          fi
+
+          echo "skip_benchmarks=false" >> $GITHUB_OUTPUT
+
+          # Check which operation files changed (src/ or benches/)
+          BENCHMARKS=""
+          for op in deduplicate find_first_duplicate intersect union difference; do
+            if echo "$CHANGED" | grep -qE "^(src|benches)/${op}\.rs$"; then
+              BENCHMARKS="${BENCHMARKS} --bench ${op}"
+            fi
+          done
+
+          # If core files changed (lib.rs, simd_element.rs) or bench common, run all
+          if echo "$CHANGED" | grep -qE "^src/(lib|simd_element)\.rs$|^benches/common/"; then
+            BENCHMARKS=""
+          fi
+
+          # If no specific benchmarks identified but Rust files changed, run all
+          if [ -z "$BENCHMARKS" ] && [ -n "$RUST_FILES" ]; then
+            BENCHMARKS=""
+          fi
+
+          echo "bench_args=${BENCHMARKS}" >> $GITHUB_OUTPUT
+
+          if [ -z "$BENCHMARKS" ]; then
+            echo "Running all benchmarks"
+          else
+            echo "Running selective benchmarks:$BENCHMARKS"
+          fi
 
       - name: Install nightly toolchain
+        if: steps.changes.outputs.skip_benchmarks != 'true'
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly-2026-01-05
 
       - name: Run benchmarks
-        run: cargo bench -- --output-format bencher | tee output.txt
+        if: steps.changes.outputs.skip_benchmarks != 'true'
+        run: cargo bench ${{ steps.changes.outputs.bench_args }} -- --output-format bencher | tee output.txt
 
       - name: Store benchmark result
+        if: steps.changes.outputs.skip_benchmarks != 'true'
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: sosorted Benchmarks
@@ -44,7 +98,7 @@ jobs:
           gh-pages-branch: gh-pages
 
       - name: Comment on PR
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.changes.outputs.skip_benchmarks != 'true'
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
@@ -56,4 +110,15 @@ jobs:
             **[View Historical Charts](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/dev/bench/)**
 
             <sub>Benchmarks run on ubuntu-latest with Rust nightly-2026-01-05</sub>
+          edit-mode: replace
+
+      - name: Comment on PR (skipped)
+        if: github.event_name == 'pull_request' && steps.changes.outputs.skip_benchmarks == 'true'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ## Benchmark Results
+
+            ⏭️ Benchmarks skipped - no Rust files changed.
           edit-mode: replace
