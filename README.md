@@ -1,5 +1,10 @@
 # sosorted: Methods for efficiently manipulating sorted arrays
 
+[![CI](https://github.com/lclarkmichalek/sosorted/workflows/CI/badge.svg)](https://github.com/lclarkmichalek/sosorted/actions)
+[![Crates.io](https://img.shields.io/crates/v/sosorted.svg)](https://crates.io/crates/sosorted)
+[![Downloads](https://img.shields.io/crates/d/sosorted.svg)](https://crates.io/crates/sosorted)
+[![Documentation](https://docs.rs/sosorted/badge.svg)](https://docs.rs/sosorted)
+
 This crate provides various methods for efficiently manipulating arrays of sorted data using SIMD optimizations. It supports all primitive integer types (`u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`).
 
 ## API Design
