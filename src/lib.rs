@@ -17,3 +17,6 @@ pub use union::{union, union_size};
 
 mod difference;
 pub use difference::{difference, difference_size};
+
+pub mod roaring;
+pub use roaring::Bitmap;
