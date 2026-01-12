@@ -6,6 +6,10 @@
 //! - `unary_datasets`: Standard datasets for unary operations (deduplicate, find_first_duplicate)
 //! - `binary_datasets`: Standard datasets for binary operations (intersect, union, difference)
 
+// Allow dead code and unused imports since this is shared across benchmarks
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 pub mod binary_datasets;
 pub mod generators;
 pub mod rng;
