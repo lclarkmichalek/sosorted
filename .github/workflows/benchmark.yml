@@ -10,14 +10,13 @@ permissions:
 
 jobs:
   bench-compare:
-    name: Statistical Benchmark Comparison
+    name: Run Benchmarks
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
 
-    # Serialize gh-pages updates to prevent race conditions
-    concurrency:
-      group: gh-pages-deploy
-      cancel-in-progress: false
+    outputs:
+      skip_benchmarks: ${{ steps.changes.outputs.skip_benchmarks }}
+      exit_code: ${{ steps.bench-compare.outputs.exit_code }}
 
     steps:
       - name: Checkout sources
@@ -79,7 +78,7 @@ jobs:
         if: steps.changes.outputs.skip_benchmarks != 'true'
         run: cargo build --release -p bench-compare
 
-      - name: Run benchmark comparison
+      - name: Run benchmark comparison (HTML)
         if: steps.changes.outputs.skip_benchmarks != 'true'
         id: bench-compare
         run: |
@@ -96,12 +95,31 @@ jobs:
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
           exit 0  # Always succeed so we can upload artifacts
 
+      - name: Generate JSON report
+        if: steps.changes.outputs.skip_benchmarks != 'true'
+        run: |
+          ./target/release/bench-compare \
+            --baseline ${{ github.event.pull_request.base.sha }} \
+            --test ${{ github.event.pull_request.head.sha }} \
+            --output json \
+            --sample-size 50 \
+            ${{ steps.changes.outputs.bench_arg }} \
+            > benchmark-report.json
+
       - name: Upload HTML Report
         if: steps.changes.outputs.skip_benchmarks != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-report
           path: benchmark-report.html
+          retention-days: 30
+
+      - name: Upload JSON report
+        if: steps.changes.outputs.skip_benchmarks != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-json-report
+          path: benchmark-report.json
           retention-days: 30
 
       - name: Upload Criterion Reports (Baseline)
@@ -122,135 +140,18 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
 
-      - name: Generate JSON report for gh-pages
-        if: steps.changes.outputs.skip_benchmarks != 'true'
-        run: |
-          ./target/release/bench-compare \
-            --baseline ${{ github.event.pull_request.base.sha }} \
-            --test ${{ github.event.pull_request.head.sha }} \
-            --output json \
-            --sample-size 50 \
-            ${{ steps.changes.outputs.bench_arg }} \
-            > benchmark-report.json
-
-      - name: Install jq
-        if: steps.changes.outputs.skip_benchmarks != 'true'
-        run: sudo apt-get update && sudo apt-get install -y jq
-
-      - name: Deploy report to gh-pages
-        if: steps.changes.outputs.skip_benchmarks != 'true'
-        run: |
-          set -e
-
-          # Configure git
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          REPORT_ID="pr-${{ github.event.pull_request.number }}"
-          MAX_RETRIES=3
-          RETRY_COUNT=0
-
-          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
-
-            # Fetch and checkout gh-pages branch
-            git fetch origin gh-pages:gh-pages 2>/dev/null || git checkout --orphan gh-pages
-            git checkout gh-pages
-
-            # Create reports directory if it doesn't exist
-            mkdir -p reports
-
-            # Copy the React app if it doesn't exist in gh-pages
-            if [ ! -f reports/index.html ]; then
-              git checkout ${{ github.sha }} -- crates/bench-compare/gh-pages/reports/
-              mv crates/bench-compare/gh-pages/reports/* reports/
-              rm -rf crates
-            fi
-
-            # Copy the JSON report
-            git checkout ${{ github.sha }} -- benchmark-report.json
-            mv benchmark-report.json "reports/${REPORT_ID}.json"
-
-            # Update index.json
-            git checkout ${{ github.sha }} -- crates/bench-compare/scripts/update-gh-pages-index.sh
-            chmod +x crates/bench-compare/scripts/update-gh-pages-index.sh
-            INDEX_FILE=reports/index.json ./crates/bench-compare/scripts/update-gh-pages-index.sh \
-              "reports/${REPORT_ID}.json" \
-              "$REPORT_ID" \
-              "${{ github.event.pull_request.number }}" \
-              "${{ github.event.pull_request.title }}"
-            rm -rf crates
-
-            # Commit and push
-            git add reports/
-            if git diff --cached --quiet; then
-              echo "No changes to commit"
-              break
-            fi
-
-            git commit -m "Add benchmark report for PR #${{ github.event.pull_request.number }}"
-
-            # Try to push, retry on failure
-            if git push origin gh-pages; then
-              echo "✓ Successfully deployed to gh-pages"
-              break
-            else
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-                echo "Push failed, retrying in 5 seconds..."
-                sleep 5
-                # Reset to try again
-                git reset --hard HEAD~1
-              else
-                echo "Failed to push after $MAX_RETRIES attempts"
-                exit 1
-              fi
-            fi
-          done
-
-      - name: Update PR comment with gh-pages link
-        if: steps.changes.outputs.skip_benchmarks != 'true'
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body: |
-            ## Statistical Benchmark Comparison
-
-            ${{ steps.bench-compare.outputs.exit_code == '1' && '⚠️ **Regressions detected!**' || '✅ **No regressions detected.**' }}
-
-            📊 **[View Interactive Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/#/pr-${{ github.event.pull_request.number }})**
-
-            📥 **[Download HTML Report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)**
-
-            | Baseline | Test |
-            |----------|------|
-            | `${{ github.event.pull_request.base.sha }}` | `${{ github.event.pull_request.head.sha }}` |
-
-            <details>
-            <summary>Statistical Testing Parameters</summary>
-
-            - **Sample size:** 50 iterations per benchmark
-            - **Significance level (α):** 0.05
-            - **Effect threshold:** ≥2.0% change required
-            - **Test:** Welch's t-test (two-tailed)
-
-            </details>
-
-            <sub>Run via bench-compare on ubuntu-latest with Rust nightly-2026-01-05</sub>
-          edit-mode: replace
-
       - name: Generate summary
         if: steps.changes.outputs.skip_benchmarks != 'true'
         run: |
           echo "## Benchmark Comparison Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ steps.bench-compare.outputs.exit_code }}" == "1" ]; then
-            echo "⚠️ **Regressions detected!** See the HTML report for details." >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Regressions detected!** See the reports for details." >> $GITHUB_STEP_SUMMARY
           else
             echo "✅ **No regressions detected.**" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📊 [View Interactive Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/#/pr-${{ github.event.pull_request.number }})" >> $GITHUB_STEP_SUMMARY
+          echo "📥 [Download HTML Report](../artifacts)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Configuration" >> $GITHUB_STEP_SUMMARY
           echo "- **Baseline:** \`${{ github.event.pull_request.base.sha }}\`" >> $GITHUB_STEP_SUMMARY
@@ -282,3 +183,127 @@ jobs:
         run: |
           echo "::error::Benchmark regressions detected. See the HTML report for details."
           exit 1
+
+  deploy-gh-pages:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: bench-compare
+    if: needs.bench-compare.outputs.skip_benchmarks != 'true'
+
+    # Serialize gh-pages updates to prevent race conditions
+    concurrency:
+      group: gh-pages-deploy
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download JSON report
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-json-report
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Deploy report to gh-pages
+        run: |
+          set -e
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          REPORT_ID="pr-${{ github.event.pull_request.number }}"
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
+
+            # Fetch and checkout gh-pages branch
+            git fetch origin gh-pages:gh-pages 2>/dev/null || git checkout --orphan gh-pages
+            git checkout gh-pages
+
+            # Create reports directory if it doesn't exist
+            mkdir -p reports
+
+            # Copy the React app if it doesn't exist in gh-pages
+            if [ ! -f reports/index.html ]; then
+              git checkout ${{ github.sha }} -- crates/bench-compare/gh-pages/
+              cp -r crates/bench-compare/gh-pages/* .
+              rm -rf crates
+            fi
+
+            # Copy the JSON report
+            cp benchmark-report.json "reports/${REPORT_ID}.json"
+
+            # Update index.json
+            git checkout ${{ github.sha }} -- crates/bench-compare/scripts/update-gh-pages-index.sh
+            chmod +x crates/bench-compare/scripts/update-gh-pages-index.sh
+            INDEX_FILE=reports/index.json ./crates/bench-compare/scripts/update-gh-pages-index.sh \
+              "reports/${REPORT_ID}.json" \
+              "$REPORT_ID" \
+              "${{ github.event.pull_request.number }}" \
+              "${{ github.event.pull_request.title }}"
+            rm -rf crates
+
+            # Commit and push
+            git add reports/ index.html
+            if git diff --cached --quiet; then
+              echo "No changes to commit"
+              break
+            fi
+
+            git commit -m "Add benchmark report for PR #${{ github.event.pull_request.number }}"
+
+            # Try to push, retry on failure
+            if git push origin gh-pages; then
+              echo "✓ Successfully deployed to gh-pages"
+              break
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "Push failed, retrying in 5 seconds..."
+                sleep 5
+                # Reset to try again
+                git reset --hard HEAD~1
+              else
+                echo "Failed to push after $MAX_RETRIES attempts"
+                exit 1
+              fi
+            fi
+          done
+
+      - name: Update PR comment with gh-pages link
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ## Statistical Benchmark Comparison
+
+            ${{ needs.bench-compare.outputs.exit_code == '1' && '⚠️ **Regressions detected!**' || '✅ **No regressions detected.**' }}
+
+            📊 **[View Interactive Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/reports/#/pr-${{ github.event.pull_request.number }})**
+
+            📥 **[Download HTML Report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)**
+
+            | Baseline | Test |
+            |----------|------|
+            | `${{ github.event.pull_request.base.sha }}` | `${{ github.event.pull_request.head.sha }}` |
+
+            <details>
+            <summary>Statistical Testing Parameters</summary>
+
+            - **Sample size:** 50 iterations per benchmark
+            - **Significance level (α):** 0.05
+            - **Effect threshold:** ≥2.0% change required
+            - **Test:** Welch's t-test (two-tailed)
+
+            </details>
+
+            <sub>Run via bench-compare on ubuntu-latest with Rust nightly-2026-01-05</sub>
+          edit-mode: replace
