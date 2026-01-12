@@ -708,9 +708,18 @@ fn print_text_report(comparisons: &[ComparisonResult], args: &Args) {
 }
 
 fn print_json_report(comparisons: &[ComparisonResult], args: &Args) -> Result<()> {
-    let regressions = comparisons.iter().filter(|c| c.verdict == Verdict::Regression).count();
-    let improvements = comparisons.iter().filter(|c| c.verdict == Verdict::Improvement).count();
-    let unchanged = comparisons.iter().filter(|c| c.verdict == Verdict::NoChange).count();
+    let regressions = comparisons
+        .iter()
+        .filter(|c| c.verdict == Verdict::Regression)
+        .count();
+    let improvements = comparisons
+        .iter()
+        .filter(|c| c.verdict == Verdict::Improvement)
+        .count();
+    let unchanged = comparisons
+        .iter()
+        .filter(|c| c.verdict == Verdict::NoChange)
+        .count();
 
     let report = BenchmarkReport {
         metadata: ReportMetadata {
