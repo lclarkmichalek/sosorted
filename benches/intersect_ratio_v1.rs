@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use sosorted::intersect;
-use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
+use sosorted::intersect;
 
 fn generate_sorted_unique(seed: u64, size: usize, max_val: u64) -> Vec<u64> {
     let mut rng = StdRng::seed_from_u64(seed);
@@ -48,16 +48,19 @@ fn bench_intersect_v1_ratio(c: &mut Criterion) {
     // Inject common elements
     for (i, val) in a.iter().take(common_count).enumerate() {
         if i < b_dense.len() {
-             b_dense[i] = *val;
+            b_dense[i] = *val;
         } else {
-             b_dense.push(*val);
+            b_dense.push(*val);
         }
     }
     b_dense.sort();
     b_dense.dedup();
 
     group.bench_with_input(
-        BenchmarkId::new("v1_ratio_10_dense", format!("{}x{}", a.len(), b_dense.len())),
+        BenchmarkId::new(
+            "v1_ratio_10_dense",
+            format!("{}x{}", a.len(), b_dense.len()),
+        ),
         &(&a, &b_dense),
         |b_bench, (a_arr, b_arr)| {
             b_bench.iter(|| {
