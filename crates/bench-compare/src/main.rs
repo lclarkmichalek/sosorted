@@ -100,6 +100,32 @@ struct ComparisonResult {
     verdict: Verdict,
 }
 
+/// Full report with metadata
+#[derive(Debug, Clone, serde::Serialize)]
+struct BenchmarkReport {
+    metadata: ReportMetadata,
+    comparisons: Vec<ComparisonResult>,
+    summary: ReportSummary,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct ReportMetadata {
+    baseline_ref: String,
+    test_ref: String,
+    timestamp: String,
+    significance_level: f64,
+    effect_threshold: f64,
+    sample_size: usize,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct ReportSummary {
+    total: usize,
+    regressions: usize,
+    improvements: usize,
+    unchanged: usize,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 enum Verdict {
@@ -172,7 +198,7 @@ fn main() -> Result<()> {
     // Output results
     match args.output {
         OutputFormat::Text => print_text_report(&comparisons, &args),
-        OutputFormat::Json => print_json_report(&comparisons)?,
+        OutputFormat::Json => print_json_report(&comparisons, &args)?,
         OutputFormat::Html => write_html_report(&comparisons, &args)?,
     }
 
@@ -681,8 +707,39 @@ fn print_text_report(comparisons: &[ComparisonResult], args: &Args) {
     }
 }
 
-fn print_json_report(comparisons: &[ComparisonResult]) -> Result<()> {
-    let output = serde_json::to_string_pretty(comparisons)?;
+fn print_json_report(comparisons: &[ComparisonResult], args: &Args) -> Result<()> {
+    let regressions = comparisons
+        .iter()
+        .filter(|c| c.verdict == Verdict::Regression)
+        .count();
+    let improvements = comparisons
+        .iter()
+        .filter(|c| c.verdict == Verdict::Improvement)
+        .count();
+    let unchanged = comparisons
+        .iter()
+        .filter(|c| c.verdict == Verdict::NoChange)
+        .count();
+
+    let report = BenchmarkReport {
+        metadata: ReportMetadata {
+            baseline_ref: args.baseline.clone(),
+            test_ref: args.test.clone(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            significance_level: args.significance,
+            effect_threshold: args.threshold,
+            sample_size: args.sample_size,
+        },
+        comparisons: comparisons.to_vec(),
+        summary: ReportSummary {
+            total: comparisons.len(),
+            regressions,
+            improvements,
+            unchanged,
+        },
+    };
+
+    let output = serde_json::to_string_pretty(&report)?;
     println!("{}", output);
     Ok(())
 }

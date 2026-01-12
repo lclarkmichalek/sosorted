@@ -100,7 +100,13 @@ intersect/sosorted/sparse                        10.234 µs    9.876 µs     -3.
 
 ### JSON Output
 
-JSON output includes all comparison data for programmatic processing in CI pipelines.
+JSON output includes all comparison data for programmatic processing in CI pipelines. The JSON format includes:
+
+- Metadata (baseline/test refs, timestamp, test parameters)
+- Detailed comparison results for each benchmark
+- Summary statistics (regression/improvement counts)
+
+This format is designed for consumption by the GitHub Pages React frontend (see below) or other tools.
 
 ### HTML Output
 
@@ -115,6 +121,30 @@ HTML reports provide a styled, interactive view of benchmark results:
 - Responsive design for mobile viewing
 
 The HTML report is ideal for uploading as a CI artifact and viewing in a browser.
+
+## GitHub Pages Integration
+
+bench-compare includes a React-based frontend for viewing reports on GitHub Pages. This provides:
+
+- **Interactive Reports**: View benchmark results at `https://[owner].github.io/[repo]/reports/#/pr-123`
+- **Index Page**: Browse all historical reports at `https://[owner].github.io/[repo]/reports/`
+- **Persistent History**: Reports remain accessible indefinitely in the `gh-pages` branch
+- **Zero Configuration**: Uses CDN-based React with no build step required
+
+### Features
+
+- Hash-based routing for direct links to specific PR reports
+- Dark theme matching GitHub's aesthetic
+- Automatic deployment via GitHub Actions
+- Searchable index of all reports with status indicators
+
+### Setup
+
+1. Enable GitHub Pages in repository settings (source: `gh-pages` branch, root directory)
+2. The CI workflow will automatically deploy reports on each PR
+3. View reports at the GitHub Pages URL shown in PR comments
+
+For detailed setup and customization, see [`gh-pages/README.md`](gh-pages/README.md).
 
 ## CI Integration
 

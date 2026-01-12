@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Benchmark Reports</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --border-color: #30363d;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-red: #f85149;
+            --accent-yellow: #d29922;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 24px 0 16px 0;
+        }
+
+        .breadcrumb {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .breadcrumb a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .status-regression {
+            background-color: rgba(248, 81, 73, 0.2);
+            color: var(--accent-red);
+        }
+
+        .status-success {
+            background-color: rgba(63, 185, 80, 0.2);
+            color: var(--accent-green);
+        }
+
+        .meta-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .meta-item {
+            background: var(--bg-tertiary);
+            padding: 12px 16px;
+            border-radius: 6px;
+        }
+
+        .meta-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .meta-value {
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 14px;
+            margin-top: 4px;
+            word-break: break-all;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .summary-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .summary-card.regressions {
+            border-left: 4px solid var(--accent-red);
+        }
+
+        .summary-card.improvements {
+            border-left: 4px solid var(--accent-green);
+        }
+
+        .summary-card.unchanged {
+            border-left: 4px solid var(--text-secondary);
+        }
+
+        .summary-number {
+            font-size: 36px;
+            font-weight: 700;
+        }
+
+        .summary-card.regressions .summary-number {
+            color: var(--accent-red);
+        }
+
+        .summary-card.improvements .summary-number {
+            color: var(--accent-green);
+        }
+
+        .summary-label {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        section h2 {
+            font-size: 16px;
+            font-weight: 600;
+            padding: 16px 20px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+            margin: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .benchmark-name {
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 13px;
+        }
+
+        .time-value {
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            text-align: right;
+        }
+
+        .change-positive {
+            color: var(--accent-red);
+            font-weight: 600;
+        }
+
+        .change-negative {
+            color: var(--accent-green);
+            font-weight: 600;
+        }
+
+        .change-neutral {
+            color: var(--text-secondary);
+        }
+
+        .verdict {
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .verdict-regression {
+            color: var(--accent-red);
+        }
+
+        .verdict-improvement {
+            color: var(--accent-green);
+        }
+
+        .verdict-nochange {
+            color: var(--text-secondary);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: var(--text-secondary);
+        }
+
+        .error {
+            background: rgba(248, 81, 73, 0.1);
+            border: 1px solid var(--accent-red);
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+            color: var(--accent-red);
+        }
+
+        .pr-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .pr-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .pr-item:hover {
+            border-color: var(--accent-blue);
+        }
+
+        .pr-item a {
+            text-decoration: none;
+            color: var(--text-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pr-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--accent-blue);
+            margin-bottom: 8px;
+        }
+
+        .pr-meta {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        }
+
+        .pr-status {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .status-dot.success {
+            background-color: var(--accent-green);
+        }
+
+        .status-dot.failure {
+            background-color: var(--accent-red);
+        }
+
+        @media (max-width: 768px) {
+            .summary {
+                grid-template-columns: 1fr;
+            }
+
+            .meta-info {
+                grid-template-columns: 1fr;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 8px 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function formatTime(ns) {
+            if (ns >= 1_000_000_000) {
+                return `${(ns / 1_000_000_000).toFixed(3)} s`;
+            } else if (ns >= 1_000_000) {
+                return `${(ns / 1_000_000).toFixed(3)} ms`;
+            } else if (ns >= 1_000) {
+                return `${(ns / 1_000).toFixed(3)} µs`;
+            } else {
+                return `${ns.toFixed(3)} ns`;
+            }
+        }
+
+        function formatDate(isoString) {
+            return new Date(isoString).toLocaleString();
+        }
+
+        function BenchmarkTable({ title, comparisons }) {
+            if (comparisons.length === 0) return null;
+
+            return (
+                <section>
+                    <h2>{title}</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Benchmark</th>
+                                <th style={{ textAlign: 'right' }}>Baseline</th>
+                                <th style={{ textAlign: 'right' }}>Test</th>
+                                <th style={{ textAlign: 'right' }}>Change</th>
+                                <th>Verdict</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {comparisons.map((c, idx) => {
+                                const changeClass = c.change_percent > 0 ? 'change-positive'
+                                    : c.change_percent < 0 ? 'change-negative'
+                                    : 'change-neutral';
+
+                                const verdictClass = c.verdict === 'regression' ? 'verdict-regression'
+                                    : c.verdict === 'improvement' ? 'verdict-improvement'
+                                    : 'verdict-nochange';
+
+                                return (
+                                    <tr key={idx}>
+                                        <td className="benchmark-name">{c.name}</td>
+                                        <td className="time-value">{formatTime(c.baseline_mean_ns)}</td>
+                                        <td className="time-value">{formatTime(c.test_mean_ns)}</td>
+                                        <td className={`time-value ${changeClass}`}>
+                                            <strong>{c.change_percent >= 0 ? '+' : ''}{c.change_percent.toFixed(2)}%</strong>
+                                        </td>
+                                        <td className={`verdict ${verdictClass}`}>
+                                            {c.verdict.toUpperCase()}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </section>
+            );
+        }
+
+        function ReportView({ reportId }) {
+            const [report, setReport] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+
+            useEffect(() => {
+                setLoading(true);
+                setError(null);
+
+                fetch(`${reportId}.json`)
+                    .then(res => {
+                        if (!res.ok) throw new Error(`Failed to load report: ${res.statusText}`);
+                        return res.json();
+                    })
+                    .then(data => {
+                        setReport(data);
+                        setLoading(false);
+                    })
+                    .catch(err => {
+                        setError(err.message);
+                        setLoading(false);
+                    });
+            }, [reportId]);
+
+            if (loading) {
+                return <div className="loading">Loading report...</div>;
+            }
+
+            if (error) {
+                return (
+                    <div className="error">
+                        <strong>Error:</strong> {error}
+                    </div>
+                );
+            }
+
+            if (!report) return null;
+
+            const { metadata, comparisons, summary } = report;
+            const hasRegressions = summary.regressions > 0;
+            const statusText = hasRegressions
+                ? '❌ Regressions Detected'
+                : summary.improvements > 0
+                    ? '✅ All Clear (with improvements)'
+                    : '✅ All Clear';
+            const statusClass = hasRegressions ? 'status-regression' : 'status-success';
+
+            const regressions = comparisons.filter(c => c.verdict === 'regression');
+            const improvements = comparisons.filter(c => c.verdict === 'improvement');
+            const unchanged = comparisons.filter(c => c.verdict === 'nochange');
+
+            return (
+                <div className="container">
+                    <header>
+                        <div className="breadcrumb">
+                            <a href="#/">← Back to all reports</a>
+                        </div>
+                        <h1>
+                            Benchmark Comparison Report
+                            <span className={`status-badge ${statusClass}`}>{statusText}</span>
+                        </h1>
+                        <div className="meta-info">
+                            <div className="meta-item">
+                                <div className="meta-label">Baseline</div>
+                                <div className="meta-value">{metadata.baseline_ref}</div>
+                            </div>
+                            <div className="meta-item">
+                                <div className="meta-label">Test</div>
+                                <div className="meta-value">{metadata.test_ref}</div>
+                            </div>
+                            <div className="meta-item">
+                                <div className="meta-label">Timestamp</div>
+                                <div className="meta-value">{formatDate(metadata.timestamp)}</div>
+                            </div>
+                            <div className="meta-item">
+                                <div className="meta-label">Significance Level</div>
+                                <div className="meta-value">α = {metadata.significance_level}</div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <div className="summary">
+                        <div className="summary-card regressions">
+                            <div className="summary-number">{summary.regressions}</div>
+                            <div className="summary-label">Regressions</div>
+                        </div>
+                        <div className="summary-card improvements">
+                            <div className="summary-number">{summary.improvements}</div>
+                            <div className="summary-label">Improvements</div>
+                        </div>
+                        <div className="summary-card unchanged">
+                            <div className="summary-number">{summary.unchanged}</div>
+                            <div className="summary-label">Unchanged</div>
+                        </div>
+                    </div>
+
+                    <BenchmarkTable title="⚠️ Regressions" comparisons={regressions} />
+                    <BenchmarkTable title="🚀 Improvements" comparisons={improvements} />
+                    <BenchmarkTable title="➖ Unchanged" comparisons={unchanged} />
+                </div>
+            );
+        }
+
+        function IndexView() {
+            const [index, setIndex] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+
+            useEffect(() => {
+                fetch('index.json')
+                    .then(res => {
+                        if (!res.ok) throw new Error(`Failed to load index: ${res.statusText}`);
+                        return res.json();
+                    })
+                    .then(data => {
+                        setIndex(data);
+                        setLoading(false);
+                    })
+                    .catch(err => {
+                        setError(err.message);
+                        setLoading(false);
+                    });
+            }, []);
+
+            if (loading) {
+                return <div className="loading">Loading reports index...</div>;
+            }
+
+            if (error) {
+                return (
+                    <div className="container">
+                        <header>
+                            <h1>Benchmark Reports</h1>
+                        </header>
+                        <div className="error">
+                            <strong>Error:</strong> {error}
+                            <p style={{ marginTop: '12px', fontSize: '14px' }}>
+                                Make sure an index.json file exists in this directory.
+                            </p>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (!index || index.reports.length === 0) {
+                return (
+                    <div className="container">
+                        <header>
+                            <h1>Benchmark Reports</h1>
+                        </header>
+                        <div className="loading">No reports available yet.</div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="container">
+                    <header>
+                        <h1>Benchmark Reports</h1>
+                        <p style={{ marginTop: '8px', color: 'var(--text-secondary)' }}>
+                            {index.reports.length} report{index.reports.length !== 1 ? 's' : ''} available
+                        </p>
+                    </header>
+
+                    <ul className="pr-list">
+                        {index.reports.map(report => {
+                            const hasRegressions = report.summary.regressions > 0;
+                            const statusDotClass = hasRegressions ? 'failure' : 'success';
+
+                            return (
+                                <li key={report.id} className="pr-item">
+                                    <a href={`#/${report.id}`}>
+                                        <div>
+                                            <div className="pr-title">
+                                                {report.pr_number ? `PR #${report.pr_number}` : report.id}
+                                                {report.title && `: ${report.title}`}
+                                            </div>
+                                            <div className="pr-meta">
+                                                {report.baseline_ref} → {report.test_ref}
+                                                {report.timestamp && ` • ${formatDate(report.timestamp)}`}
+                                            </div>
+                                        </div>
+                                        <div className="pr-status">
+                                            {report.summary && (
+                                                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                                    {report.summary.regressions > 0 && `${report.summary.regressions} regressions`}
+                                                    {report.summary.improvements > 0 && ` ${report.summary.improvements} improvements`}
+                                                </span>
+                                            )}
+                                            <div className={`status-dot ${statusDotClass}`}></div>
+                                        </div>
+                                    </a>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+            );
+        }
+
+        function App() {
+            const [currentView, setCurrentView] = useState(() => {
+                const hash = window.location.hash.slice(1) || '/';
+                return hash === '/' ? 'index' : hash.slice(1);
+            });
+
+            useEffect(() => {
+                const handleHashChange = () => {
+                    const hash = window.location.hash.slice(1) || '/';
+                    setCurrentView(hash === '/' ? 'index' : hash.slice(1));
+                };
+
+                window.addEventListener('hashchange', handleHashChange);
+                return () => window.removeEventListener('hashchange', handleHashChange);
+            }, []);
+
+            if (currentView === 'index') {
+                return <IndexView />;
+            } else {
+                return <ReportView reportId={currentView} />;
+            }
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
