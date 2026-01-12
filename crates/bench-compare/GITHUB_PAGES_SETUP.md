@@ -121,26 +121,33 @@ The `.github/workflows/benchmark.yml` now:
 
 ### Concurrent PR Handling
 
-The workflow includes **concurrency controls** to handle multiple PRs running simultaneously:
+The workflow uses a **two-job architecture** to maximize parallelism:
 
-**Workflow-level serialization**:
-```yaml
-concurrency:
-  group: gh-pages-deploy
-  cancel-in-progress: false
-```
+**Job 1: Run Benchmarks (Parallel)**
+- Multiple PRs execute benchmarks simultaneously
+- No concurrency limits
+- Uploads artifacts (JSON, HTML, Criterion reports)
 
-This ensures only one job updates `gh-pages` at a time. Other jobs wait in a queue.
+**Job 2: Deploy to GitHub Pages (Serialized)**
+- Downloads artifacts from Job 1
+- Concurrency control ensures sequential deployment:
+  ```yaml
+  concurrency:
+    group: gh-pages-deploy
+    cancel-in-progress: false
+  ```
+- Updates `gh-pages` branch one PR at a time
 
 **Retry mechanism**:
-- If a push fails (rare edge case), the workflow retries up to 3 times
+- If a push fails, the deployment retries up to 3 times
 - Fetches latest `gh-pages` state on each retry
 - 5-second delay between retries
 
 **Why this matters**:
+- Benchmarks run in parallel → faster CI for multiple PRs
+- Only deployment is queued → minimal wait time (~10s per PR)
 - Individual report files (`pr-123.json`) never conflict (unique per PR)
-- But `index.json` is shared and updated by every PR
-- Without serialization, concurrent updates would cause push failures
+- `index.json` is shared → serialization prevents conflicts
 
 ## Manual Report Upload
 

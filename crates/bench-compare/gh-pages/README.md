@@ -62,30 +62,58 @@ The `index.json` file maintains a list of all available reports:
 
 ## Concurrent PR Handling
 
-The system is designed to handle multiple PRs running benchmarks simultaneously:
+The system uses a **two-job workflow** to handle multiple PRs optimally:
+
+### Architecture
+
+1. **Job 1: Run Benchmarks (Parallel)**
+   - Multiple PRs execute benchmarks simultaneously
+   - No concurrency limits on this job
+   - Each PR generates and uploads its own artifacts
+   - Fast execution - no waiting on other PRs
+
+2. **Job 2: Deploy to GitHub Pages (Serialized)**
+   - Waits for Job 1 to complete (via `needs: bench-compare`)
+   - Downloads the JSON report artifact
+   - Uses concurrency control to serialize deployments:
+     ```yaml
+     concurrency:
+       group: gh-pages-deploy
+       cancel-in-progress: false
+     ```
+   - Updates `gh-pages` branch one PR at a time
 
 ### How Conflicts Are Prevented
 
-1. **Workflow Concurrency Control**: The CI workflow uses GitHub Actions' concurrency feature to serialize `gh-pages` updates:
-   ```yaml
-   concurrency:
-     group: gh-pages-deploy
-     cancel-in-progress: false
-   ```
-   This ensures only one job updates `gh-pages` at a time, with others queuing.
+1. **Job Separation**: Expensive benchmarks run in parallel; only quick deployment is serialized
 
-2. **Unique Report Files**: Each PR writes to a unique file (`pr-123.json`), so there are no file-level conflicts.
+2. **Unique Report Files**: Each PR writes to a unique file (`pr-123.json`), no file-level conflicts
 
-3. **Shared Index**: The `index.json` file is shared and causes the need for serialization. Without it, concurrent updates would fail.
+3. **Shared Index**: The `index.json` file is shared, requiring serialization for updates
 
-4. **Retry Logic**: As a safety net, the deployment script includes retry logic (up to 3 attempts with 5-second delays).
+4. **Retry Logic**: Deployment includes retry logic (up to 3 attempts with 5-second delays)
 
 ### What Users See
 
-- **No delays in benchmark execution**: PRs run benchmarks in parallel
-- **Sequential deployment**: gh-pages updates happen one at a time (usually takes <10 seconds)
-- **Transparent queuing**: GitHub Actions automatically queues jobs
-- **High reliability**: Retries handle transient failures
+- **Parallel benchmarks**: Multiple PRs run benchmarks simultaneously (~5-10 minutes each)
+- **Sequential deployment**: gh-pages updates queue (~10 seconds each)
+- **Minimal wait**: Only deployment queues, not expensive benchmark execution
+- **High reliability**: Automatic retries handle transient failures
+
+### Performance Example
+
+**3 PRs open simultaneously:**
+```
+Time 0:00  → All 3 PRs start benchmarks in parallel
+Time 8:00  → PR #1 benchmarks complete, starts deployment
+Time 8:10  → PR #1 deployment done ✅
+Time 8:10  → PR #2 benchmarks complete, starts deployment
+Time 8:20  → PR #2 deployment done ✅
+Time 9:30  → PR #3 benchmarks complete, starts deployment
+Time 9:40  → PR #3 deployment done ✅
+```
+
+**Total time**: ~9.5 minutes (vs ~28 minutes if fully serialized)
 
 ## CI Integration
 
