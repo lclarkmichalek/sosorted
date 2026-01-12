@@ -24,12 +24,15 @@ let len = deduplicate(&mut dest, &input);
 
 ## Currently Supported Operations
 
-### Set Operations
-- **`intersect`** - Computes the intersection of two sorted arrays. Writes the result to a destination buffer.
-- **`union`** - Merges two sorted arrays and removes duplicates. Writes the result to a destination buffer.
-- **`union_size`** - Calculates the size of the union without allocating or modifying arrays.
-- **`difference`** - Computes the set difference (a \ b). Removes all occurrences of elements found in `b` from `a`. Writes the result to a destination buffer.
-- **`difference_size`** - Calculates the size of the set difference (a \ b) without modifying the input.
+### Set & Multiset Operations
+
+Note that different operations handle duplicates differently:
+
+- **`intersect`** - Computes the **multiset intersection**. If an element appears $n$ times in `a` and $m$ times in `b`, it will appear $\min(n, m)$ times in the result.
+- **`union`** - Computes the **set union**. Merges two sorted arrays and **deduplicates** the result. If an element appears multiple times in inputs, it appears exactly once in the result.
+- **`union_size`** - Calculates the size of the set union without allocation.
+- **`difference`** - Computes a modified set difference. Removes **all occurrences** of elements found in `b` from `a`. However, duplicates in `a` that are *not* in `b` are preserved.
+- **`difference_size`** - Calculates the size of the difference without allocation.
 
 ### Deduplication
 - **`deduplicate`** - Removes repeated elements from a sorted slice. Writes the result to a destination buffer.
