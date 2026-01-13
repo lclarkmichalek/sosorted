@@ -5,6 +5,11 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// Returns the index of the first duplicate entry. If there are no duplicates, the length of the
 /// slice is returned.
 ///
+/// This implementation uses SIMD with 4x loop unrolling:
+/// 1. **SIMD Comparison**: Compares 4 chunks of elements in parallel using SIMD instructions.
+/// 2. **Combined Mask Check**: ORs the result masks together to check for duplicates in all 4 chunks
+///    with a single branch, optimizing for the common case (no duplicates).
+///
 /// # Examples
 ///
 /// ```
