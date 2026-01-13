@@ -262,6 +262,12 @@ fn build_benchmarks(
     // Checkout the ref
     checkout_ref(workdir, git_ref)?;
 
+    // Read registered benchmark names from Cargo.toml
+    let registered_benchmarks = get_registered_benchmarks(workdir)?;
+    if registered_benchmarks.is_empty() {
+        eprintln!("   ⚠ Warning: No benchmarks registered in Cargo.toml");
+    }
+
     // Build benchmarks
     let mut cmd = Command::new("cargo");
     cmd.arg("bench").arg("--no-run").current_dir(workdir);
@@ -295,7 +301,7 @@ fn build_benchmarks(
         // Benchmark binaries have specific naming pattern and are executable
         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
             // Match benchmark binary pattern (name without extension, contains benchmark name)
-            if is_benchmark_binary(&path, bench_filter)? {
+            if is_benchmark_binary(&path, bench_filter, &registered_benchmarks)? {
                 let dest = output_dir.join(name);
                 std::fs::copy(&path, &dest)?;
                 copied_count += 1;
@@ -327,7 +333,49 @@ fn build_benchmarks(
     Ok(output_dir)
 }
 
-fn is_benchmark_binary(path: &Path, bench_filter: Option<&str>) -> Result<bool> {
+/// Read registered benchmark names from Cargo.toml
+fn get_registered_benchmarks(workdir: &Path) -> Result<Vec<String>> {
+    let cargo_toml_path = workdir.join("Cargo.toml");
+    let content = std::fs::read_to_string(&cargo_toml_path)
+        .with_context(|| format!("Failed to read {}", cargo_toml_path.display()))?;
+
+    let mut benchmarks = Vec::new();
+    let mut in_bench_section = false;
+
+    for line in content.lines() {
+        let line = line.trim();
+
+        if line == "[[bench]]" {
+            in_bench_section = true;
+            continue;
+        }
+
+        // Exit bench section when we hit another section
+        if line.starts_with('[') && line != "[[bench]]" {
+            in_bench_section = false;
+            continue;
+        }
+
+        if in_bench_section && line.starts_with("name") {
+            // Parse: name = "benchmark_name"
+            if let Some(name) = line
+                .split('=')
+                .nth(1)
+                .map(|s| s.trim().trim_matches('"').to_string())
+            {
+                benchmarks.push(name);
+            }
+        }
+    }
+
+    Ok(benchmarks)
+}
+
+fn is_benchmark_binary(
+    path: &Path,
+    bench_filter: Option<&str>,
+    registered_benchmarks: &[String],
+) -> Result<bool> {
     // Skip if not a file
     if !path.is_file() {
         return Ok(false);
@@ -342,6 +390,17 @@ fn is_benchmark_binary(path: &Path, bench_filter: Option<&str>) -> Result<bool> 
 
     // Skip if it doesn't look like a benchmark (heuristic: benchmark binaries have a hash suffix)
     if !name.contains('-') {
+        return Ok(false);
+    }
+
+    // Check if this binary matches a registered benchmark name
+    // Binary names are in format: benchmark_name-hash (e.g., "find_first_duplicate-98fd1caf89044e8c")
+    let matches_registered = registered_benchmarks.iter().any(|bench_name| {
+        // The binary name should start with the benchmark name followed by a dash
+        name.starts_with(&format!("{}-", bench_name))
+    });
+
+    if !matches_registered {
         return Ok(false);
     }
 
@@ -362,10 +421,6 @@ fn is_benchmark_binary(path: &Path, bench_filter: Option<&str>) -> Result<bool> 
             return Ok(false);
         }
     }
-
-    // Final heuristic: try to determine if it's a Criterion benchmark
-    // by checking if running with --help mentions criterion
-    // (This is expensive, so we rely on naming heuristics above)
 
     Ok(true)
 }
