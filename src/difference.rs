@@ -9,7 +9,11 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// If an element appears in `b`, *all* occurrences of that element in `a` are excluded from the count.
 /// Duplicates in `a` that are NOT in `b` are preserved in the count.
 ///
-/// Uses SIMD acceleration to quickly skip over non-overlapping regions.
+/// This implementation uses a hybrid SIMD approach:
+/// 1. **SIMD Filtering**: Compares a chunk of `b` against the current element of `a`.
+///    - If all `b` elements are smaller, we skip the `b` chunk.
+///    - If all `b` elements are larger, `a` is definitely not in `b`, so we keep it.
+/// 2. **Scalar Fallback**: Handles mixed chunks element-by-element.
 ///
 /// # Examples
 ///
@@ -135,7 +139,11 @@ where
 /// If an element appears in `b`, *all* occurrences of that element in `a` are removed.
 /// Duplicates in `a` that are NOT in `b` are preserved.
 ///
-/// Uses SIMD acceleration to quickly skip over non-overlapping regions.
+/// This implementation uses a hybrid SIMD approach:
+/// 1. **SIMD Filtering**: Compares a chunk of `b` against the current element of `a`.
+///    - If all `b` elements are smaller, we skip the `b` chunk.
+///    - If all `b` elements are larger, `a` is definitely not in `b`, so we keep it.
+/// 2. **Scalar Fallback**: Handles mixed chunks element-by-element.
 ///
 /// # Arguments
 /// * `dest` - Destination buffer for the difference result
