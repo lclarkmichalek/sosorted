@@ -103,6 +103,7 @@ jobs:
             --test ${{ github.event.pull_request.head.sha }} \
             --output json \
             --sample-size 50 \
+            --keep-binaries \
             ${{ steps.changes.outputs.bench_arg }} \
             > benchmark-report.json
 
