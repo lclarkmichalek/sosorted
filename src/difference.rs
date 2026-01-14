@@ -60,6 +60,14 @@ where
             continue;
         }
 
+        // Fast path: a chunk of a is less than b[j]
+        // We can include this entire chunk of a
+        if i + lanes <= a.len() && b[j] > a[i + lanes - 1] {
+            count += lanes;
+            i += lanes;
+            continue;
+        }
+
         // Fast path: all elements in b_chunk are greater than a[i]
         // a[i] is definitely not in b, count it
         if b_chunk.simd_gt(a_splat).all() {
@@ -221,6 +229,15 @@ where
         // We can skip this entire chunk of b
         if b_chunk.simd_lt(a_splat).all() {
             j += lanes;
+            continue;
+        }
+
+        // Fast path: a chunk of a is less than b[j]
+        // We can include this entire chunk of a
+        if i + lanes <= a.len() && b[j] > a[i + lanes - 1] {
+            dest[write..write + lanes].copy_from_slice(&a[i..i + lanes]);
+            write += lanes;
+            i += lanes;
             continue;
         }
 
