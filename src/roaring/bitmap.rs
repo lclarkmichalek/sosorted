@@ -56,6 +56,7 @@ impl Bitmap {
     ///
     /// This is the most efficient way to construct a bitmap if your data is already sorted.
     /// The input must be sorted in ascending order; behavior is undefined if not sorted.
+    /// Duplicate values in the input are ignored.
     ///
     /// # Examples
     ///
