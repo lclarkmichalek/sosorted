@@ -153,7 +153,12 @@ where
             if eq_mask.any() {
                 dest[intersect_count] = rare_val;
                 intersect_count += 1;
-                freq_idx += 1;
+                // Optimization: We found the element at `match_idx`.
+                // Since data is sorted, all elements before match are < rare_val.
+                // Next search will look for value >= rare_val.
+                // So we can safely skip everything up to and including the match.
+                let match_idx = eq_mask.to_bitmask().trailing_zeros() as usize;
+                freq_idx = freq_idx + match_idx + 1;
                 break;
             }
 
