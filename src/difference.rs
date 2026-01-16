@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, simd::cmp::SimdPartialOrd};
 
-use crate::simd_element::{SimdMaskOps, SortedSimdElement};
+use crate::simd_element::SortedSimdElement;
 
 /// Calculates the size of the set difference (a \ b) without modifying the input.
 ///
@@ -50,19 +50,16 @@ where
 
     // SIMD-accelerated loop
     while i < a.len() && j + lanes <= b.len() {
-        let b_chunk = T::simd_from_slice(&b[j..j + lanes]);
-        let a_splat = T::simd_splat(a[i]);
-
         // Fast path: all elements in b_chunk are less than a[i]
         // We can skip this entire chunk of b
-        if b_chunk.simd_lt(a_splat).all() {
+        if b[j + lanes - 1] < a[i] {
             j += lanes;
             continue;
         }
 
         // Fast path: all elements in b_chunk are greater than a[i]
         // a[i] is definitely not in b, count it
-        if b_chunk.simd_gt(a_splat).all() {
+        if b[j] > a[i] {
             count += 1;
             i += 1;
             continue;
@@ -214,19 +211,16 @@ where
 
     // SIMD-accelerated loop
     while i < a.len() && j + lanes <= b.len() {
-        let b_chunk = T::simd_from_slice(&b[j..j + lanes]);
-        let a_splat = T::simd_splat(a[i]);
-
         // Fast path: all elements in b_chunk are less than a[i]
         // We can skip this entire chunk of b
-        if b_chunk.simd_lt(a_splat).all() {
+        if b[j + lanes - 1] < a[i] {
             j += lanes;
             continue;
         }
 
         // Fast path: all elements in b_chunk are greater than a[i]
         // a[i] is definitely not in b, include it
-        if b_chunk.simd_gt(a_splat).all() {
+        if b[j] > a[i] {
             dest[write] = a[i];
             write += 1;
             i += 1;
