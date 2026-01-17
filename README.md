@@ -7,6 +7,8 @@
 
 This crate provides various methods for efficiently manipulating arrays of sorted data using SIMD optimizations. It supports all primitive integer types (`u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`).
 
+> **Note**: This crate requires a Nightly Rust toolchain to use the `portable_simd` feature.
+
 ## API Design
 
 All mutable operations follow a consistent pattern: **the destination buffer is always the first argument**, followed by immutable input slices. This design:
@@ -108,7 +110,7 @@ assert_eq!(intersect(&mut dest, &c, &d), 2);
 
 ## SIMD Hardware Compatibility
 
-This crate uses Rust's portable SIMD (`std::simd`) and automatically selects optimal SIMD lane counts at compile time based on the target CPU features.
+This crate uses Rust's portable SIMD (`std::simd`) and automatically selects optimal SIMD lane counts at compile time based on the target CPU features. Because `portable_simd` is currently unstable, a Nightly Rust toolchain is required.
 
 ### Supported Architectures
 
