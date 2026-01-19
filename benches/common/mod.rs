@@ -1,3 +1,4 @@
+#![allow(dead_code, unused_imports, unused_variables)]
 //! Common benchmark utilities: data generation and datasets.
 //!
 //! This module provides shared infrastructure for all benchmarks:
