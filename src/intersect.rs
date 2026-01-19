@@ -145,6 +145,7 @@ where
 
     for &rare_val in rare.iter() {
         // SIMD search in freq
+        let mut found = false;
         while freq_idx + lanes <= freq.len() {
             let freq_block = T::simd_from_slice(&freq[freq_idx..freq_idx + lanes]);
             let rare_splat = T::simd_splat(rare_val);
@@ -153,7 +154,9 @@ where
             if eq_mask.any() {
                 dest[intersect_count] = rare_val;
                 intersect_count += 1;
-                freq_idx += 1;
+                let match_idx = eq_mask.to_bitmask().trailing_zeros() as usize;
+                freq_idx += match_idx + 1;
+                found = true;
                 break;
             }
 
@@ -164,16 +167,18 @@ where
             freq_idx += lanes;
         }
 
+        if found {
+            continue;
+        }
+
         // Scalar fallback
         while freq_idx < freq.len() && freq[freq_idx] < rare_val {
             freq_idx += 1;
         }
 
         if freq_idx < freq.len() && freq[freq_idx] == rare_val {
-            if intersect_count == 0 || dest[intersect_count - 1] != rare_val {
-                dest[intersect_count] = rare_val;
-                intersect_count += 1;
-            }
+            dest[intersect_count] = rare_val;
+            intersect_count += 1;
             freq_idx += 1;
         }
     }
@@ -489,4 +494,23 @@ mod tests {
     test_intersect_type!(test_intersect_i16, i16);
     test_intersect_type!(test_intersect_i32, i32);
     test_intersect_type!(test_intersect_i64, i64);
+
+    #[test]
+    fn test_intersect_v1_multiset_bug() {
+        // This test specifically targets V1 implementation (ratio ~3-50)
+        // rare: len 2. freq: len 10. Ratio 5.
+        // rare has duplicates: [1, 1]
+        // freq has duplicates: [1, 1, ...]
+        // Result should be [1, 1]
+
+        let rare = vec![1u64, 1];
+        let freq = vec![1u64, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        let mut dest = vec![0u64; 2];
+
+        let len = intersect(&mut dest, &rare, &freq);
+
+        assert_eq!(len, 2, "Should find 2 matches for [1, 1] intersect [1, 1, ...]");
+        assert_eq!(len, 2, "Should find 2 matches for [1, 1] intersect [1, 1, ...]");
+        assert_eq!(&dest[..len], &[1, 1]);
+    }
 }
