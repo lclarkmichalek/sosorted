@@ -414,22 +414,33 @@ mod tests {
         const TEST_ITERATION_COUNT: usize = 100;
 
         for _ in 0..TEST_ITERATION_COUNT {
+            // Test with potential duplicates (multiset semantics)
             let mut a: Vec<u64> = (0..TEST_DATA_SIZE)
-                .map(|_| rng.next_u64() % (TEST_DATA_SIZE as u64 * 4))
+                .map(|_| rng.next_u64() % (TEST_DATA_SIZE as u64 / 2)) // Reduced range to ensure duplicates
                 .collect();
             a.sort();
-            a.dedup();
 
             let mut b: Vec<u64> = (0..TEST_DATA_SIZE)
-                .map(|_| rng.next_u64() % (TEST_DATA_SIZE as u64 * 4))
+                .map(|_| rng.next_u64() % (TEST_DATA_SIZE as u64 / 2))
                 .collect();
             b.sort();
-            b.dedup();
 
-            let set_a: std::collections::HashSet<_> = a.iter().copied().collect();
-            let set_b: std::collections::HashSet<_> = b.iter().copied().collect();
-            let mut expected: Vec<_> = set_a.intersection(&set_b).copied().collect();
-            expected.sort();
+            // Calculate expected multiset intersection
+            // We can't use HashSet for multiset intersection
+            let mut expected = Vec::new();
+            let mut i = 0;
+            let mut j = 0;
+            while i < a.len() && j < b.len() {
+                match a[i].cmp(&b[j]) {
+                    std::cmp::Ordering::Less => i += 1,
+                    std::cmp::Ordering::Greater => j += 1,
+                    std::cmp::Ordering::Equal => {
+                        expected.push(a[i]);
+                        i += 1;
+                        j += 1;
+                    }
+                }
+            }
 
             let mut dest = vec![0u64; a.len().min(b.len())];
             let result = intersect(&mut dest, &a, &b);
