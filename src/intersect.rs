@@ -143,8 +143,81 @@ where
     let mut intersect_count = 0;
     let mut freq_idx = 0;
 
-    for &rare_val in rare.iter() {
-        // SIMD search in freq
+    'outer: for &rare_val in rare.iter() {
+        // SIMD search in freq - 4x unrolled
+        while freq_idx + 4 * lanes <= freq.len() {
+            // Optimization: Skip 4 chunks if rare_val is greater than the last element of the 4th chunk
+            if freq[freq_idx + 4 * lanes - 1] < rare_val {
+                freq_idx += 4 * lanes;
+                continue;
+            }
+
+            let freq_block1 = T::simd_from_slice(&freq[freq_idx..freq_idx + lanes]);
+            let freq_block2 = T::simd_from_slice(&freq[freq_idx + lanes..freq_idx + 2 * lanes]);
+            let freq_block3 = T::simd_from_slice(&freq[freq_idx + 2 * lanes..freq_idx + 3 * lanes]);
+            let freq_block4 = T::simd_from_slice(&freq[freq_idx + 3 * lanes..freq_idx + 4 * lanes]);
+
+            let rare_splat = T::simd_splat(rare_val);
+
+            let mask1 = rare_splat.simd_eq(freq_block1);
+            let mask2 = rare_splat.simd_eq(freq_block2);
+            let mask3 = rare_splat.simd_eq(freq_block3);
+            let mask4 = rare_splat.simd_eq(freq_block4);
+
+            // Optimization: Combined check
+            if (mask1 | mask2 | mask3 | mask4).any() {
+                if mask1.any() {
+                    // Match in first chunk
+                    dest[intersect_count] = rare_val;
+                    intersect_count += 1;
+                    freq_idx += 1; // Advance just 1 since we found it
+                    continue 'outer;
+                }
+                if mask2.any() {
+                    // Match in chunk 2
+                    dest[intersect_count] = rare_val;
+                    intersect_count += 1;
+                    let match_idx = mask2.to_bitmask().trailing_zeros() as usize;
+                    freq_idx += lanes + match_idx + 1;
+                    continue 'outer;
+                }
+                if mask3.any() {
+                    dest[intersect_count] = rare_val;
+                    intersect_count += 1;
+                    let match_idx = mask3.to_bitmask().trailing_zeros() as usize;
+                    freq_idx += 2 * lanes + match_idx + 1;
+                    continue 'outer;
+                }
+                if mask4.any() {
+                    dest[intersect_count] = rare_val;
+                    intersect_count += 1;
+                    let match_idx = mask4.to_bitmask().trailing_zeros() as usize;
+                    freq_idx += 3 * lanes + match_idx + 1;
+                    continue 'outer;
+                }
+            }
+
+            // Check if we passed the value
+            if freq[freq_idx + lanes - 1] >= rare_val {
+                break;
+            }
+            if freq[freq_idx + 2 * lanes - 1] >= rare_val {
+                freq_idx += lanes;
+                break;
+            }
+            if freq[freq_idx + 3 * lanes - 1] >= rare_val {
+                freq_idx += 2 * lanes;
+                break;
+            }
+            if freq[freq_idx + 4 * lanes - 1] >= rare_val {
+                freq_idx += 3 * lanes;
+                break;
+            }
+
+            freq_idx += 4 * lanes;
+        }
+
+        // Standard SIMD search (original loop for remaining items or if not 4x aligned)
         while freq_idx + lanes <= freq.len() {
             let freq_block = T::simd_from_slice(&freq[freq_idx..freq_idx + lanes]);
             let rare_splat = T::simd_splat(rare_val);
@@ -153,7 +226,9 @@ where
             if eq_mask.any() {
                 dest[intersect_count] = rare_val;
                 intersect_count += 1;
-                freq_idx += 1;
+                // Optimization: advance to specific index
+                let match_idx = eq_mask.to_bitmask().trailing_zeros() as usize;
+                freq_idx += match_idx + 1;
                 break;
             }
 
