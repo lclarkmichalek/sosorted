@@ -36,7 +36,7 @@ Note that different operations handle duplicates differently:
 
 ### Deduplication
 - **`deduplicate`** - Removes repeated elements from a sorted slice. Writes the result to a destination buffer.
-- **`find_first_duplicate`** - Finds the index of the first duplicate entry in a sorted slice. Returns the length if no duplicates exist.
+- **`find_first_duplicate`** - Finds the index of the first duplicate entry in a sorted slice (returns the index of the second element of the duplicate pair). Returns the length if no duplicates exist.
 
 ### Roaring Bitmaps
 
@@ -74,7 +74,6 @@ assert!(bitmap1.contains(100));
 
 ### Merge Operations
 - **`merge`** - Merge two sorted arrays (preserving duplicates)
-- **`merge_unique`** - Merge two sorted arrays without duplicates
 
 ### Search Operations
 - **`find_range`** - Find all elements within a specified range
