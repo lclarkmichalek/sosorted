@@ -1,4 +1,5 @@
 //! Common benchmark utilities: data generation and datasets.
+#![allow(dead_code, unused_imports)]
 //!
 //! This module provides shared infrastructure for all benchmarks:
 //! - `rng`: Seed constants and RNG utilities for reproducible data
