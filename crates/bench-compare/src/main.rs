@@ -49,6 +49,10 @@ struct Args {
     #[arg(long)]
     html_output: Option<PathBuf>,
 
+    /// Output file path for JSON report (generates JSON in addition to primary output)
+    #[arg(long)]
+    json_output: Option<PathBuf>,
+
     /// Base URL for linking to Criterion report artifacts (e.g., GitHub Actions artifact URL)
     #[arg(long)]
     artifact_url: Option<String>,
@@ -200,6 +204,11 @@ fn main() -> Result<()> {
         OutputFormat::Text => print_text_report(&comparisons, &args),
         OutputFormat::Json => print_json_report(&comparisons, &args)?,
         OutputFormat::Html => write_html_report(&comparisons, &args)?,
+    }
+
+    // Write JSON output if requested (allows generating both HTML and JSON in one run)
+    if let Some(json_path) = &args.json_output {
+        write_json_report(&comparisons, &args, json_path)?;
     }
 
     // Cleanup unless --keep-binaries
@@ -708,6 +717,22 @@ fn print_text_report(comparisons: &[ComparisonResult], args: &Args) {
 }
 
 fn print_json_report(comparisons: &[ComparisonResult], args: &Args) -> Result<()> {
+    let report = build_json_report(comparisons, args);
+    let output = serde_json::to_string_pretty(&report)?;
+    println!("{}", output);
+    Ok(())
+}
+
+fn write_json_report(comparisons: &[ComparisonResult], args: &Args, path: &Path) -> Result<()> {
+    let report = build_json_report(comparisons, args);
+    let output = serde_json::to_string_pretty(&report)?;
+    std::fs::write(path, &output)
+        .with_context(|| format!("Failed to write JSON report to {}", path.display()))?;
+    eprintln!("✓ JSON report written to {}", path.display());
+    Ok(())
+}
+
+fn build_json_report(comparisons: &[ComparisonResult], args: &Args) -> BenchmarkReport {
     let regressions = comparisons
         .iter()
         .filter(|c| c.verdict == Verdict::Regression)
@@ -721,7 +746,7 @@ fn print_json_report(comparisons: &[ComparisonResult], args: &Args) -> Result<()
         .filter(|c| c.verdict == Verdict::NoChange)
         .count();
 
-    let report = BenchmarkReport {
+    BenchmarkReport {
         metadata: ReportMetadata {
             baseline_ref: args.baseline.clone(),
             test_ref: args.test.clone(),
@@ -737,11 +762,7 @@ fn print_json_report(comparisons: &[ComparisonResult], args: &Args) -> Result<()
             improvements,
             unchanged,
         },
-    };
-
-    let output = serde_json::to_string_pretty(&report)?;
-    println!("{}", output);
-    Ok(())
+    }
 }
 
 fn write_html_report(comparisons: &[ComparisonResult], args: &Args) -> Result<()> {
