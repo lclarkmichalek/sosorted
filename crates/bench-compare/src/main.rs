@@ -402,7 +402,7 @@ fn run_benchmarks(
 
         // Run the benchmark with Criterion options
         let output = Command::new(&path)
-            .args(["--bench", &format!("--sample-size={}", sample_size)])
+            .args(["--bench", "--sample-size", &sample_size.to_string()])
             .current_dir(bench_dir.parent().unwrap_or(bench_dir))
             .env("CRITERION_HOME", bench_dir.join("criterion"))
             .output()
