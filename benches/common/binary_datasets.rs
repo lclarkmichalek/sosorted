@@ -28,7 +28,7 @@ pub fn standard_binary_datasets(size: usize) -> Vec<BinaryDatasetGroup> {
 /// Datasets testing different overlap/intersection densities.
 fn overlap_datasets(size: usize) -> BinaryDatasetGroup {
     let base = generate_sorted_unique(SEED_A, size);
-    let max_val = size as u64 * 10;
+    let _max_val = size as u64 * 10;
 
     // 0% overlap - completely disjoint
     let disjoint = generate_disjoint(&base, 0.5);
