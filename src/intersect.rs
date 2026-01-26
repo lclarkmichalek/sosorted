@@ -143,7 +143,7 @@ where
     let mut intersect_count = 0;
     let mut freq_idx = 0;
 
-    for &rare_val in rare.iter() {
+    'outer: for &rare_val in rare.iter() {
         // SIMD search in freq
         while freq_idx + lanes <= freq.len() {
             let freq_block = T::simd_from_slice(&freq[freq_idx..freq_idx + lanes]);
@@ -153,8 +153,9 @@ where
             if eq_mask.any() {
                 dest[intersect_count] = rare_val;
                 intersect_count += 1;
-                freq_idx += 1;
-                break;
+                let match_idx = eq_mask.to_bitmask().trailing_zeros() as usize;
+                freq_idx += match_idx + 1;
+                continue 'outer;
             }
 
             if freq[freq_idx + lanes - 1] >= rare_val {
@@ -489,4 +490,48 @@ mod tests {
     test_intersect_type!(test_intersect_i16, i16);
     test_intersect_type!(test_intersect_i32, i32);
     test_intersect_type!(test_intersect_i64, i64);
+
+    #[test]
+    fn test_intersect_multiset_v1() {
+        // Test specifically the 10:1 ratio which triggers V1, with duplicates
+        let seed: [u8; 32] = [42; 32];
+        let mut rng = SmallRng::from_seed(seed);
+
+        const A_SIZE: usize = 1000;
+        const B_SIZE: usize = 100; // 10:1 ratio
+
+        // Generate 'a' with some duplicates
+        let mut a: Vec<u64> = (0..A_SIZE)
+            .map(|_| rng.next_u64() % 100) // Small range to ensure duplicates
+            .collect();
+        a.sort();
+
+        // Generate 'b' with duplicates
+        let mut b: Vec<u64> = (0..B_SIZE)
+            .map(|_| rng.next_u64() % 100)
+            .collect();
+        b.sort();
+
+        // Calculate expected multiset intersection
+        let mut expected = Vec::new();
+        let mut i = 0;
+        let mut j = 0;
+        while i < a.len() && j < b.len() {
+            match a[i].cmp(&b[j]) {
+                std::cmp::Ordering::Less => i += 1,
+                std::cmp::Ordering::Greater => j += 1,
+                std::cmp::Ordering::Equal => {
+                    expected.push(a[i]);
+                    i += 1;
+                    j += 1;
+                }
+            }
+        }
+
+        let mut dest = vec![0u64; a.len().min(b.len())];
+        let result = intersect(&mut dest, &a, &b);
+
+        assert_eq!(result, expected.len(), "Length mismatch");
+        assert_eq!(&dest[..result], &expected[..], "Content mismatch");
+    }
 }
