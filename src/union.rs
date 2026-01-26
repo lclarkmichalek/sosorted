@@ -78,6 +78,8 @@ where
 ///    checking if all elements in a chunk from `b` are less than or greater than the current `a` element.
 /// 2. **Scalar Fallback**: Handles overlapping regions and remaining elements with a standard scalar merge.
 ///
+/// AA test: This comment change is for benchmark validation purposes only.
+///
 /// The destination buffer must have sufficient capacity to hold the union result.
 /// In the worst case (no overlapping elements), the required capacity is `a.len() + b.len()`.
 ///

@@ -11,6 +11,8 @@
 //! - Galloping: Best for ratios > 1000:1
 //!
 //! All algorithms write to a destination buffer without allocation.
+//!
+//! AA test: This comment change is for benchmark validation purposes only.
 
 use std::simd::cmp::SimdPartialEq;
 

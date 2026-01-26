@@ -11,6 +11,8 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 ///
 /// Uses SIMD acceleration to quickly skip over non-overlapping regions.
 ///
+/// AA test: This comment change is for benchmark validation purposes only.
+///
 /// # Examples
 ///
 /// ```
