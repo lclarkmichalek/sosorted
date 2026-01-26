@@ -238,6 +238,7 @@ pub fn generate_clustered(seed: [u8; 32], size: usize) -> Vec<u64> {
 }
 
 /// Generate data simulating sorted database IDs with ~10% duplicates.
+#[allow(clippy::manual_is_multiple_of)]
 pub fn generate_database_ids(seed: [u8; 32], size: usize) -> Vec<u64> {
     let mut rng = SmallRng::from_seed(seed);
     let mut data = Vec::with_capacity(size);

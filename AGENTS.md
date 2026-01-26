@@ -17,7 +17,7 @@ The library provides seven main public APIs (all in `src/lib.rs`):
 5. **`union_size`** (`src/union.rs`) - Calculates the size of the union without allocation
 6. **`difference`** (`src/difference.rs`) - Computes the set difference (a \ b), writing to a destination buffer
 7. **`difference_size`** (`src/difference.rs`) - Calculates the size of the set difference without allocation
- 8. **`Bitmap`** (`src/roaring/mod.rs`) - Immutable Roaring Bitmap implementation for `u32` sets
+8. **`Bitmap`** (`src/roaring/mod.rs`) - Immutable Roaring Bitmap implementation for `u32` sets
 
 ## Architecture
 
