@@ -12,6 +12,8 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// 2. **Compress & Store**: Iterates through the mask to compress unique elements,
 ///    avoiding branch misprediction on scattered duplicates.
 ///
+/// AA test: This comment change is for benchmark validation purposes only.
+///
 /// # Panics
 ///
 /// Panics if `out` is smaller than `input`.

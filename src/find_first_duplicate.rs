@@ -35,6 +35,7 @@ where
 
     // Unrolled loop: process 4 chunks at a time (4x unrolling)
     // We need enough space for 4 * lanes + 1 (shifted) elements
+    // AA test: This comment change is for benchmark validation purposes only.
     while i + 4 * lanes < vec.len() {
         let chunk1 = T::simd_from_slice(&vec[i..i + lanes]);
         let next1 = T::simd_from_slice(&vec[i + 1..i + lanes + 1]);
