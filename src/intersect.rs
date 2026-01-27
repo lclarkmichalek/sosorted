@@ -143,7 +143,7 @@ where
     let mut intersect_count = 0;
     let mut freq_idx = 0;
 
-    for &rare_val in rare.iter() {
+    'outer: for &rare_val in rare.iter() {
         // SIMD search in freq
         while freq_idx + lanes <= freq.len() {
             let freq_block = T::simd_from_slice(&freq[freq_idx..freq_idx + lanes]);
@@ -153,8 +153,9 @@ where
             if eq_mask.any() {
                 dest[intersect_count] = rare_val;
                 intersect_count += 1;
-                freq_idx += 1;
-                break;
+                let match_idx = eq_mask.to_bitmask().trailing_zeros() as usize;
+                freq_idx += match_idx + 1;
+                continue 'outer;
             }
 
             if freq[freq_idx + lanes - 1] >= rare_val {
@@ -489,4 +490,19 @@ mod tests {
     test_intersect_type!(test_intersect_i16, i16);
     test_intersect_type!(test_intersect_i32, i32);
     test_intersect_type!(test_intersect_i64, i64);
+
+    #[test]
+    fn test_intersect_multiset_v1() {
+        // a has 2 ones. b has 2 ones and some other stuff.
+        // Ratio must be >= 3 for V1.
+        // len(a) = 2. len(b) must be >= 6.
+        let a = [1u64, 1];
+        let b = [1u64, 1, 2, 3, 4, 5];
+
+        let mut dest = [0u64; 2];
+        let len = intersect(&mut dest, &a, &b);
+
+        assert_eq!(len, 2);
+        assert_eq!(dest[..len], [1, 1]);
+    }
 }
