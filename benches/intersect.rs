@@ -180,7 +180,11 @@ fn bench_ratio_datasets(c: &mut Criterion) {
     g.bench_function("sosorted", |bench| {
         let mut dest = vec![0u64; a.len().min(b.len())];
         bench.iter(|| {
-            black_box(intersect(black_box(&mut dest), black_box(&a), black_box(&b)))
+            black_box(intersect(
+                black_box(&mut dest),
+                black_box(&a),
+                black_box(&b),
+            ))
         })
     });
 
@@ -188,7 +192,11 @@ fn bench_ratio_datasets(c: &mut Criterion) {
     g.bench_function("naive", |bench| {
         let mut dest = vec![0u64; a.len().min(b.len())];
         bench.iter(|| {
-            black_box(naive_intersect(black_box(&mut dest), black_box(&a), black_box(&b)))
+            black_box(naive_intersect(
+                black_box(&mut dest),
+                black_box(&a),
+                black_box(&b),
+            ))
         })
     });
 
