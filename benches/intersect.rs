@@ -59,13 +59,9 @@ fn bench_standard_datasets(c: &mut Criterion) {
                 BenchmarkId::new("sosorted", dataset.name),
                 &(&dataset.a, &dataset.b),
                 |b, (a, b_arr)| {
-                    let mut dest = vec![0u64; a.len().min(b_arr.len())];
                     b.iter(|| {
-                        black_box(intersect(
-                            black_box(&mut dest),
-                            black_box(a),
-                            black_box(b_arr),
-                        ))
+                        let mut dest = vec![0u64; a.len().min(b_arr.len())];
+                        black_box(intersect(&mut dest, black_box(a), black_box(b_arr)))
                     })
                 },
             );
@@ -74,13 +70,9 @@ fn bench_standard_datasets(c: &mut Criterion) {
                 BenchmarkId::new("naive", dataset.name),
                 &(&dataset.a, &dataset.b),
                 |b, (a, b_arr)| {
-                    let mut dest = vec![0u64; a.len().min(b_arr.len())];
                     b.iter(|| {
-                        black_box(naive_intersect(
-                            black_box(&mut dest),
-                            black_box(a),
-                            black_box(b_arr),
-                        ))
+                        let mut dest = vec![0u64; a.len().min(b_arr.len())];
+                        black_box(naive_intersect(&mut dest, black_box(a), black_box(b_arr)))
                     })
                 },
             );
@@ -147,13 +139,9 @@ fn bench_custom_datasets(c: &mut Criterion) {
                 BenchmarkId::new("sosorted", dataset.name),
                 &(&dataset.a, &dataset.b),
                 |b, (a, b_arr)| {
-                    let mut dest = vec![0u64; a.len().min(b_arr.len())];
                     b.iter(|| {
-                        black_box(intersect(
-                            black_box(&mut dest),
-                            black_box(a),
-                            black_box(b_arr),
-                        ))
+                        let mut dest = vec![0u64; a.len().min(b_arr.len())];
+                        black_box(intersect(&mut dest, black_box(a), black_box(b_arr)))
                     })
                 },
             );
@@ -162,13 +150,9 @@ fn bench_custom_datasets(c: &mut Criterion) {
                 BenchmarkId::new("naive", dataset.name),
                 &(&dataset.a, &dataset.b),
                 |b, (a, b_arr)| {
-                    let mut dest = vec![0u64; a.len().min(b_arr.len())];
                     b.iter(|| {
-                        black_box(naive_intersect(
-                            black_box(&mut dest),
-                            black_box(a),
-                            black_box(b_arr),
-                        ))
+                        let mut dest = vec![0u64; a.len().min(b_arr.len())];
+                        black_box(naive_intersect(&mut dest, black_box(a), black_box(b_arr)))
                     })
                 },
             );
