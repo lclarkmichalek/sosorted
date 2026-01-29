@@ -161,5 +161,44 @@ fn bench_custom_datasets(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, bench_standard_datasets, bench_custom_datasets);
+fn bench_ratio_datasets(c: &mut Criterion) {
+    use common::generate_sorted_unique_bounded;
+    use common::rng::{SEED_A, SEED_B};
+
+    // Ratio 10 -> intersect_v1
+    // Ratio is 100_000 / 10_000 = 10.
+    let rare_size = 10_000;
+    let freq_size = 100_000;
+    let max_val = freq_size as u64 * 4;
+
+    let a = generate_sorted_unique_bounded(SEED_A, rare_size, max_val);
+    let b = generate_sorted_unique_bounded(SEED_B, freq_size, max_val);
+
+    let mut g = c.benchmark_group("intersect/ratio_1_10");
+    g.throughput(Throughput::Elements((a.len() + b.len()) as u64));
+
+    g.bench_function("sosorted", |bench| {
+        let mut dest = vec![0u64; a.len().min(b.len())];
+        bench.iter(|| {
+            black_box(intersect(black_box(&mut dest), black_box(&a), black_box(&b)))
+        })
+    });
+
+    // Naive for comparison
+    g.bench_function("naive", |bench| {
+        let mut dest = vec![0u64; a.len().min(b.len())];
+        bench.iter(|| {
+            black_box(naive_intersect(black_box(&mut dest), black_box(&a), black_box(&b)))
+        })
+    });
+
+    g.finish();
+}
+
+criterion_group!(
+    benches,
+    bench_standard_datasets,
+    bench_custom_datasets,
+    bench_ratio_datasets
+);
 criterion_main!(benches);
