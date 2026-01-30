@@ -49,11 +49,9 @@ where
     }
 
     #[inline(always)]
+    #[allow(clippy::unnecessary_cast)]
     fn to_bitmask(self) -> u64 {
-        #[allow(clippy::unnecessary_cast)]
-        {
-            self.to_bitmask() as u64
-        }
+        self.to_bitmask() as u64
     }
 }
 

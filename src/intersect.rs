@@ -143,7 +143,7 @@ where
     let mut intersect_count = 0;
     let mut freq_idx = 0;
 
-    'outer: for &rare_val in rare.iter() {
+    for &rare_val in rare.iter() {
         // SIMD search in freq
         while freq_idx + lanes <= freq.len() {
             let freq_block = T::simd_from_slice(&freq[freq_idx..freq_idx + lanes]);
@@ -153,9 +153,8 @@ where
             if eq_mask.any() {
                 dest[intersect_count] = rare_val;
                 intersect_count += 1;
-                let match_idx = eq_mask.to_bitmask().trailing_zeros() as usize;
-                freq_idx += match_idx + 1;
-                continue 'outer;
+                freq_idx += 1;
+                break;
             }
 
             if freq[freq_idx + lanes - 1] >= rare_val {
