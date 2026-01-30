@@ -50,13 +50,10 @@ where
 
     #[inline(always)]
     fn to_bitmask(self) -> u64 {
-        let mut mask: u64 = 0;
-        for i in 0..N {
-            if self.test(i) {
-                mask |= 1 << i;
-            }
+        #[allow(clippy::unnecessary_cast)]
+        {
+            self.to_bitmask() as u64
         }
-        mask
     }
 }
 
