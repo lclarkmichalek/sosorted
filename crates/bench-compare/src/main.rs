@@ -355,7 +355,12 @@ fn is_benchmark_binary(path: &Path, bench_filter: Option<&str>) -> Result<bool> 
     }
 
     // Skip the bench-compare tool itself (which might be in the deps dir)
-    if name.starts_with("bench_compare") || name.starts_with("bench-compare") {
+    // Checks for strict equality or prefix match to handle both cases safely
+    if name == "bench_compare"
+        || name == "bench-compare"
+        || name.starts_with("bench_compare-")
+        || name.starts_with("bench-compare-")
+    {
         return Ok(false);
     }
 
