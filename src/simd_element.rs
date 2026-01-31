@@ -51,8 +51,20 @@ where
     #[inline(always)]
     fn to_bitmask(self) -> u64 {
         // Optimization: Use intrinsic bitmask generation (e.g., pmovmskb on x86)
-        // instead of manual loop. This provides a significant speedup.
-        self.to_bitmask()
+        // for larger lane counts where it provides significant speedup.
+        // For very small lane counts (e.g., 2), the manual loop unrolls efficiently
+        // and is often faster than the intrinsic.
+        if N <= 2 {
+            let mut mask: u64 = 0;
+            for i in 0..N {
+                if self.test(i) {
+                    mask |= 1 << i;
+                }
+            }
+            mask
+        } else {
+            self.to_bitmask()
+        }
     }
 }
 
