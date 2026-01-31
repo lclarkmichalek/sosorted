@@ -50,13 +50,9 @@ where
 
     #[inline(always)]
     fn to_bitmask(self) -> u64 {
-        let mut mask: u64 = 0;
-        for i in 0..N {
-            if self.test(i) {
-                mask |= 1 << i;
-            }
-        }
-        mask
+        // Optimization: Use intrinsic bitmask generation (e.g., pmovmskb on x86)
+        // instead of manual loop. This provides a significant speedup.
+        self.to_bitmask()
     }
 }
 

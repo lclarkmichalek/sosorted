@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_imports, unused_variables)]
+#![allow(clippy::manual_is_multiple_of)]
 //! Common benchmark utilities: data generation and datasets.
 //!
 //! This module provides shared infrastructure for all benchmarks:
