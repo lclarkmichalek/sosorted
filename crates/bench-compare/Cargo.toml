@@ -8,6 +8,7 @@ license = "MIT"
 [[bin]]
 name = "bench-compare"
 path = "src/main.rs"
+bench = false
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

@@ -354,6 +354,11 @@ fn is_benchmark_binary(path: &Path, bench_filter: Option<&str>) -> Result<bool> 
         return Ok(false);
     }
 
+    // Skip self (bench-compare binary)
+    if name.starts_with("bench_compare") || name.starts_with("bench-compare") {
+        return Ok(false);
+    }
+
     // If a filter is specified, check if the binary name contains it
     if let Some(filter) = bench_filter {
         if !name.contains(filter) {
@@ -447,6 +452,7 @@ fn parse_criterion_output(output: &str) -> Vec<BenchmarkResult> {
             || line.starts_with("Found")
             || line.contains("outliers")
             || line.contains("thrpt:")
+            || line.chars().next().map_or(false, |c| c.is_numeric())
         {
             continue;
         }
@@ -455,9 +461,21 @@ fn parse_criterion_output(output: &str) -> Vec<BenchmarkResult> {
         // Format:
         //   benchmark_name
         //                         time:   [low mean high]
+        // OR sometimes:
+        //   benchmark_name    time:   [low mean high]
         if line.contains("time:") && line.contains('[') && line.contains(']') {
-            // This is a timing line - parse it and combine with stored name
-            if let Some(name) = current_name.take() {
+            let parts: Vec<&str> = line.split("time:").collect();
+            let potential_name = parts[0].trim();
+
+            let name = if !potential_name.is_empty() {
+                // Name is on the same line
+                Some(potential_name.to_string())
+            } else {
+                // Name was on previous line
+                current_name.take()
+            };
+
+            if let Some(name) = name {
                 if let Some((mean_ns, std_dev_ns)) = parse_criterion_timing(line) {
                     results.push(BenchmarkResult {
                         name,
