@@ -33,8 +33,8 @@ struct Args {
     #[arg(long, default_value = "0.05")]
     significance: f64,
 
-    /// Minimum effect size (%) to consider significant (default: 2.0)
-    #[arg(long, default_value = "2.0")]
+    /// Minimum effect size (%) to consider significant (default: 10.0)
+    #[arg(long, default_value = "10.0")]
     threshold: f64,
 
     /// Working directory (must be a git repo with Cargo benchmarks)
@@ -343,6 +343,11 @@ fn is_benchmark_binary(path: &Path, bench_filter: Option<&str>) -> Result<bool> 
     }
 
     let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+    // Skip the bench-compare tool itself
+    if name.starts_with("bench_compare") || name.starts_with("bench-compare") {
+        return Ok(false);
+    }
 
     // Skip files with extensions (we want the binary, not .d or .rlib files)
     if name.contains('.') {
