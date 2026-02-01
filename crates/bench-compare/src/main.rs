@@ -33,8 +33,8 @@ struct Args {
     #[arg(long, default_value = "0.05")]
     significance: f64,
 
-    /// Minimum effect size (%) to consider significant (default: 5.0)
-    #[arg(long, default_value = "5.0")]
+    /// Minimum effect size (%) to consider significant (default: 10.0)
+    #[arg(long, default_value = "10.0")]
     threshold: f64,
 
     /// Working directory (must be a git repo with Cargo benchmarks)
