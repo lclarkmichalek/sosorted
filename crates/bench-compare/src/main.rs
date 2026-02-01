@@ -344,6 +344,11 @@ fn is_benchmark_binary(path: &Path, bench_filter: Option<&str>) -> Result<bool> 
 
     let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
+    // Skip the bench-compare tool itself
+    if name.starts_with("bench_compare") || name.starts_with("bench-compare") {
+        return Ok(false);
+    }
+
     // Skip files with extensions (we want the binary, not .d or .rlib files)
     if name.contains('.') {
         return Ok(false);
