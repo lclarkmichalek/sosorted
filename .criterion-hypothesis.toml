@@ -1,0 +1,18 @@
+# criterion-hypothesis configuration for sosorted
+# See https://github.com/lclarkmichalek/criterion-hypothesis for documentation
+
+[hypothesis]
+confidence_level = 0.95      # Statistical confidence level (95%)
+minimum_effect_size = 2.0    # Minimum % difference to report as significant
+
+[orchestration]
+interleave_interval_ms = 10  # Short delay between runs (fast benchmarks)
+warmup_iterations = 5        # Warmup iterations (discarded)
+sample_size = 50             # Number of samples per benchmark
+
+[build]
+profile = "release"          # Always use release profile for benchmarks
+
+[network]
+base_port = 9200             # Base port for harness communication
+harness_timeout_ms = 30000   # Timeout for harness startup
