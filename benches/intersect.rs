@@ -161,5 +161,65 @@ fn bench_custom_datasets(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, bench_standard_datasets, bench_custom_datasets);
+/// Benchmark intersect with specific size ratios to target V1 algorithm.
+fn bench_ratio_datasets(c: &mut Criterion) {
+    use common::rng::{SEED_A, SEED_B};
+    use common::{generate_sorted_unique_bounded, generate_with_intersections};
+
+    // Target V1 range: 3:1 to 50:1.
+    // Let's test 1:10 and 1:40.
+    let ratios = vec![10, 40];
+    let size_b = 100_000;
+
+    let mut group = c.benchmark_group("intersect/ratio");
+
+    for ratio in ratios {
+        let size_a = size_b / ratio;
+        let max_val = size_b as u64 * 2; // Moderate density
+
+        let b_vec = generate_sorted_unique_bounded(SEED_B, size_b, max_val);
+        // Ensure b is strictly sorted (it is by generator)
+
+        // Generate a based on b with some intersection (e.g. 50%)
+        let intersect_count = size_a / 2;
+        let a_vec = generate_with_intersections(SEED_A, &b_vec, size_a, intersect_count, max_val);
+
+        // Verify ratio triggers V1
+        // ratio = larger / smaller. 100k / 10k = 10. (3..50 -> V1).
+
+        let dataset_name = format!("1:{}", ratio);
+
+        group.throughput(Throughput::Elements((size_a + size_b) as u64));
+
+        group.bench_with_input(
+            BenchmarkId::new("sosorted", &dataset_name),
+            &(&a_vec, &b_vec),
+            |b, (a, b_arr)| {
+                b.iter(|| {
+                    let mut dest = vec![0u64; a.len().min(b_arr.len())];
+                    black_box(intersect(&mut dest, black_box(a), black_box(b_arr)))
+                })
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("naive", &dataset_name),
+            &(&a_vec, &b_vec),
+            |b, (a, b_arr)| {
+                b.iter(|| {
+                    let mut dest = vec![0u64; a.len().min(b_arr.len())];
+                    black_box(naive_intersect(&mut dest, black_box(a), black_box(b_arr)))
+                })
+            },
+        );
+    }
+    group.finish();
+}
+
+criterion_group!(
+    benches,
+    bench_standard_datasets,
+    bench_custom_datasets,
+    bench_ratio_datasets
+);
 criterion_main!(benches);

@@ -144,6 +144,8 @@ where
     let mut freq_idx = 0;
 
     for &rare_val in rare.iter() {
+        let mut found = false;
+
         // SIMD search in freq
         while freq_idx + lanes <= freq.len() {
             let freq_block = T::simd_from_slice(&freq[freq_idx..freq_idx + lanes]);
@@ -153,7 +155,10 @@ where
             if eq_mask.any() {
                 dest[intersect_count] = rare_val;
                 intersect_count += 1;
-                freq_idx += 1;
+
+                let match_idx = eq_mask.to_bitmask().trailing_zeros() as usize;
+                freq_idx += match_idx + 1;
+                found = true;
                 break;
             }
 
@@ -162,6 +167,10 @@ where
             }
 
             freq_idx += lanes;
+        }
+
+        if found {
+            continue;
         }
 
         // Scalar fallback
@@ -448,6 +457,35 @@ mod tests {
         let result = intersect(&mut dest, &a, &b);
         assert_eq!(result, 4);
         assert_eq!(&dest[..result], &[14, 15, 16, 17]);
+    }
+
+    #[test]
+    fn test_intersect_v1_multiset_bug_exact_duplicates() {
+        // Trigger intersect_v1 (ratio 3..50).
+        // b (freq) length 100. a (rare) length 2. Ratio 50.
+
+        let mut b = vec![0u64; 100];
+        // Place two 99s.
+        // We want them to be found.
+        // Let's place them such that the first one is found by SIMD, but not at the very start so Scalar fallback runs.
+        // Index 3 and 4.
+        b[3] = 99;
+        b[4] = 99;
+
+        // Fill rest with larger values to keep it sorted
+        for (i, val) in b.iter_mut().enumerate().skip(5) {
+            *val = 100 + i as u64;
+        }
+
+        let a = vec![99u64, 99];
+
+        let mut dest = vec![0u64; 100];
+        let count = intersect(&mut dest, &a, &b);
+
+        // b has two '99's. a has two '99's. Result should have two '99's.
+        assert_eq!(count, 2, "Should have 2 matches, found {}", count);
+        assert_eq!(dest[0], 99);
+        assert_eq!(dest[1], 99);
     }
 
     // Tests for different numeric types
