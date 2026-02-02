@@ -473,8 +473,8 @@ mod tests {
         b[4] = 99;
 
         // Fill rest with larger values to keep it sorted
-        for i in 5..100 {
-            b[i] = 100 + i as u64;
+        for (i, val) in b.iter_mut().enumerate().skip(5) {
+            *val = 100 + i as u64;
         }
 
         let a = vec![99u64, 99];

@@ -177,7 +177,7 @@ fn bench_ratio_datasets(c: &mut Criterion) {
         let size_a = size_b / ratio;
         let max_val = size_b as u64 * 2; // Moderate density
 
-        let mut b_vec = generate_sorted_unique_bounded(SEED_B, size_b, max_val);
+        let b_vec = generate_sorted_unique_bounded(SEED_B, size_b, max_val);
         // Ensure b is strictly sorted (it is by generator)
 
         // Generate a based on b with some intersection (e.g. 50%)
@@ -216,5 +216,10 @@ fn bench_ratio_datasets(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_standard_datasets, bench_custom_datasets, bench_ratio_datasets);
+criterion_group!(
+    benches,
+    bench_standard_datasets,
+    bench_custom_datasets,
+    bench_ratio_datasets
+);
 criterion_main!(benches);
