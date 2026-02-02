@@ -2,3 +2,10 @@ target
 Cargo.lock
 .git
 perf.*
+.worktrees
+
+# Terraform
+infra/terraform.tfvars
+infra/.terraform/
+infra/*.tfstate*
+infra/scaler-source.zip
