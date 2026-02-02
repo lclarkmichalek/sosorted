@@ -1,0 +1,11 @@
+# Copy this file to terraform.tfvars and fill in values
+# terraform.tfvars is gitignored and should never be committed
+
+gcp_project = "your-project-id"
+github_repo = "owner/repo"
+
+# Optional overrides (defaults shown)
+# region       = "us-central1"
+# zone         = "us-central1-a"
+# machine_type = "n2-standard-2"
+# max_instances = 1

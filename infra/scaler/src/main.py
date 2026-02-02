@@ -1,0 +1,99 @@
+"""
+Cloud Function to scale GitHub Actions runner instances based on job queue.
+
+Polls GitHub API for queued/in-progress benchmark jobs and scales the
+instance group between 0 and 1 instances accordingly.
+"""
+
+import os
+
+import functions_framework
+import requests
+from google.cloud import compute_v1, secretmanager
+
+
+PROJECT = os.environ["GCP_PROJECT"]
+ZONE = os.environ["GCP_ZONE"]
+INSTANCE_GROUP = os.environ["INSTANCE_GROUP_NAME"]
+GITHUB_REPO = os.environ["GITHUB_REPO"]
+WORKFLOW_NAME = os.environ.get("WORKFLOW_NAME", "Benchmark")
+
+
+def get_github_pat() -> str:
+    """Fetch GitHub PAT from Secret Manager."""
+    client = secretmanager.SecretManagerServiceClient()
+    secret_name = f"projects/{PROJECT}/secrets/github-runner-pat/versions/latest"
+    response = client.access_secret_version(name=secret_name)
+    return response.payload.data.decode("utf-8")
+
+
+def get_pending_benchmark_jobs(pat: str) -> list:
+    """Get queued and in-progress benchmark workflow runs."""
+    headers = {
+        "Authorization": f"token {pat}",
+        "Accept": "application/vnd.github.v3+json",
+    }
+
+    pending_runs = []
+
+    for status in ["queued", "in_progress"]:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/actions/runs"
+        params = {"status": status, "per_page": 10}
+
+        response = requests.get(url, headers=headers, params=params, timeout=30)
+        response.raise_for_status()
+
+        runs = response.json().get("workflow_runs", [])
+        # Filter for benchmark workflow
+        benchmark_runs = [r for r in runs if r.get("name") == WORKFLOW_NAME]
+        pending_runs.extend(benchmark_runs)
+
+    return pending_runs
+
+
+def get_instance_group_size() -> int:
+    """Get current target size of the instance group."""
+    client = compute_v1.InstanceGroupManagersClient()
+    ig = client.get(project=PROJECT, zone=ZONE, instance_group_manager=INSTANCE_GROUP)
+    return ig.target_size
+
+
+def resize_instance_group(size: int) -> None:
+    """Resize the instance group to the specified size."""
+    client = compute_v1.InstanceGroupManagersClient()
+    client.resize(
+        project=PROJECT,
+        zone=ZONE,
+        instance_group_manager=INSTANCE_GROUP,
+        size=size,
+    )
+
+
+@functions_framework.http
+def scale_runner(request):
+    """
+    HTTP Cloud Function to scale runner instances.
+
+    Checks GitHub for pending benchmark jobs and scales the instance group:
+    - Scale up to 1 if jobs are pending and no instances running
+    - Scale down to 0 if no jobs are pending and instances are running
+    """
+    try:
+        pat = get_github_pat()
+        pending_jobs = get_pending_benchmark_jobs(pat)
+        current_size = get_instance_group_size()
+
+        job_count = len(pending_jobs)
+
+        if pending_jobs and current_size == 0:
+            resize_instance_group(1)
+            return f"Scaled up: {job_count} benchmark job(s) pending", 200
+
+        if not pending_jobs and current_size > 0:
+            resize_instance_group(0)
+            return "Scaled down: no benchmark jobs pending", 200
+
+        return f"No action: {job_count} job(s), {current_size} instance(s)", 200
+
+    except Exception as e:
+        return f"Error: {e}", 500

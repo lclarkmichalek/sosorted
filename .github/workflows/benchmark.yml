@@ -15,7 +15,7 @@ permissions:
 jobs:
   benchmark:
     name: Run Benchmarks
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, benchmark]
 
     steps:
       - name: Checkout sources
@@ -27,7 +27,12 @@ jobs:
           toolchain: nightly-2026-01-05
 
       - name: Run benchmarks
-        run: cargo bench -- --output-format bencher | tee output.txt
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 30
+          max_attempts: 3
+          retry_wait_seconds: 60
+          command: cargo bench -- --output-format bencher | tee output.txt
 
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
@@ -55,5 +60,5 @@ jobs:
 
             **[View Historical Charts](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/dev/bench/)**
 
-            <sub>Benchmarks run on ubuntu-latest with Rust nightly-2026-01-05</sub>
+            <sub>Benchmarks run on self-hosted GCP runner with Rust nightly-2026-01-05</sub>
           edit-mode: replace
