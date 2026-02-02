@@ -1,7 +1,7 @@
 """
 Cloud Function to scale GitHub Actions runner instances based on job queue.
 
-Polls GitHub API for queued/in-progress benchmark jobs and scales the
+Polls GitHub API for jobs that need self-hosted runners and scales the
 instance group between 0 and 1 instances accordingly.
 """
 
@@ -16,7 +16,7 @@ PROJECT = os.environ["GCP_PROJECT"]
 ZONE = os.environ["GCP_ZONE"]
 INSTANCE_GROUP = os.environ["INSTANCE_GROUP_NAME"]
 GITHUB_REPO = os.environ["GITHUB_REPO"]
-WORKFLOW_NAME = os.environ.get("WORKFLOW_NAME", "Benchmark")
+RUNNER_LABELS = os.environ.get("RUNNER_LABELS", "self-hosted,benchmark").split(",")
 
 
 def get_github_pat() -> str:
@@ -27,28 +27,54 @@ def get_github_pat() -> str:
     return response.payload.data.decode("utf-8")
 
 
-def get_pending_benchmark_jobs(pat: str) -> list:
-    """Get queued and in-progress benchmark workflow runs."""
+def get_pending_self_hosted_jobs(pat: str) -> list:
+    """Get jobs that are waiting for self-hosted runners."""
     headers = {
         "Authorization": f"token {pat}",
         "Accept": "application/vnd.github.v3+json",
     }
 
-    pending_runs = []
+    # Get workflow runs that are queued or in_progress
+    pending_jobs = []
 
     for status in ["queued", "in_progress"]:
         url = f"https://api.github.com/repos/{GITHUB_REPO}/actions/runs"
-        params = {"status": status, "per_page": 10}
+        params = {"status": status, "per_page": 20}
 
         response = requests.get(url, headers=headers, params=params, timeout=30)
         response.raise_for_status()
 
         runs = response.json().get("workflow_runs", [])
-        # Filter for benchmark workflow
-        benchmark_runs = [r for r in runs if r.get("name") == WORKFLOW_NAME]
-        pending_runs.extend(benchmark_runs)
 
-    return pending_runs
+        # For each run, check its jobs
+        for run in runs:
+            jobs_url = run.get("jobs_url")
+            if not jobs_url:
+                continue
+
+            jobs_response = requests.get(jobs_url, headers=headers, timeout=30)
+            jobs_response.raise_for_status()
+
+            jobs = jobs_response.json().get("jobs", [])
+
+            for job in jobs:
+                # Check if job is queued or in_progress
+                if job.get("status") not in ["queued", "in_progress"]:
+                    continue
+
+                # Check if job needs our self-hosted runner (has matching labels)
+                job_labels = [label.get("name", "") for label in job.get("labels", [])]
+
+                # Job needs self-hosted runner if it has all our required labels
+                if all(label in job_labels for label in RUNNER_LABELS):
+                    pending_jobs.append({
+                        "id": job.get("id"),
+                        "name": job.get("name"),
+                        "status": job.get("status"),
+                        "labels": job_labels,
+                    })
+
+    return pending_jobs
 
 
 def get_instance_group_size() -> int:
@@ -74,26 +100,27 @@ def scale_runner(request):
     """
     HTTP Cloud Function to scale runner instances.
 
-    Checks GitHub for pending benchmark jobs and scales the instance group:
+    Checks GitHub for jobs needing self-hosted runners and scales the instance group:
     - Scale up to 1 if jobs are pending and no instances running
     - Scale down to 0 if no jobs are pending and instances are running
     """
     try:
         pat = get_github_pat()
-        pending_jobs = get_pending_benchmark_jobs(pat)
+        pending_jobs = get_pending_self_hosted_jobs(pat)
         current_size = get_instance_group_size()
 
         job_count = len(pending_jobs)
 
         if pending_jobs and current_size == 0:
             resize_instance_group(1)
-            return f"Scaled up: {job_count} benchmark job(s) pending", 200
+            job_names = [j["name"] for j in pending_jobs[:3]]
+            return f"Scaled up: {job_count} self-hosted job(s) pending: {job_names}", 200
 
         if not pending_jobs and current_size > 0:
             resize_instance_group(0)
-            return "Scaled down: no benchmark jobs pending", 200
+            return "Scaled down: no self-hosted jobs pending", 200
 
-        return f"No action: {job_count} job(s), {current_size} instance(s)", 200
+        return f"No action: {job_count} self-hosted job(s), {current_size} instance(s)", 200
 
     except Exception as e:
         return f"Error: {e}", 500

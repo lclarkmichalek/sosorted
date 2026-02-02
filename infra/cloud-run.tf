@@ -58,7 +58,7 @@ resource "google_cloudfunctions2_function" "scaler" {
       GCP_ZONE            = var.zone
       INSTANCE_GROUP_NAME = google_compute_instance_group_manager.runner.name
       GITHUB_REPO         = var.github_repo
-      WORKFLOW_NAME       = "Benchmark"
+      RUNNER_LABELS       = "self-hosted,benchmark"
     }
 
     service_account_email = google_service_account.scaler_fn.email
