@@ -19,6 +19,7 @@ bench = false
 anyhow = "1.0.100"
 rand = { version = "0.9.2", features = ["small_rng"] }
 criterion = { version = "0.5", features = ["html_reports"] }
+criterion-hypothesis-harness = { path = "../criterion-hypothesis/criterion-hypothesis-harness" }
 
 [[bench]]
 name = "find_first_duplicate"
@@ -42,4 +43,8 @@ harness = false
 
 [[bench]]
 name = "roaring"
+harness = false
+
+[[bench]]
+name = "ch_bench_find_first_duplicate"
 harness = false
