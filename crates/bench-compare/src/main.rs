@@ -41,9 +41,21 @@ struct Args {
     #[arg(long, default_value = ".")]
     workdir: PathBuf,
 
-    /// Output format: text, json
+    /// Output format: text, json, html
     #[arg(long, default_value = "text")]
     output: OutputFormat,
+
+    /// Output file path for HTML report (only used when output=html)
+    #[arg(long)]
+    html_output: Option<PathBuf>,
+
+    /// Output file path for JSON report (generates JSON in addition to primary output)
+    #[arg(long)]
+    json_output: Option<PathBuf>,
+
+    /// Base URL for linking to Criterion report artifacts (e.g., GitHub Actions artifact URL)
+    #[arg(long)]
+    artifact_url: Option<String>,
 
     /// Keep built binaries after comparison (don't clean up)
     #[arg(long)]
@@ -55,6 +67,7 @@ enum OutputFormat {
     #[default]
     Text,
     Json,
+    Html,
 }
 
 impl std::str::FromStr for OutputFormat {
@@ -63,7 +76,8 @@ impl std::str::FromStr for OutputFormat {
         match s.to_lowercase().as_str() {
             "text" => Ok(Self::Text),
             "json" => Ok(Self::Json),
-            _ => bail!("Unknown output format: {s}. Use 'text' or 'json'"),
+            "html" => Ok(Self::Html),
+            _ => bail!("Unknown output format: {s}. Use 'text', 'json', or 'html'"),
         }
     }
 }
@@ -88,6 +102,32 @@ struct ComparisonResult {
     p_value: f64,
     significant: bool,
     verdict: Verdict,
+}
+
+/// Full report with metadata
+#[derive(Debug, Clone, serde::Serialize)]
+struct BenchmarkReport {
+    metadata: ReportMetadata,
+    comparisons: Vec<ComparisonResult>,
+    summary: ReportSummary,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct ReportMetadata {
+    baseline_ref: String,
+    test_ref: String,
+    timestamp: String,
+    significance_level: f64,
+    effect_threshold: f64,
+    sample_size: usize,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct ReportSummary {
+    total: usize,
+    regressions: usize,
+    improvements: usize,
+    unchanged: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -162,7 +202,13 @@ fn main() -> Result<()> {
     // Output results
     match args.output {
         OutputFormat::Text => print_text_report(&comparisons, &args),
-        OutputFormat::Json => print_json_report(&comparisons)?,
+        OutputFormat::Json => print_json_report(&comparisons, &args)?,
+        OutputFormat::Html => write_html_report(&comparisons, &args)?,
+    }
+
+    // Write JSON output if requested (allows generating both HTML and JSON in one run)
+    if let Some(json_path) = &args.json_output {
+        write_json_report(&comparisons, &args, json_path)?;
     }
 
     // Cleanup unless --keep-binaries
@@ -356,11 +402,7 @@ fn run_benchmarks(
 
         // Run the benchmark with Criterion options
         let output = Command::new(&path)
-            .args([
-                "--bench",
-                "--noplot",
-                &format!("--sample-size={}", sample_size),
-            ])
+            .args(["--bench", "--sample-size", &sample_size.to_string()])
             .current_dir(bench_dir.parent().unwrap_or(bench_dir))
             .env("CRITERION_HOME", bench_dir.join("criterion"))
             .output()
@@ -670,10 +712,642 @@ fn print_text_report(comparisons: &[ComparisonResult], args: &Args) {
     }
 }
 
-fn print_json_report(comparisons: &[ComparisonResult]) -> Result<()> {
-    let output = serde_json::to_string_pretty(comparisons)?;
+fn print_json_report(comparisons: &[ComparisonResult], args: &Args) -> Result<()> {
+    let report = build_json_report(comparisons, args);
+    let output = serde_json::to_string_pretty(&report)?;
     println!("{}", output);
     Ok(())
+}
+
+fn write_json_report(comparisons: &[ComparisonResult], args: &Args, path: &Path) -> Result<()> {
+    let report = build_json_report(comparisons, args);
+    let output = serde_json::to_string_pretty(&report)?;
+    std::fs::write(path, &output)
+        .with_context(|| format!("Failed to write JSON report to {}", path.display()))?;
+    eprintln!("✓ JSON report written to {}", path.display());
+    Ok(())
+}
+
+fn build_json_report(comparisons: &[ComparisonResult], args: &Args) -> BenchmarkReport {
+    let regressions = comparisons
+        .iter()
+        .filter(|c| c.verdict == Verdict::Regression)
+        .count();
+    let improvements = comparisons
+        .iter()
+        .filter(|c| c.verdict == Verdict::Improvement)
+        .count();
+    let unchanged = comparisons
+        .iter()
+        .filter(|c| c.verdict == Verdict::NoChange)
+        .count();
+
+    BenchmarkReport {
+        metadata: ReportMetadata {
+            baseline_ref: args.baseline.clone(),
+            test_ref: args.test.clone(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            significance_level: args.significance,
+            effect_threshold: args.threshold,
+            sample_size: args.sample_size,
+        },
+        comparisons: comparisons.to_vec(),
+        summary: ReportSummary {
+            total: comparisons.len(),
+            regressions,
+            improvements,
+            unchanged,
+        },
+    }
+}
+
+fn write_html_report(comparisons: &[ComparisonResult], args: &Args) -> Result<()> {
+    let html = generate_html_report(comparisons, args);
+
+    if let Some(path) = &args.html_output {
+        std::fs::write(path, &html)
+            .with_context(|| format!("Failed to write HTML report to {}", path.display()))?;
+        eprintln!("✓ HTML report written to {}", path.display());
+    } else {
+        println!("{}", html);
+    }
+
+    Ok(())
+}
+
+fn generate_html_report(comparisons: &[ComparisonResult], args: &Args) -> String {
+    let regressions: Vec<_> = comparisons
+        .iter()
+        .filter(|c| c.verdict == Verdict::Regression)
+        .collect();
+    let improvements: Vec<_> = comparisons
+        .iter()
+        .filter(|c| c.verdict == Verdict::Improvement)
+        .collect();
+    let no_change: Vec<_> = comparisons
+        .iter()
+        .filter(|c| c.verdict == Verdict::NoChange)
+        .collect();
+
+    let overall_status = if !regressions.is_empty() {
+        ("❌ Regressions Detected", "#dc3545", "regression")
+    } else if !improvements.is_empty() {
+        ("✅ All Clear (with improvements)", "#28a745", "success")
+    } else {
+        ("✅ All Clear", "#28a745", "success")
+    };
+
+    let artifact_link = args.artifact_url.as_ref().map(|url| {
+        format!(
+            r#"<a href="{}" class="artifact-link" target="_blank">📊 View Criterion Reports</a>"#,
+            html_escape(url)
+        )
+    }).unwrap_or_default();
+
+    let mut html = format!(
+        r##"<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Benchmark Comparison Report</title>
+    <style>
+        :root {{
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --border-color: #30363d;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-red: #f85149;
+            --accent-yellow: #d29922;
+        }}
+
+        * {{
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }}
+
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 20px;
+        }}
+
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+        }}
+
+        header {{
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }}
+
+        h1 {{
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }}
+
+        .status-badge {{
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }}
+
+        .status-regression {{
+            background-color: rgba(248, 81, 73, 0.2);
+            color: var(--accent-red);
+        }}
+
+        .status-success {{
+            background-color: rgba(63, 185, 80, 0.2);
+            color: var(--accent-green);
+        }}
+
+        .meta-info {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }}
+
+        .meta-item {{
+            background: var(--bg-tertiary);
+            padding: 12px 16px;
+            border-radius: 6px;
+        }}
+
+        .meta-label {{
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }}
+
+        .meta-value {{
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 14px;
+            margin-top: 4px;
+            word-break: break-all;
+        }}
+
+        .summary {{
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }}
+
+        .summary-card {{
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 20px;
+            text-align: center;
+        }}
+
+        .summary-card.regressions {{
+            border-left: 4px solid var(--accent-red);
+        }}
+
+        .summary-card.improvements {{
+            border-left: 4px solid var(--accent-green);
+        }}
+
+        .summary-card.unchanged {{
+            border-left: 4px solid var(--text-secondary);
+        }}
+
+        .summary-number {{
+            font-size: 36px;
+            font-weight: 700;
+        }}
+
+        .summary-card.regressions .summary-number {{
+            color: var(--accent-red);
+        }}
+
+        .summary-card.improvements .summary-number {{
+            color: var(--accent-green);
+        }}
+
+        .summary-label {{
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-top: 4px;
+        }}
+
+        .artifact-link {{
+            display: inline-block;
+            margin-top: 16px;
+            padding: 8px 16px;
+            background: var(--bg-tertiary);
+            color: var(--accent-blue);
+            text-decoration: none;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            transition: background-color 0.2s;
+        }}
+
+        .artifact-link:hover {{
+            background: var(--border-color);
+        }}
+
+        section {{
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin-bottom: 24px;
+            overflow: hidden;
+        }}
+
+        section h2 {{
+            font-size: 16px;
+            font-weight: 600;
+            padding: 16px 20px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+        }}
+
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }}
+
+        th {{
+            text-align: left;
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-color);
+        }}
+
+        td {{
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }}
+
+        tr:last-child td {{
+            border-bottom: none;
+        }}
+
+        tr:hover {{
+            background: var(--bg-tertiary);
+        }}
+
+        .benchmark-name {{
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 13px;
+        }}
+
+        .time-value {{
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            text-align: right;
+        }}
+
+        .change-positive {{
+            color: var(--accent-red);
+            font-weight: 600;
+        }}
+
+        .change-negative {{
+            color: var(--accent-green);
+            font-weight: 600;
+        }}
+
+        .change-neutral {{
+            color: var(--text-secondary);
+        }}
+
+        .p-value {{
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            color: var(--text-secondary);
+            text-align: right;
+        }}
+
+        .p-value.significant {{
+            color: var(--accent-yellow);
+        }}
+
+        .verdict {{
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }}
+
+        .verdict-regression {{
+            color: var(--accent-red);
+        }}
+
+        .verdict-improvement {{
+            color: var(--accent-green);
+        }}
+
+        .verdict-nochange {{
+            color: var(--text-secondary);
+        }}
+
+        .confidence-bar {{
+            width: 100px;
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }}
+
+        .confidence-fill {{
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }}
+
+        .confidence-high {{
+            background: var(--accent-green);
+        }}
+
+        .confidence-medium {{
+            background: var(--accent-yellow);
+        }}
+
+        .confidence-low {{
+            background: var(--text-secondary);
+        }}
+
+        .empty-state {{
+            padding: 40px;
+            text-align: center;
+            color: var(--text-secondary);
+        }}
+
+        footer {{
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 12px;
+            margin-top: 24px;
+            padding: 16px;
+        }}
+
+        footer a {{
+            color: var(--accent-blue);
+            text-decoration: none;
+        }}
+
+        @media (max-width: 768px) {{
+            .summary {{
+                grid-template-columns: 1fr;
+            }}
+
+            .meta-info {{
+                grid-template-columns: 1fr;
+            }}
+
+            table {{
+                font-size: 12px;
+            }}
+
+            th, td {{
+                padding: 8px 12px;
+            }}
+
+            .confidence-bar {{
+                display: none;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                Benchmark Comparison Report
+                <span class="status-badge status-{status_class}">{status_text}</span>
+            </h1>
+            <div class="meta-info">
+                <div class="meta-item">
+                    <div class="meta-label">Baseline</div>
+                    <div class="meta-value">{baseline}</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Test</div>
+                    <div class="meta-value">{test}</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Significance Level</div>
+                    <div class="meta-value">α = {significance}</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Effect Threshold</div>
+                    <div class="meta-value">≥ {threshold}%</div>
+                </div>
+            </div>
+            {artifact_link}
+        </header>
+
+        <div class="summary">
+            <div class="summary-card regressions">
+                <div class="summary-number">{regression_count}</div>
+                <div class="summary-label">Regressions</div>
+            </div>
+            <div class="summary-card improvements">
+                <div class="summary-number">{improvement_count}</div>
+                <div class="summary-label">Improvements</div>
+            </div>
+            <div class="summary-card unchanged">
+                <div class="summary-number">{unchanged_count}</div>
+                <div class="summary-label">Unchanged</div>
+            </div>
+        </div>
+"##,
+        status_text = overall_status.0,
+        status_class = overall_status.2,
+        baseline = html_escape(&args.baseline),
+        test = html_escape(&args.test),
+        significance = args.significance,
+        threshold = args.threshold,
+        artifact_link = artifact_link,
+        regression_count = regressions.len(),
+        improvement_count = improvements.len(),
+        unchanged_count = no_change.len(),
+    );
+
+    // Regressions section
+    if !regressions.is_empty() {
+        html.push_str(&generate_benchmark_table(
+            "⚠️ Regressions",
+            &regressions,
+            args.artifact_url.as_deref(),
+        ));
+    }
+
+    // Improvements section
+    if !improvements.is_empty() {
+        html.push_str(&generate_benchmark_table(
+            "🚀 Improvements",
+            &improvements,
+            args.artifact_url.as_deref(),
+        ));
+    }
+
+    // Unchanged section
+    if !no_change.is_empty() {
+        html.push_str(&generate_benchmark_table(
+            "➖ Unchanged",
+            &no_change,
+            args.artifact_url.as_deref(),
+        ));
+    }
+
+    // Footer
+    html.push_str(
+        r##"
+        <footer>
+            Generated by <a href="https://github.com/sosorted/bench-compare">bench-compare</a> using Welch's t-test for statistical hypothesis testing.
+        </footer>
+    </div>
+</body>
+</html>
+"##,
+    );
+
+    html
+}
+
+fn generate_benchmark_table(
+    title: &str,
+    comparisons: &[&ComparisonResult],
+    artifact_url: Option<&str>,
+) -> String {
+    let mut html = format!(
+        r#"
+        <section>
+            <h2>{}</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Benchmark</th>
+                        <th style="text-align: right">Baseline</th>
+                        <th style="text-align: right">Test</th>
+                        <th style="text-align: right">Change</th>
+                        <th style="text-align: right">Confidence</th>
+                        <th>Verdict</th>
+                    </tr>
+                </thead>
+                <tbody>
+"#,
+        html_escape(title)
+    );
+
+    for c in comparisons {
+        let change_class = if c.change_percent > 0.0 {
+            "change-positive"
+        } else if c.change_percent < 0.0 {
+            "change-negative"
+        } else {
+            "change-neutral"
+        };
+
+        let verdict_class = match c.verdict {
+            Verdict::Regression => "verdict-regression",
+            Verdict::Improvement => "verdict-improvement",
+            Verdict::NoChange => "verdict-nochange",
+        };
+
+        // Calculate confidence level (inverse of p-value, capped at 99.99%)
+        let confidence = ((1.0 - c.p_value) * 100.0).min(99.99);
+        let confidence_class = if confidence >= 95.0 {
+            "confidence-high"
+        } else if confidence >= 80.0 {
+            "confidence-medium"
+        } else {
+            "confidence-low"
+        };
+
+        let p_class = if c.p_value < 0.05 {
+            "p-value significant"
+        } else {
+            "p-value"
+        };
+
+        // Generate link to criterion report if artifact URL is provided
+        let benchmark_link = if let Some(url) = artifact_url {
+            let encoded_name = c.name.replace('/', "_");
+            format!(
+                r#"<a href="{}/criterion/{}/report/index.html" target="_blank">{}</a>"#,
+                html_escape(url),
+                html_escape(&encoded_name),
+                html_escape(&c.name)
+            )
+        } else {
+            html_escape(&c.name)
+        };
+
+        html.push_str(&format!(
+            r#"                    <tr>
+                        <td class="benchmark-name">{}</td>
+                        <td class="time-value">{}</td>
+                        <td class="time-value">{}</td>
+                        <td class="time-value {}"><strong>{:+.2}%</strong></td>
+                        <td class="{}">
+                            <div class="confidence-bar"><div class="confidence-fill {}" style="width: {}%"></div></div>
+                            {:.2}%
+                        </td>
+                        <td class="verdict {}">{}</td>
+                    </tr>
+"#,
+            benchmark_link,
+            format_time(c.baseline_mean_ns),
+            format_time(c.test_mean_ns),
+            change_class,
+            c.change_percent,
+            p_class,
+            confidence_class,
+            confidence.min(100.0),
+            confidence,
+            verdict_class,
+            c.verdict
+        ));
+    }
+
+    html.push_str(
+        r#"                </tbody>
+            </table>
+        </section>
+"#,
+    );
+
+    html
+}
+
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
 }
 
 fn format_time(ns: f64) -> String {

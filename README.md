@@ -1,5 +1,10 @@
 # sosorted: Methods for efficiently manipulating sorted arrays
 
+[![CI](https://github.com/lclarkmichalek/sosorted/workflows/CI/badge.svg)](https://github.com/lclarkmichalek/sosorted/actions)
+[![Crates.io](https://img.shields.io/crates/v/sosorted.svg)](https://crates.io/crates/sosorted)
+[![Downloads](https://img.shields.io/crates/d/sosorted.svg)](https://crates.io/crates/sosorted)
+[![Documentation](https://docs.rs/sosorted/badge.svg)](https://docs.rs/sosorted)
+
 This crate provides various methods for efficiently manipulating arrays of sorted data using SIMD optimizations. It supports all primitive integer types (`u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`).
 
 ## API Design
@@ -32,6 +37,33 @@ Note that different operations handle duplicates differently:
 ### Deduplication
 - **`deduplicate`** - Removes repeated elements from a sorted slice. Writes the result to a destination buffer.
 - **`find_first_duplicate`** - Finds the index of the first duplicate entry in a sorted slice. Returns the length if no duplicates exist.
+
+### Roaring Bitmaps
+
+For working with sets of `u32` values, this crate provides a specialized `Bitmap` implementation based on Roaring Bitmaps. This is often more memory-efficient and faster for set operations than sorted arrays or hash sets, especially for large datasets.
+
+**Key Features:**
+- **Immutable**: Operations return new bitmaps rather than mutating in place.
+- **Memory-efficient**: Uses a hybrid container approach (arrays for sparse data, bitmaps for dense).
+- **Fast**: Specialized SIMD-accelerated implementations for union and intersection.
+
+```rust
+use sosorted::Bitmap;
+
+// Create bitmaps from sorted data
+let bitmap1 = Bitmap::from_sorted_slice(&[1, 5, 100, 1000, 10000]);
+let bitmap2 = Bitmap::from_sorted_slice(&[42, 100, 200]);
+
+// Set operations
+let union = &bitmap1 | &bitmap2;
+let intersection = &bitmap1 & &bitmap2;
+
+assert_eq!(union.len(), 7);
+assert_eq!(intersection.len(), 1);
+
+// Check for existence
+assert!(bitmap1.contains(100));
+```
 
 ## Planned Future Operations
 
