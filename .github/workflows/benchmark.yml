@@ -74,6 +74,12 @@ jobs:
         with:
           toolchain: nightly-2026-01-05
 
+      - name: Install system dependencies
+        if: steps.changes.outputs.skip_benchmarks != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
       - name: Build bench-compare tool
         if: steps.changes.outputs.skip_benchmarks != 'true'
         run: cargo build --release -p bench-compare
