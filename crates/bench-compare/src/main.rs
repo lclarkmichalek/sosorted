@@ -33,8 +33,8 @@ struct Args {
     #[arg(long, default_value = "0.05")]
     significance: f64,
 
-    /// Minimum effect size (%) to consider significant (default: 2.0)
-    #[arg(long, default_value = "2.0")]
+    /// Minimum effect size (%) to consider significant (default: 20.0)
+    #[arg(long, default_value = "20.0")]
     threshold: f64,
 
     /// Working directory (must be a git repo with Cargo benchmarks)
@@ -469,6 +469,13 @@ fn parse_criterion_output(output: &str) -> Vec<BenchmarkResult> {
         } else if !line.contains(':') && !line.starts_with('[') {
             // This looks like a benchmark name (no colons, not a bracket line)
             // Benchmark names typically look like "group/variant/case"
+
+            // Ignore lines starting with a number (e.g. "3 (6.00%) high severe")
+            // which are outlier statistics printed by Criterion
+            if line.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+                continue;
+            }
+
             current_name = Some(line.to_string());
         }
     }
