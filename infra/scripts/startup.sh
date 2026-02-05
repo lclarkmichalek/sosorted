@@ -7,11 +7,14 @@ echo "=== Runner startup script started at $(date) ==="
 
 # Install dependencies
 echo "Installing dependencies..."
-dnf install -y curl jq git gcc gcc-c++ make
+dnf install -y curl jq git
+dnf groupinstall -y "Development Tools"
 
-# Create runner user
+# Create runner user with passwordless sudo
 echo "Creating runner user..."
 useradd -m -s /bin/bash runner || true
+echo "runner ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/runner
+chmod 440 /etc/sudoers.d/runner
 
 # Install Rust as runner user
 echo "Installing Rust..."
