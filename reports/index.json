@@ -1,0 +1,18 @@
+{
+  "reports": [
+    {
+      "id": "pr-101",
+      "pr_number": 101,
+      "title": "Update documentation for accuracy",
+      "baseline_ref": "ab5e120fb31fdf59b5d77f7166025c1df6696d56",
+      "test_ref": "67291a31f4e0d65114eb9f7cfb7a047d1b836ca2",
+      "timestamp": "2026-02-05T17:40:07.250233209+00:00",
+      "summary": {
+        "total": 79,
+        "regressions": 0,
+        "improvements": 0,
+        "unchanged": 79
+      }
+    }
+  ]
+}
