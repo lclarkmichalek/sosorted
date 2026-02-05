@@ -63,6 +63,15 @@ where
         // Fast path: all elements in b_chunk are greater than a[i]
         // a[i] is definitely not in b, count it
         if b_chunk.simd_gt(a_splat).all() {
+            // Optimization: if all 'a' chunk elements are smaller than 'b[j]',
+            // then they are smaller than all 'b' elements starting at 'j'.
+            // So they are not in 'b'.
+            if i + lanes <= a.len() && b[j] > a[i + lanes - 1] {
+                count += lanes;
+                i += lanes;
+                continue;
+            }
+
             count += 1;
             i += 1;
             continue;
@@ -227,6 +236,15 @@ where
         // Fast path: all elements in b_chunk are greater than a[i]
         // a[i] is definitely not in b, include it
         if b_chunk.simd_gt(a_splat).all() {
+            // Optimization: if all 'a' chunk elements are smaller than 'b[j]',
+            // then they are smaller than all 'b' elements starting at 'j'.
+            if i + lanes <= a.len() && b[j] > a[i + lanes - 1] {
+                dest[write..write + lanes].copy_from_slice(&a[i..i + lanes]);
+                write += lanes;
+                i += lanes;
+                continue;
+            }
+
             dest[write] = a[i];
             write += 1;
             i += 1;
