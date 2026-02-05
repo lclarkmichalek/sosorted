@@ -7,7 +7,7 @@ echo "=== Runner startup script started at $(date) ==="
 
 # Install dependencies
 echo "Installing dependencies..."
-dnf install -y curl jq git
+dnf install -y curl jq git gcc make
 
 # Create runner user
 echo "Creating runner user..."

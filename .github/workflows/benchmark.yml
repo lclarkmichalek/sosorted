@@ -11,7 +11,7 @@ permissions:
 jobs:
   bench-compare:
     name: Run Benchmarks
-    runs-on: [self-hosted, benchmark]
+    runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
 
     outputs:
@@ -73,12 +73,6 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly-2026-01-05
-
-      - name: Install system dependencies
-        if: steps.changes.outputs.skip_benchmarks != 'true'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential
 
       - name: Build bench-compare tool
         if: steps.changes.outputs.skip_benchmarks != 'true'
