@@ -11,7 +11,7 @@ permissions:
 jobs:
   bench-compare:
     name: Run Benchmarks
-    runs-on: [self-hosted, benchmark]
+    runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
 
     outputs:
