@@ -7,8 +7,9 @@ echo "=== Runner startup script started at $(date) ==="
 
 # Install dependencies
 echo "Installing dependencies..."
-dnf install -y curl jq git
-dnf groupinstall -y "Development Tools"
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y curl jq git build-essential
 
 # Create runner user with passwordless sudo
 echo "Creating runner user..."

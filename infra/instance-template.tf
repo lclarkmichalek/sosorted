@@ -14,7 +14,7 @@ resource "google_compute_instance_template" "runner" {
   }
 
   disk {
-    source_image = "projects/rocky-linux-cloud/global/images/family/rocky-linux-9"
+    source_image = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts"
     auto_delete  = true
     boot         = true
     disk_type    = "pd-ssd"
