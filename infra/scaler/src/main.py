@@ -63,7 +63,8 @@ def get_pending_self_hosted_jobs(pat: str) -> list:
                     continue
 
                 # Check if job needs our self-hosted runner (has matching labels)
-                job_labels = [label.get("name", "") for label in job.get("labels", [])]
+                # Labels are a list of strings, e.g. ["self-hosted", "benchmark"]
+                job_labels = job.get("labels", [])
 
                 # Job needs self-hosted runner if it has all our required labels
                 if all(label in job_labels for label in RUNNER_LABELS):
