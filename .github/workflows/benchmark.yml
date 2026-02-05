@@ -90,6 +90,7 @@ jobs:
             --html-output benchmark-report.html \
             --json-output benchmark-report.json \
             --sample-size 50 \
+            --threshold 20.0 \
             --keep-binaries \
             ${{ steps.changes.outputs.bench_arg }}
           EXIT_CODE=$?
