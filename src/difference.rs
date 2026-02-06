@@ -2,7 +2,7 @@ use std::{cmp::Ordering, simd::cmp::SimdPartialOrd};
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
-/// Calculates the size of the set difference (a \ b) without modifying the input.
+/// Calculates the size of the set difference (a \ b) without allocating.
 ///
 /// Returns the count of elements in `a` that are NOT in `b`.
 ///
