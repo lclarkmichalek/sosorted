@@ -140,10 +140,75 @@ where
     T::SimdVec: SimdPartialEq<Mask = T::SimdMask>,
 {
     let lanes = T::LANES;
+
+    // Use fast-forwarding only if the ratio is high enough (at least 4 blocks per element).
+    // Use saturating_mul to avoid overflow.
+    let threshold_len = rare.len().saturating_mul(lanes * 4);
+
+    if freq.len() >= threshold_len {
+        let mut intersect_count = 0;
+        let mut freq_idx = 0;
+
+        'outer: for &rare_val in rare.iter() {
+            // Fast forward check: skip 4 blocks at a time if possible
+            while freq_idx + 4 * lanes <= freq.len() {
+                if freq[freq_idx + 4 * lanes - 1] < rare_val {
+                    freq_idx += 4 * lanes;
+                } else {
+                    break;
+                }
+            }
+
+            // SIMD search in freq
+            while freq_idx + lanes <= freq.len() {
+                let freq_block = T::simd_from_slice(&freq[freq_idx..freq_idx + lanes]);
+                let rare_splat = T::simd_splat(rare_val);
+
+                let eq_mask = rare_splat.simd_eq(freq_block);
+                if eq_mask.any() {
+                    dest[intersect_count] = rare_val;
+                    intersect_count += 1;
+                    freq_idx += 1;
+                    continue 'outer;
+                }
+
+                if freq[freq_idx + lanes - 1] >= rare_val {
+                    break;
+                }
+
+                freq_idx += lanes;
+            }
+
+            // Scalar fallback
+            while freq_idx < freq.len() && freq[freq_idx] < rare_val {
+                freq_idx += 1;
+            }
+
+            if freq_idx < freq.len() && freq[freq_idx] == rare_val {
+                dest[intersect_count] = rare_val;
+                intersect_count += 1;
+                freq_idx += 1;
+            }
+        }
+        intersect_count
+    } else {
+        intersect_v1_fallback(dest, rare, freq)
+    }
+}
+
+/// Fallback implementation without fast-forwarding, for lower ratios.
+/// Marked inline(never) to keep the main function small and instruction cache friendly for the hot path.
+#[inline(never)]
+fn intersect_v1_fallback<T>(dest: &mut [T], rare: &[T], freq: &[T]) -> usize
+where
+    T: SortedSimdElement + Ord,
+    T::SimdVec: SimdPartialEq<Mask = T::SimdMask>,
+{
+    let lanes = T::LANES;
     let mut intersect_count = 0;
     let mut freq_idx = 0;
 
-    for &rare_val in rare.iter() {
+    'outer: for &rare_val in rare.iter() {
         // SIMD search in freq
         while freq_idx + lanes <= freq.len() {
             let freq_block = T::simd_from_slice(&freq[freq_idx..freq_idx + lanes]);
@@ -154,7 +219,7 @@ where
                 dest[intersect_count] = rare_val;
                 intersect_count += 1;
                 freq_idx += 1;
-                break;
+                continue 'outer;
             }
 
             if freq[freq_idx + lanes - 1] >= rare_val {
@@ -170,10 +235,8 @@ where
         }
 
         if freq_idx < freq.len() && freq[freq_idx] == rare_val {
-            if intersect_count == 0 || dest[intersect_count - 1] != rare_val {
-                dest[intersect_count] = rare_val;
-                intersect_count += 1;
-            }
+            dest[intersect_count] = rare_val;
+            intersect_count += 1;
             freq_idx += 1;
         }
     }
@@ -400,6 +463,17 @@ mod tests {
         let result = intersect(&mut dest, &a, &b);
         assert_eq!(result, 3);
         assert_eq!(&dest[..result], &[500, 1000, 1500]);
+    }
+
+    #[test]
+    fn test_intersect_multiset_v1() {
+        // Ratio 3: 6/2 = 3. Should use V1.
+        let a = [1u64, 1];
+        let b = [1u64, 1, 1, 1, 1, 1];
+        let mut dest = [0u64; 6];
+        let len = intersect(&mut dest, &a, &b);
+        assert_eq!(len, 2);
+        assert_eq!(&dest[..len], &[1, 1]);
     }
 
     #[test]
