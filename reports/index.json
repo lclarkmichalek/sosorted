@@ -1,6 +1,20 @@
 {
   "reports": [
     {
+      "id": "pr-103",
+      "pr_number": 103,
+      "title": "docs: update README and docstrings",
+      "baseline_ref": "ab5e120fb31fdf59b5d77f7166025c1df6696d56",
+      "test_ref": "2adbfe9d5c9639641d59f05b560edeaf677e4fe4",
+      "timestamp": "2026-02-06T11:48:53.623081786+00:00",
+      "summary": {
+        "total": 40,
+        "regressions": 0,
+        "improvements": 1,
+        "unchanged": 39
+      }
+    },
+    {
       "id": "pr-101",
       "pr_number": 101,
       "title": "Update documentation for accuracy",
