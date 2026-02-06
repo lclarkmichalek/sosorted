@@ -354,6 +354,11 @@ fn is_benchmark_binary(path: &Path, bench_filter: Option<&str>) -> Result<bool> 
         return Ok(false);
     }
 
+    // Skip the bench-compare tool itself if it was built
+    if name.starts_with("bench_compare") {
+        return Ok(false);
+    }
+
     // If a filter is specified, check if the binary name contains it
     if let Some(filter) = bench_filter {
         if !name.contains(filter) {
@@ -466,9 +471,16 @@ fn parse_criterion_output(output: &str) -> Vec<BenchmarkResult> {
                     });
                 }
             }
-        } else if !line.contains(':') && !line.starts_with('[') {
-            // This looks like a benchmark name (no colons, not a bracket line)
-            // Benchmark names typically look like "group/variant/case"
+        } else if !line.starts_with('[')
+            && !line.starts_with("change:")
+            && !line.starts_with("time:")
+            && !line.chars().next().map_or(false, |c| c.is_numeric())
+        {
+            // This looks like a benchmark name.
+            // - Not a bracket line (thrpt/time details)
+            // - Not a property line (change:, time:)
+            // - Not an outlier line (starts with number, e.g. "2 (2.00%)")
+            // - We allow colons because benchmark names can contain them (e.g. "10:1")
             current_name = Some(line.to_string());
         }
     }
