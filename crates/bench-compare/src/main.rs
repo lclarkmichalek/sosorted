@@ -354,6 +354,11 @@ fn is_benchmark_binary(path: &Path, bench_filter: Option<&str>) -> Result<bool> 
         return Ok(false);
     }
 
+    // Skip the bench-compare tool itself if it was built
+    if name.starts_with("bench_compare") {
+        return Ok(false);
+    }
+
     // If a filter is specified, check if the binary name contains it
     if let Some(filter) = bench_filter {
         if !name.contains(filter) {
