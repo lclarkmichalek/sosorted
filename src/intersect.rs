@@ -143,7 +143,7 @@ where
     let mut intersect_count = 0;
     let mut freq_idx = 0;
 
-    for &rare_val in rare.iter() {
+    'outer: for &rare_val in rare.iter() {
         // SIMD search in freq
         while freq_idx + lanes <= freq.len() {
             let freq_block = T::simd_from_slice(&freq[freq_idx..freq_idx + lanes]);
@@ -153,8 +153,9 @@ where
             if eq_mask.any() {
                 dest[intersect_count] = rare_val;
                 intersect_count += 1;
-                freq_idx += 1;
-                break;
+                let match_idx = eq_mask.to_bitmask().trailing_zeros() as usize;
+                freq_idx += match_idx + 1;
+                continue 'outer;
             }
 
             if freq[freq_idx + lanes - 1] >= rare_val {
@@ -489,4 +490,35 @@ mod tests {
     test_intersect_type!(test_intersect_i16, i16);
     test_intersect_type!(test_intersect_i32, i32);
     test_intersect_type!(test_intersect_i64, i64);
+
+    #[test]
+    fn test_intersect_multiset_v1() {
+        // Explicitly verify multiset semantics (duplicate preservation) in V1 algorithm.
+        // V1 is used for ratios ~3:1 to ~50:1.
+
+        // Case 1: rare=[2, 2], freq=[2, 2]. Result should be [2, 2].
+        let rare = [2u64, 2];
+
+        // Construct freq with sufficient length to trigger V1 (ratio >= 3)
+        // and check various alignments of duplicates to SIMD lanes.
+        for offset in 0..16 {
+            let mut freq = vec![0u64; 64];
+            // Fill with non-matching values
+            for i in 0..64 {
+                if i < offset {
+                    freq[i] = 0;
+                } else if i == offset || i == offset + 1 {
+                    freq[i] = 2;
+                } else {
+                    freq[i] = 100 + i as u64;
+                }
+            }
+
+            let mut dest = [0u64; 2];
+            let len = intersect(&mut dest, &rare, &freq);
+
+            assert_eq!(len, 2, "Failed at offset {}: expected len 2, got {}", offset, len);
+            assert_eq!(&dest[..len], &[2, 2], "Failed at offset {}", offset);
+        }
+    }
 }
