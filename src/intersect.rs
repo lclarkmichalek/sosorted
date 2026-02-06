@@ -146,6 +146,13 @@ where
     for &rare_val in rare.iter() {
         // SIMD search in freq
         while freq_idx + lanes <= freq.len() {
+            // Optimization: Skip the entire block if all elements are smaller than rare_val
+            // This avoids expensive SIMD load and comparison operations
+            if freq[freq_idx + lanes - 1] < rare_val {
+                freq_idx += lanes;
+                continue;
+            }
+
             let freq_block = T::simd_from_slice(&freq[freq_idx..freq_idx + lanes]);
             let rare_splat = T::simd_splat(rare_val);
 
@@ -157,11 +164,7 @@ where
                 break;
             }
 
-            if freq[freq_idx + lanes - 1] >= rare_val {
-                break;
-            }
-
-            freq_idx += lanes;
+            break;
         }
 
         // Scalar fallback
