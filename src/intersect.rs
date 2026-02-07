@@ -6,8 +6,8 @@
 //! The main `intersect` function uses an adaptive algorithm that selects the
 //! best strategy based on the size ratio between arrays:
 //! - Scalar: For very small ratios (up to 2:1)
-//! - V1: Best for ratios from ~3:1 to ~50:1
-//! - V3: Best for ratios from ~50:1 to ~1000:1
+//! - V1: Best for ratios from ~3:1 to ~32:1
+//! - V3: Best for ratios from ~33:1 to ~1000:1
 //! - Galloping: Best for ratios > 1000:1
 //!
 //! All algorithms write to a destination buffer without allocation.
@@ -91,8 +91,10 @@ where
 
     match ratio {
         0..=2 => intersect_scalar(dest, a, b),
-        3..=50 => intersect_v1(dest, a, b),
-        51..=1000 => intersect_v3(dest, a, b),
+        // Benchmarks show V3 becomes faster than V1 at ratio ~33:1
+        // (e.g., at 50:1, V3 is ~20% faster than V1)
+        3..=32 => intersect_v1(dest, a, b),
+        33..=1000 => intersect_v3(dest, a, b),
         _ => intersect_galloping(dest, a, b),
     }
 }
