@@ -50,7 +50,7 @@ where
 
     #[inline(always)]
     fn to_bitmask(self) -> u64 {
-        self.to_bitmask().into()
+        self.to_bitmask()
     }
 }
 
