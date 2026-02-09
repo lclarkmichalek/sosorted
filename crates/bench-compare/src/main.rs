@@ -354,6 +354,11 @@ fn is_benchmark_binary(path: &Path, bench_filter: Option<&str>) -> Result<bool> 
         return Ok(false);
     }
 
+    // Skip the bench-compare binary itself if it ends up in the folder
+    if name.starts_with("bench_compare") && !name.contains("bench_compare-") {
+         return Ok(false);
+    }
+
     // If a filter is specified, check if the binary name contains it
     if let Some(filter) = bench_filter {
         if !name.contains(filter) {
@@ -447,6 +452,9 @@ fn parse_criterion_output(output: &str) -> Vec<BenchmarkResult> {
             || line.starts_with("Found")
             || line.contains("outliers")
             || line.contains("thrpt:")
+            || line.contains("change:")
+            || line.trim_start().starts_with(|c: char| c.is_ascii_digit())
+            || line.contains("Performance has")
         {
             continue;
         }
@@ -466,8 +474,8 @@ fn parse_criterion_output(output: &str) -> Vec<BenchmarkResult> {
                     });
                 }
             }
-        } else if !line.contains(':') && !line.starts_with('[') {
-            // This looks like a benchmark name (no colons, not a bracket line)
+        } else if !line.starts_with('[') {
+            // This looks like a benchmark name (not a bracket line)
             // Benchmark names typically look like "group/variant/case"
             current_name = Some(line.to_string());
         }
