@@ -203,7 +203,13 @@ fn main() -> Result<()> {
     match args.output {
         OutputFormat::Text => print_text_report(&comparisons, &args),
         OutputFormat::Json => print_json_report(&comparisons, &args)?,
-        OutputFormat::Html => write_html_report(&comparisons, &args)?,
+        OutputFormat::Html => {
+            write_html_report(&comparisons, &args)?;
+            // If we wrote HTML to a file, also print text report to console for visibility in logs
+            if args.html_output.is_some() {
+                print_text_report(&comparisons, &args);
+            }
+        }
     }
 
     // Write JSON output if requested (allows generating both HTML and JSON in one run)
