@@ -144,6 +144,8 @@ where
     let mut freq_idx = 0;
 
     for &rare_val in rare.iter() {
+        let mut found = false;
+
         // SIMD search in freq
         while freq_idx + lanes <= freq.len() {
             let freq_block = T::simd_from_slice(&freq[freq_idx..freq_idx + lanes]);
@@ -153,7 +155,11 @@ where
             if eq_mask.any() {
                 dest[intersect_count] = rare_val;
                 intersect_count += 1;
-                freq_idx += 1;
+
+                // Find the first match index to skip past it
+                let match_idx = eq_mask.to_bitmask().trailing_zeros() as usize;
+                freq_idx += match_idx + 1;
+                found = true;
                 break;
             }
 
@@ -164,16 +170,18 @@ where
             freq_idx += lanes;
         }
 
+        if found {
+            continue;
+        }
+
         // Scalar fallback
         while freq_idx < freq.len() && freq[freq_idx] < rare_val {
             freq_idx += 1;
         }
 
         if freq_idx < freq.len() && freq[freq_idx] == rare_val {
-            if intersect_count == 0 || dest[intersect_count - 1] != rare_val {
-                dest[intersect_count] = rare_val;
-                intersect_count += 1;
-            }
+            dest[intersect_count] = rare_val;
+            intersect_count += 1;
             freq_idx += 1;
         }
     }
@@ -489,4 +497,20 @@ mod tests {
     test_intersect_type!(test_intersect_i16, i16);
     test_intersect_type!(test_intersect_i32, i32);
     test_intersect_type!(test_intersect_i64, i64);
+
+    #[test]
+    fn test_intersect_v1_multiset_bug_exact_duplicates() {
+        // Regression test for multiset intersection bug in V1 algorithm.
+        // rare: [10, 10]
+        // freq: [0, 1, 2, 3, 10, 10] (length 6 to trigger V1 with ratio 3:1)
+
+        let rare = vec![10u64, 10];
+        let freq = vec![0u64, 1, 2, 3, 10, 10];
+        let mut dest = vec![0u64; 2];
+
+        let len = intersect(&mut dest, &rare, &freq);
+
+        assert_eq!(len, 2, "Should find two 10s");
+        assert_eq!(&dest[..len], &[10, 10]);
+    }
 }
