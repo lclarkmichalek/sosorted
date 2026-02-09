@@ -356,7 +356,7 @@ fn is_benchmark_binary(path: &Path, bench_filter: Option<&str>) -> Result<bool> 
 
     // Skip the bench-compare binary itself if it ends up in the folder
     if name.starts_with("bench_compare") && !name.contains("bench_compare-") {
-         return Ok(false);
+        return Ok(false);
     }
 
     // If a filter is specified, check if the binary name contains it
