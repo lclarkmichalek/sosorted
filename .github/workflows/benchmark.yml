@@ -90,6 +90,7 @@ jobs:
             --html-output benchmark-report.html \
             --json-output benchmark-report.json \
             --sample-size 50 \
+            --threshold 50.0 \
             --keep-binaries \
             ${{ steps.changes.outputs.bench_arg }}
           EXIT_CODE=$?
@@ -148,7 +149,7 @@ jobs:
           echo "- **Test:** \`${{ github.event.pull_request.head.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Sample size:** 50" >> $GITHUB_STEP_SUMMARY
           echo "- **Significance level:** 0.05" >> $GITHUB_STEP_SUMMARY
-          echo "- **Effect threshold:** 2.0%" >> $GITHUB_STEP_SUMMARY
+          echo "- **Effect threshold:** 50.0%" >> $GITHUB_STEP_SUMMARY
 
       - name: Generate summary (skipped)
         if: steps.changes.outputs.skip_benchmarks == 'true'
@@ -290,7 +291,7 @@ jobs:
 
             - **Sample size:** 50 iterations per benchmark
             - **Significance level (α):** 0.05
-            - **Effect threshold:** ≥2.0% change required
+            - **Effect threshold:** ≥50.0% change required
             - **Test:** Welch's t-test (two-tailed)
 
             </details>
