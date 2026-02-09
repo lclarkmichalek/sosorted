@@ -8,7 +8,7 @@ This document provides guidance for AI agents working with the `sosorted` codeba
 
 ## Key Operations
 
-The library provides seven main public APIs (all in `src/lib.rs`):
+The library provides eight main public APIs (all in `src/lib.rs`):
 
 1. **`find_first_duplicate`** (`src/find_first_duplicate.rs`) - Locates the index of the first duplicate element in a sorted slice
 2. **`deduplicate`** (`src/deduplicate.rs`) - Removes consecutive duplicate elements, writing to a destination buffer
@@ -17,7 +17,7 @@ The library provides seven main public APIs (all in `src/lib.rs`):
 5. **`union_size`** (`src/union.rs`) - Calculates the size of the union without allocation
 6. **`difference`** (`src/difference.rs`) - Computes the set difference (a \ b), writing to a destination buffer
 7. **`difference_size`** (`src/difference.rs`) - Calculates the size of the set difference without allocation
- 8. **`Bitmap`** (`src/roaring/mod.rs`) - Immutable Roaring Bitmap implementation for `u32` sets
+8. **`Bitmap`** (`src/roaring/mod.rs`) - Immutable Roaring Bitmap implementation for `u32` sets
 
 ## Architecture
 
