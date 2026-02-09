@@ -218,8 +218,14 @@ fn main() -> Result<()> {
     }
 
     // Exit with error if any regressions detected
-    let has_regressions = comparisons.iter().any(|c| c.verdict == Verdict::Regression);
-    if has_regressions {
+    // Only fail if the regression is in a library-related benchmark (sosorted or roaring)
+    // This avoids failing due to noise in baseline implementations (naive, hashset)
+    let has_relevant_regressions = comparisons.iter().any(|c| {
+        c.verdict == Verdict::Regression
+            && (c.name.contains("sosorted") || c.name.contains("roaring"))
+    });
+
+    if has_relevant_regressions {
         std::process::exit(1);
     }
 
