@@ -1,6 +1,20 @@
 {
   "reports": [
     {
+      "id": "pr-109",
+      "pr_number": 109,
+      "title": "Update documentation for API count and find_first_duplicate",
+      "baseline_ref": "ab5e120fb31fdf59b5d77f7166025c1df6696d56",
+      "test_ref": "8663b16fc73054331d9f44c66d27828466d7b45d",
+      "timestamp": "2026-02-10T00:00:57.630880218+00:00",
+      "summary": {
+        "total": 403,
+        "regressions": 78,
+        "improvements": 51,
+        "unchanged": 274
+      }
+    },
+    {
       "id": "pr-103",
       "pr_number": 103,
       "title": "docs: update README and docstrings",
