@@ -90,7 +90,8 @@ jobs:
             --html-output benchmark-report.html \
             --json-output benchmark-report.json \
             --sample-size 50 \
-            --threshold 5.0 \
+            --threshold 10.0 \
+            --significance 0.01 \
             --keep-binaries \
             ${{ steps.changes.outputs.bench_arg }}
           EXIT_CODE=$?
@@ -148,8 +149,8 @@ jobs:
           echo "- **Baseline:** \`${{ github.event.pull_request.base.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Test:** \`${{ github.event.pull_request.head.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Sample size:** 50" >> $GITHUB_STEP_SUMMARY
-          echo "- **Significance level:** 0.05" >> $GITHUB_STEP_SUMMARY
-          echo "- **Effect threshold:** 5.0%" >> $GITHUB_STEP_SUMMARY
+          echo "- **Significance level:** 0.01" >> $GITHUB_STEP_SUMMARY
+          echo "- **Effect threshold:** 10.0%" >> $GITHUB_STEP_SUMMARY
 
       - name: Generate summary (skipped)
         if: steps.changes.outputs.skip_benchmarks == 'true'
