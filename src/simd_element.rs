@@ -49,6 +49,7 @@ where
     }
 
     #[inline(always)]
+    #[allow(clippy::useless_conversion)]
     fn to_bitmask(self) -> u64 {
         self.to_bitmask().into()
     }
