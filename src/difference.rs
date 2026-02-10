@@ -2,11 +2,12 @@ use std::{cmp::Ordering, simd::cmp::SimdPartialOrd};
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
-/// Calculates the size of the set difference (a \ b) without modifying the input.
+/// Calculates the size of the modified set difference (a \ b) without modifying the input.
 ///
 /// Returns the count of elements in `a` that are NOT in `b`.
 ///
-/// If an element appears in `b`, *all* occurrences of that element in `a` are excluded from the count.
+/// This operation differs from standard multiset difference: if an element appears in `b`,
+/// *all* occurrences of that element in `a` are excluded from the count, regardless of the count in `b`.
 /// Duplicates in `a` that are NOT in `b` are preserved in the count.
 ///
 /// Uses SIMD acceleration to quickly skip over non-overlapping regions.
@@ -127,12 +128,13 @@ where
     count
 }
 
-/// Computes the set difference (a \ b).
+/// Computes a modified set difference (a \ b).
 ///
 /// Returns elements in `a` that are NOT in `b`. The result is written to `dest`,
 /// and the function returns the count of elements in the result.
 ///
-/// If an element appears in `b`, *all* occurrences of that element in `a` are removed.
+/// This operation differs from standard multiset difference: if an element appears in `b`,
+/// *all* occurrences of that element in `a` are removed, regardless of the count in `b`.
 /// Duplicates in `a` that are NOT in `b` are preserved.
 ///
 /// Uses SIMD acceleration to quickly skip over non-overlapping regions.
