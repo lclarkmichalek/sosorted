@@ -1,4 +1,6 @@
 //! Common benchmark utilities: data generation and datasets.
+#![allow(unused)]
+#![allow(clippy::manual_is_multiple_of)]
 //!
 //! This module provides shared infrastructure for all benchmarks:
 //! - `rng`: Seed constants and RNG utilities for reproducible data

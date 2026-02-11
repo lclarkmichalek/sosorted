@@ -50,13 +50,18 @@ where
 
     #[inline(always)]
     fn to_bitmask(self) -> u64 {
-        let mut mask: u64 = 0;
-        for i in 0..N {
-            if self.test(i) {
-                mask |= 1 << i;
-            }
+        let bitmask = self.to_bitmask();
+        let mut val = 0u64;
+        // Safety: BitMask is a primitive integer type.
+        // We assume Little Endian and that BitMask fits in u64 (<= 64 lanes).
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                &bitmask as *const _ as *const u8,
+                &mut val as *mut _ as *mut u8,
+                std::mem::size_of_val(&bitmask),
+            );
         }
-        mask
+        val
     }
 }
 

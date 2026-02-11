@@ -143,7 +143,7 @@ where
     let mut intersect_count = 0;
     let mut freq_idx = 0;
 
-    for &rare_val in rare.iter() {
+    'rare_loop: for &rare_val in rare.iter() {
         // SIMD search in freq
         while freq_idx + lanes <= freq.len() {
             let freq_block = T::simd_from_slice(&freq[freq_idx..freq_idx + lanes]);
@@ -153,8 +153,11 @@ where
             if eq_mask.any() {
                 dest[intersect_count] = rare_val;
                 intersect_count += 1;
-                freq_idx += 1;
-                break;
+
+                // Optimization: find match index and update freq_idx precisely
+                let match_idx = eq_mask.to_bitmask().trailing_zeros() as usize;
+                freq_idx = freq_idx + match_idx + 1;
+                continue 'rare_loop;
             }
 
             if freq[freq_idx + lanes - 1] >= rare_val {
@@ -170,10 +173,8 @@ where
         }
 
         if freq_idx < freq.len() && freq[freq_idx] == rare_val {
-            if intersect_count == 0 || dest[intersect_count - 1] != rare_val {
-                dest[intersect_count] = rare_val;
-                intersect_count += 1;
-            }
+            dest[intersect_count] = rare_val;
+            intersect_count += 1;
             freq_idx += 1;
         }
     }
@@ -489,4 +490,26 @@ mod tests {
     test_intersect_type!(test_intersect_i16, i16);
     test_intersect_type!(test_intersect_i32, i32);
     test_intersect_type!(test_intersect_i64, i64);
+
+    #[test]
+    fn test_intersect_multiset_exact_duplicates() {
+        // Use a ratio that triggers V1 (>= 3:1)
+        let a = [2u64, 2];
+        let b = [2u64, 2, 3, 4, 5, 6];
+        let mut dest = [0u64; 6];
+        let count = intersect(&mut dest, &a, &b);
+        assert_eq!(count, 2, "Should return 2 elements");
+        assert_eq!(&dest[..count], &[2, 2]);
+    }
+
+    #[test]
+    fn test_intersect_multiset_mixed() {
+        let a = [1u64, 2, 2, 3];
+        let b = [2u64, 2, 3, 3];
+        let mut dest = [0u64; 4];
+        let count = intersect(&mut dest, &a, &b);
+        // Common: 2, 2, 3
+        assert_eq!(count, 3, "Should return 3 elements");
+        assert_eq!(&dest[..count], &[2, 2, 3]);
+    }
 }

@@ -125,6 +125,74 @@ fn custom_intersect_datasets(size: usize) -> Vec<BinaryDatasetGroup> {
     }]
 }
 
+fn ratio_datasets() -> Vec<BinaryDatasetGroup> {
+    use common::rng::{SEED_A, SEED_B};
+    use common::{generate_sorted_unique_bounded, generate_with_intersections, BinaryDataset};
+
+    // Target V1 strategy: ratio 3:1 to 50:1.
+    // We use 10:1 ratio.
+    let large_size = 100_000;
+    let max_val = large_size as u64 * 10;
+
+    let large = generate_sorted_unique_bounded(SEED_A, large_size, max_val);
+
+    // Create small array with varying intersection density
+    let densities = [(10, "10pct"), (50, "50pct")];
+
+    let make_datasets = |group_name: &'static str, small_len: usize| -> BinaryDatasetGroup {
+        let datasets = densities
+            .iter()
+            .map(|(pct, name)| {
+                let intersect_count = (small_len * pct) / 100;
+                let small = generate_with_intersections(
+                    SEED_B,
+                    &large,
+                    small_len,
+                    intersect_count,
+                    max_val,
+                );
+                BinaryDataset {
+                    name,
+                    a: small,
+                    b: large.clone(),
+                }
+            })
+            .collect();
+        BinaryDatasetGroup {
+            name: group_name,
+            datasets,
+        }
+    };
+
+    vec![
+        make_datasets("ratio_1_10", 10_000),
+        make_datasets("ratio_1_100", 1_000),
+    ]
+}
+
+fn bench_ratio_datasets(c: &mut Criterion) {
+    let datasets = ratio_datasets();
+    for group in &datasets {
+        let mut g = c.benchmark_group(format!("intersect/{}", group.name));
+        for dataset in &group.datasets {
+            g.throughput(Throughput::Elements(
+                (dataset.a.len() + dataset.b.len()) as u64,
+            ));
+            g.bench_with_input(
+                BenchmarkId::new("sosorted", dataset.name),
+                &(&dataset.a, &dataset.b),
+                |b, (a, b_arr)| {
+                    b.iter(|| {
+                        let mut dest = vec![0u64; a.len().min(b_arr.len())];
+                        black_box(intersect(&mut dest, black_box(a), black_box(b_arr)))
+                    })
+                },
+            );
+        }
+        g.finish();
+    }
+}
+
 /// Benchmark intersect with custom datasets.
 fn bench_custom_datasets(c: &mut Criterion) {
     let datasets = custom_intersect_datasets(100_000);
@@ -161,5 +229,10 @@ fn bench_custom_datasets(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, bench_standard_datasets, bench_custom_datasets);
+criterion_group!(
+    benches,
+    bench_standard_datasets,
+    bench_custom_datasets,
+    bench_ratio_datasets
+);
 criterion_main!(benches);
