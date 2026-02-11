@@ -1,4 +1,5 @@
 #![feature(portable_simd)]
+#![doc = include_str!("../README.md")]
 
 mod simd_element;
 pub use simd_element::{SimdMaskOps, SortedSimdElement, SIMD_WIDTH_BITS};
