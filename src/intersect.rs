@@ -151,15 +151,18 @@ where
 
             let eq_mask = rare_splat.simd_eq(freq_block);
             if eq_mask.any() {
-                dest[intersect_count] = rare_val;
-                intersect_count += 1;
-
-                // Optimization: find match index and update freq_idx precisely.
-                // Note: to_bitmask() cost varies (loop vs intrinsic) but is generally
-                // faster than falling back to scalar memory scanning for the match.
-                let match_idx = eq_mask.to_bitmask().trailing_zeros() as usize;
-                freq_idx = freq_idx + match_idx + 1;
-                continue 'rare_loop;
+                // Optimization: match found within this block.
+                // Scan only the current block to find the exact index.
+                // This avoids the overhead of to_bitmask() (which may be a loop)
+                // and the generic scalar fallback's bounds checks.
+                for k in 0..lanes {
+                    if freq[freq_idx + k] == rare_val {
+                        dest[intersect_count] = rare_val;
+                        intersect_count += 1;
+                        freq_idx += k + 1;
+                        continue 'rare_loop;
+                    }
+                }
             }
 
             if freq[freq_idx + lanes - 1] >= rare_val {
