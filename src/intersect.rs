@@ -97,7 +97,7 @@ where
     }
 }
 
-#[inline(never)]
+#[inline(always)]
 fn intersect_scalar<T>(dest: &mut [T], a: &[T], b: &[T]) -> usize
 where
     T: Ord + Copy,
