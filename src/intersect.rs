@@ -153,7 +153,11 @@ where
             if eq_mask.any() {
                 dest[intersect_count] = rare_val;
                 intersect_count += 1;
-                freq_idx += 1;
+                // Optimization: Skip past the matched element.
+                // We found `rare_val` at `freq[freq_idx + match_idx]`.
+                // The next `rare_val` (>= current) must be at an index > `freq_idx + match_idx`.
+                let match_idx = eq_mask.to_bitmask().trailing_zeros() as usize;
+                freq_idx = freq_idx + match_idx + 1;
                 break;
             }
 
