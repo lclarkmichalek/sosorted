@@ -143,7 +143,7 @@ where
     let mut intersect_count = 0;
     let mut freq_idx = 0;
 
-    'rare_loop: for &rare_val in rare.iter() {
+    for &rare_val in rare.iter() {
         // SIMD search in freq
         while freq_idx + lanes <= freq.len() {
             let freq_block = T::simd_from_slice(&freq[freq_idx..freq_idx + lanes]);
@@ -151,18 +151,9 @@ where
 
             let eq_mask = rare_splat.simd_eq(freq_block);
             if eq_mask.any() {
-                // Optimization: match found within this block.
-                // Scan only the current block to find the exact index.
-                // This avoids the overhead of to_bitmask() (which may be a loop)
-                // and the generic scalar fallback's bounds checks.
-                for k in 0..lanes {
-                    if freq[freq_idx + k] == rare_val {
-                        dest[intersect_count] = rare_val;
-                        intersect_count += 1;
-                        freq_idx += k + 1;
-                        continue 'rare_loop;
-                    }
-                }
+                // Match found in this block.
+                // Break to scalar fallback to find the exact element.
+                break;
             }
 
             if freq[freq_idx + lanes - 1] >= rare_val {

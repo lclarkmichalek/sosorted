@@ -34,7 +34,6 @@ where
     let mut i = 0;
 
     // Unrolled loop: process 4 chunks at a time (4x unrolling)
-    // We need enough space for 4 * lanes + 1 (shifted) elements
     while i + 4 * lanes < vec.len() {
         let chunk1 = T::simd_from_slice(&vec[i..i + lanes]);
         let next1 = T::simd_from_slice(&vec[i + 1..i + lanes + 1]);
@@ -53,7 +52,6 @@ where
         let mask3 = chunk3.simd_eq(next3);
         let mask4 = chunk4.simd_eq(next4);
 
-        // Optimization: Check combined mask to reduce branching in the common case (no duplicates)
         if (mask1 | mask2 | mask3 | mask4).any() {
             if mask1.any() {
                 return i + mask1.to_bitmask().trailing_zeros() as usize + 1;
