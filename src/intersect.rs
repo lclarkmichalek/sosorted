@@ -97,6 +97,7 @@ where
     }
 }
 
+#[inline(never)]
 fn intersect_scalar<T>(dest: &mut [T], a: &[T], b: &[T]) -> usize
 where
     T: Ord + Copy,
@@ -121,6 +122,7 @@ where
 }
 
 /// V1 intersection algorithm - SIMD search through the larger array.
+#[inline(never)]
 fn intersect_v1<T>(dest: &mut [T], a: &[T], b: &[T]) -> usize
 where
     T: SortedSimdElement + Ord,
@@ -186,6 +188,7 @@ where
 }
 
 /// V3 intersection algorithm - hierarchical block search with SIMD.
+#[inline(never)]
 fn intersect_v3<T>(dest: &mut [T], a: &[T], b: &[T]) -> usize
 where
     T: SortedSimdElement + Ord,
@@ -267,6 +270,7 @@ where
 
 /// Galloping intersection - exponential search + binary search.
 /// Best for highly asymmetric arrays (ratio > 1000:1).
+#[inline(never)]
 fn intersect_galloping<T>(dest: &mut [T], a: &[T], b: &[T]) -> usize
 where
     T: SortedSimdElement + Ord,
