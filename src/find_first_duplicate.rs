@@ -33,9 +33,9 @@ where
 
     let mut i = 0;
 
-    // Unrolled loop: process 4 chunks at a time (4x unrolling)
-    // We need enough space for 4 * lanes + 1 (shifted) elements
-    while i + 4 * lanes < vec.len() {
+    // Unrolled loop: process 8 chunks at a time (8x unrolling)
+    // We need enough space for 8 * lanes + 1 (shifted) elements
+    while i + 8 * lanes < vec.len() {
         let chunk1 = T::simd_from_slice(&vec[i..i + lanes]);
         let next1 = T::simd_from_slice(&vec[i + 1..i + lanes + 1]);
 
@@ -48,13 +48,29 @@ where
         let chunk4 = T::simd_from_slice(&vec[i + 3 * lanes..i + 4 * lanes]);
         let next4 = T::simd_from_slice(&vec[i + 3 * lanes + 1..i + 4 * lanes + 1]);
 
+        let chunk5 = T::simd_from_slice(&vec[i + 4 * lanes..i + 5 * lanes]);
+        let next5 = T::simd_from_slice(&vec[i + 4 * lanes + 1..i + 5 * lanes + 1]);
+
+        let chunk6 = T::simd_from_slice(&vec[i + 5 * lanes..i + 6 * lanes]);
+        let next6 = T::simd_from_slice(&vec[i + 5 * lanes + 1..i + 6 * lanes + 1]);
+
+        let chunk7 = T::simd_from_slice(&vec[i + 6 * lanes..i + 7 * lanes]);
+        let next7 = T::simd_from_slice(&vec[i + 6 * lanes + 1..i + 7 * lanes + 1]);
+
+        let chunk8 = T::simd_from_slice(&vec[i + 7 * lanes..i + 8 * lanes]);
+        let next8 = T::simd_from_slice(&vec[i + 7 * lanes + 1..i + 8 * lanes + 1]);
+
         let mask1 = chunk1.simd_eq(next1).to_bitmask();
         let mask2 = chunk2.simd_eq(next2).to_bitmask();
         let mask3 = chunk3.simd_eq(next3).to_bitmask();
         let mask4 = chunk4.simd_eq(next4).to_bitmask();
+        let mask5 = chunk5.simd_eq(next5).to_bitmask();
+        let mask6 = chunk6.simd_eq(next6).to_bitmask();
+        let mask7 = chunk7.simd_eq(next7).to_bitmask();
+        let mask8 = chunk8.simd_eq(next8).to_bitmask();
 
         // Optimization: Check combined mask to reduce branching in the common case (no duplicates)
-        if (mask1 | mask2 | mask3 | mask4) != 0 {
+        if (mask1 | mask2 | mask3 | mask4 | mask5 | mask6 | mask7 | mask8) != 0 {
             if mask1 != 0 {
                 return i + mask1.trailing_zeros() as usize + 1;
             }
@@ -67,9 +83,21 @@ where
             if mask4 != 0 {
                 return i + 3 * lanes + mask4.trailing_zeros() as usize + 1;
             }
+            if mask5 != 0 {
+                return i + 4 * lanes + mask5.trailing_zeros() as usize + 1;
+            }
+            if mask6 != 0 {
+                return i + 5 * lanes + mask6.trailing_zeros() as usize + 1;
+            }
+            if mask7 != 0 {
+                return i + 6 * lanes + mask7.trailing_zeros() as usize + 1;
+            }
+            if mask8 != 0 {
+                return i + 7 * lanes + mask8.trailing_zeros() as usize + 1;
+            }
         }
 
-        i += 4 * lanes;
+        i += 8 * lanes;
     }
 
     // Process remaining chunks (2x unrolling fallback if possible, or just standard loop)
