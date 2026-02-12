@@ -154,7 +154,9 @@ where
                 dest[intersect_count] = rare_val;
                 intersect_count += 1;
 
-                // Optimization: find match index and update freq_idx precisely
+                // Optimization: find match index and update freq_idx precisely.
+                // Note: to_bitmask() cost varies (loop vs intrinsic) but is generally
+                // faster than falling back to scalar memory scanning for the match.
                 let match_idx = eq_mask.to_bitmask().trailing_zeros() as usize;
                 freq_idx = freq_idx + match_idx + 1;
                 continue 'rare_loop;
