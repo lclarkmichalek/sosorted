@@ -48,24 +48,24 @@ where
         let chunk4 = T::simd_from_slice(&vec[i + 3 * lanes..i + 4 * lanes]);
         let next4 = T::simd_from_slice(&vec[i + 3 * lanes + 1..i + 4 * lanes + 1]);
 
-        let mask1 = chunk1.simd_eq(next1);
-        let mask2 = chunk2.simd_eq(next2);
-        let mask3 = chunk3.simd_eq(next3);
-        let mask4 = chunk4.simd_eq(next4);
+        let mask1 = chunk1.simd_eq(next1).to_bitmask();
+        let mask2 = chunk2.simd_eq(next2).to_bitmask();
+        let mask3 = chunk3.simd_eq(next3).to_bitmask();
+        let mask4 = chunk4.simd_eq(next4).to_bitmask();
 
         // Optimization: Check combined mask to reduce branching in the common case (no duplicates)
-        if (mask1 | mask2 | mask3 | mask4).any() {
-            if mask1.any() {
-                return i + mask1.to_bitmask().trailing_zeros() as usize + 1;
+        if (mask1 | mask2 | mask3 | mask4) != 0 {
+            if mask1 != 0 {
+                return i + mask1.trailing_zeros() as usize + 1;
             }
-            if mask2.any() {
-                return i + lanes + mask2.to_bitmask().trailing_zeros() as usize + 1;
+            if mask2 != 0 {
+                return i + lanes + mask2.trailing_zeros() as usize + 1;
             }
-            if mask3.any() {
-                return i + 2 * lanes + mask3.to_bitmask().trailing_zeros() as usize + 1;
+            if mask3 != 0 {
+                return i + 2 * lanes + mask3.trailing_zeros() as usize + 1;
             }
-            if mask4.any() {
-                return i + 3 * lanes + mask4.to_bitmask().trailing_zeros() as usize + 1;
+            if mask4 != 0 {
+                return i + 3 * lanes + mask4.trailing_zeros() as usize + 1;
             }
         }
 
