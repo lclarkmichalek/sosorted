@@ -447,6 +447,8 @@ fn parse_criterion_output(output: &str) -> Vec<BenchmarkResult> {
             || line.starts_with("Found")
             || line.contains("outliers")
             || line.contains("thrpt:")
+            || line.contains("%)")
+        // Skip specific outlier lines like "2 (2.00%) high mild"
         {
             continue;
         }
