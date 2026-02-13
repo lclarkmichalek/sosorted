@@ -36,9 +36,9 @@ where
 
     let mut i = 0;
 
-    // Unrolled loop: process 8 chunks at a time (8x unrolling)
-    // We need enough space for 8 * lanes + 1 (shifted) elements
-    while i + 8 * lanes < vec.len() {
+    // Unrolled loop: process 4 chunks at a time (4x unrolling)
+    // We need enough space for 4 * lanes + 1 (shifted) elements
+    while i + 4 * lanes < vec.len() {
         let chunk1 = T::simd_from_slice(&vec[i..i + lanes]);
         let next1 = T::simd_from_slice(&vec[i + 1..i + lanes + 1]);
 
@@ -51,70 +51,29 @@ where
         let chunk4 = T::simd_from_slice(&vec[i + 3 * lanes..i + 4 * lanes]);
         let next4 = T::simd_from_slice(&vec[i + 3 * lanes + 1..i + 4 * lanes + 1]);
 
-        let chunk5 = T::simd_from_slice(&vec[i + 4 * lanes..i + 5 * lanes]);
-        let next5 = T::simd_from_slice(&vec[i + 4 * lanes + 1..i + 5 * lanes + 1]);
-
-        let chunk6 = T::simd_from_slice(&vec[i + 5 * lanes..i + 6 * lanes]);
-        let next6 = T::simd_from_slice(&vec[i + 5 * lanes + 1..i + 6 * lanes + 1]);
-
-        let chunk7 = T::simd_from_slice(&vec[i + 6 * lanes..i + 7 * lanes]);
-        let next7 = T::simd_from_slice(&vec[i + 6 * lanes + 1..i + 7 * lanes + 1]);
-
-        let chunk8 = T::simd_from_slice(&vec[i + 7 * lanes..i + 8 * lanes]);
-        let next8 = T::simd_from_slice(&vec[i + 7 * lanes + 1..i + 8 * lanes + 1]);
-
         let mask1 = chunk1.simd_eq(next1);
         let mask2 = chunk2.simd_eq(next2);
         let mask3 = chunk3.simd_eq(next3);
         let mask4 = chunk4.simd_eq(next4);
-        let mask5 = chunk5.simd_eq(next5);
-        let mask6 = chunk6.simd_eq(next6);
-        let mask7 = chunk7.simd_eq(next7);
-        let mask8 = chunk8.simd_eq(next8);
 
         // Optimization: Check combined mask to reduce branching in the common case (no duplicates)
-        // Use to_bitmask() integer comparison which is often faster than any()
-        if (mask1 | mask2 | mask3 | mask4 | mask5 | mask6 | mask7 | mask8).to_bitmask() != 0 {
-            let m1 = mask1.to_bitmask();
-            if m1 != 0 {
-                return i + m1.trailing_zeros() as usize + 1;
+        if (mask1 | mask2 | mask3 | mask4).any() {
+            if mask1.any() {
+                return i + mask1.to_bitmask().trailing_zeros() as usize + 1;
             }
-            let m2 = mask2.to_bitmask();
-            if m2 != 0 {
-                return i + lanes + m2.trailing_zeros() as usize + 1;
+            if mask2.any() {
+                return i + lanes + mask2.to_bitmask().trailing_zeros() as usize + 1;
             }
-            let m3 = mask3.to_bitmask();
-            if m3 != 0 {
-                return i + 2 * lanes + m3.trailing_zeros() as usize + 1;
+            if mask3.any() {
+                return i + 2 * lanes + mask3.to_bitmask().trailing_zeros() as usize + 1;
             }
-            let m4 = mask4.to_bitmask();
-            if m4 != 0 {
-                return i + 3 * lanes + m4.trailing_zeros() as usize + 1;
-            }
-            let m5 = mask5.to_bitmask();
-            if m5 != 0 {
-                return i + 4 * lanes + m5.trailing_zeros() as usize + 1;
-            }
-            let m6 = mask6.to_bitmask();
-            if m6 != 0 {
-                return i + 5 * lanes + m6.trailing_zeros() as usize + 1;
-            }
-            let m7 = mask7.to_bitmask();
-            if m7 != 0 {
-                return i + 6 * lanes + m7.trailing_zeros() as usize + 1;
-            }
-            let m8 = mask8.to_bitmask();
-            if m8 != 0 {
-                return i + 7 * lanes + m8.trailing_zeros() as usize + 1;
+            if mask4.any() {
+                return i + 3 * lanes + mask4.to_bitmask().trailing_zeros() as usize + 1;
             }
         }
 
-        i += 8 * lanes;
+        i += 4 * lanes;
     }
-
-    // Process remaining chunks (2x unrolling fallback if possible, or just standard loop)
-    // Let's stick to standard loop for simplicity of tail handling, as 2x unrolling is already handled by original code logic structure but we replaced it.
-    // Actually, we can keep the 2x loop if we want, but simple loop is fine for tail.
 
     // Process remaining chunks (one at a time)
     // For each position i, we compare vec[i..i+lanes] with vec[i+1..i+lanes+1]
@@ -123,9 +82,8 @@ where
         let next = T::simd_from_slice(&vec[i + 1..i + lanes + 1]);
         let mask = current.simd_eq(next);
 
-        let m = mask.to_bitmask();
-        if m != 0 {
-            return i + m.trailing_zeros() as usize + 1;
+        if mask.any() {
+            return i + mask.to_bitmask().trailing_zeros() as usize + 1;
         }
 
         i += lanes;
