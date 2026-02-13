@@ -74,7 +74,6 @@ assert!(bitmap1.contains(100));
 
 ### Merge Operations
 - **`merge`** - Merge two sorted arrays (preserving duplicates)
-- **`merge_unique`** - Merge two sorted arrays without duplicates
 
 ### Search Operations
 - **`find_range`** - Find all elements within a specified range

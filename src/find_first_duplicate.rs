@@ -5,6 +5,9 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// Returns the index of the first duplicate entry. If there are no duplicates, the length of the
 /// slice is returned.
 ///
+/// Specifically, this returns the index of the *second* occurrence of the first duplicate pair found.
+/// For example, if the input is `[0, 1, 2, 2]`, it returns 3.
+///
 /// # Examples
 ///
 /// ```
