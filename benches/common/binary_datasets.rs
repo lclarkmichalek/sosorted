@@ -85,7 +85,7 @@ fn asymmetric_datasets(size: usize) -> BinaryDatasetGroup {
     let max_val = size as u64 * 10;
 
     BinaryDatasetGroup {
-        name: "asymmetric",
+        name: "asymmetric_v2",
         datasets: vec![
             BinaryDataset {
                 name: "1:1",
