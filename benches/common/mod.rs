@@ -6,6 +6,11 @@
 //! - `unary_datasets`: Standard datasets for unary operations (deduplicate, find_first_duplicate)
 //! - `binary_datasets`: Standard datasets for binary operations (intersect, union, difference)
 
+#![allow(dead_code)]
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+#![allow(clippy::manual_is_multiple_of)]
+
 pub mod binary_datasets;
 pub mod generators;
 pub mod rng;

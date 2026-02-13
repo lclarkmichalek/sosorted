@@ -161,5 +161,76 @@ fn bench_custom_datasets(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, bench_standard_datasets, bench_custom_datasets);
+fn bench_v1_ratio(c: &mut Criterion) {
+    use rand::{rngs::SmallRng, RngCore, SeedableRng};
+    let mut rng = SmallRng::seed_from_u64(12345);
+
+    let mut group = c.benchmark_group("intersect_v1_ratio_10");
+
+    // Case 1: High match rate (subset)
+    // small is subset of large.
+    let large_size = 100_000;
+    let small_size = 10_000;
+
+    let mut large: Vec<u64> = (0..large_size).map(|_| rng.next_u64()).collect();
+    large.sort_unstable();
+    large.dedup();
+
+    // Create small as subset of large (stride 10)
+    // This ensures nearly 100% matches (depending on dedup size reduction)
+    // Actually large might be smaller than 100k after dedup, so take proportional.
+    let step = large.len() / small_size;
+    let small: Vec<u64> = large
+        .iter()
+        .step_by(step)
+        .take(small_size)
+        .copied()
+        .collect();
+
+    group.throughput(Throughput::Elements(small.len() as u64));
+
+    group.bench_with_input(
+        BenchmarkId::new("sosorted", "subset_100pct"),
+        &(&small, &large),
+        |b, (s, l)| {
+            b.iter(|| {
+                let mut dest = vec![0u64; s.len()];
+                black_box(intersect(&mut dest, black_box(s), black_box(l)))
+            })
+        },
+    );
+
+    // Case 2: 50% match rate
+    // half from large, half random
+    let mut small_50: Vec<u64> = large
+        .iter()
+        .step_by(step * 2)
+        .take(small_size / 2)
+        .copied()
+        .collect();
+    for _ in 0..(small_size / 2) {
+        small_50.push(rng.next_u64());
+    }
+    small_50.sort_unstable();
+
+    group.bench_with_input(
+        BenchmarkId::new("sosorted", "mix_50pct"),
+        &(&small_50, &large),
+        |b, (s, l)| {
+            b.iter(|| {
+                let mut dest = vec![0u64; s.len()];
+                black_box(intersect(&mut dest, black_box(s), black_box(l)))
+            })
+        },
+    );
+
+    group.finish();
+}
+
+criterion_group!(
+    benches,
+    bench_standard_datasets,
+    bench_custom_datasets,
+    bench_v1_ratio
+);
 criterion_main!(benches);
