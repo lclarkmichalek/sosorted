@@ -49,9 +49,14 @@ where
     }
 
     #[inline(always)]
-    #[allow(clippy::useless_conversion)]
     fn to_bitmask(self) -> u64 {
-        self.to_bitmask().into()
+        let mut mask: u64 = 0;
+        for i in 0..N {
+            if self.test(i) {
+                mask |= 1 << i;
+            }
+        }
+        mask
     }
 }
 
