@@ -143,7 +143,7 @@ where
     let mut intersect_count = 0;
     let mut freq_idx = 0;
 
-    for &rare_val in rare.iter() {
+    'outer: for &rare_val in rare.iter() {
         // SIMD search in freq
         while freq_idx + lanes <= freq.len() {
             let freq_block = T::simd_from_slice(&freq[freq_idx..freq_idx + lanes]);
@@ -154,7 +154,7 @@ where
                 dest[intersect_count] = rare_val;
                 intersect_count += 1;
                 freq_idx += 1;
-                break;
+                continue 'outer;
             }
 
             if freq[freq_idx + lanes - 1] >= rare_val {
@@ -170,10 +170,8 @@ where
         }
 
         if freq_idx < freq.len() && freq[freq_idx] == rare_val {
-            if intersect_count == 0 || dest[intersect_count - 1] != rare_val {
-                dest[intersect_count] = rare_val;
-                intersect_count += 1;
-            }
+            dest[intersect_count] = rare_val;
+            intersect_count += 1;
             freq_idx += 1;
         }
     }
@@ -489,4 +487,26 @@ mod tests {
     test_intersect_type!(test_intersect_i16, i16);
     test_intersect_type!(test_intersect_i32, i32);
     test_intersect_type!(test_intersect_i64, i64);
+
+    #[test]
+    fn test_intersect_v1_duplicates() {
+        // Ratio 4:1 (b is >4x a) -> Triggers V1
+        let a = vec![2u64, 2, 2, 2];
+        let mut b = vec![1u64, 3];
+        // Insert 4 2's into b
+        b.extend_from_slice(&[2, 2, 2, 2]);
+        // Add padding to increase size ratio to trigger V1 (ratio >= 3)
+        // a.len() = 4. b needs to be >= 12.
+        // Current b len = 6. Add 10 more.
+        for i in 10..20 {
+            b.push(i);
+        }
+        b.sort();
+
+        let mut dest = vec![0u64; 20];
+        let count = intersect(&mut dest, &a, &b);
+
+        assert_eq!(count, 4, "Should find 4 duplicates");
+        assert_eq!(&dest[..count], &[2, 2, 2, 2], "Content should be four 2s");
+    }
 }
