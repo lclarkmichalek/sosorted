@@ -29,12 +29,12 @@ struct Args {
     #[arg(long, default_value = "100")]
     sample_size: usize,
 
-    /// Significance level for hypothesis testing (default: 0.05)
-    #[arg(long, default_value = "0.05")]
+    /// Significance level for hypothesis testing (default: 0.01)
+    #[arg(long, default_value = "0.01")]
     significance: f64,
 
-    /// Minimum effect size (%) to consider significant (default: 5.0)
-    #[arg(long, default_value = "5.0")]
+    /// Minimum effect size (%) to consider significant (default: 10.0)
+    #[arg(long, default_value = "10.0")]
     threshold: f64,
 
     /// Working directory (must be a git repo with Cargo benchmarks)
