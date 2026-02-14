@@ -354,6 +354,11 @@ fn is_benchmark_binary(path: &Path, bench_filter: Option<&str>) -> Result<bool> 
         return Ok(false);
     }
 
+    // Skip the bench-compare tool itself if it appears in the deps folder
+    if name.starts_with("bench_compare") || name.starts_with("bench-compare") {
+        return Ok(false);
+    }
+
     // If a filter is specified, check if the binary name contains it
     if let Some(filter) = bench_filter {
         if !name.contains(filter) {
@@ -451,6 +456,10 @@ fn parse_criterion_output(output: &str) -> Vec<BenchmarkResult> {
             || line.contains("Performance has")
             || line.contains("No change in performance")
             || line.contains("Change within noise")
+            || line.contains("high mild")
+            || line.contains("low mild")
+            || line.contains("high severe")
+            || line.contains("low severe")
         {
             continue;
         }
