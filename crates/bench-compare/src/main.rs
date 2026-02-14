@@ -447,6 +447,10 @@ fn parse_criterion_output(output: &str) -> Vec<BenchmarkResult> {
             || line.starts_with("Found")
             || line.contains("outliers")
             || line.contains("thrpt:")
+            || line.contains("change:")
+            || line.contains("Performance has")
+            || line.contains("No change in performance")
+            || line.contains("Change within noise")
         {
             continue;
         }
