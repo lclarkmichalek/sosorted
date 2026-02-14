@@ -406,8 +406,15 @@ fn run_benchmarks(
         eprintln!("   Running: {}", path.display());
 
         // Run the benchmark with Criterion options
+        // Force no color to simplify output parsing
         let output = Command::new(&path)
-            .args(["--bench", "--sample-size", &sample_size.to_string()])
+            .args([
+                "--bench",
+                "--sample-size",
+                &sample_size.to_string(),
+                "--color",
+                "never",
+            ])
             .current_dir(bench_dir.parent().unwrap_or(bench_dir))
             .env("CRITERION_HOME", bench_dir.join("criterion"))
             .output()
@@ -461,6 +468,12 @@ fn parse_criterion_output(output: &str) -> Vec<BenchmarkResult> {
             || line.contains("high severe")
             || line.contains("low severe")
         {
+            continue;
+        }
+
+        // Filter out outlier lines that start with digits (e.g. "  3 (3.00%) ...")
+        // Benchmark names in this project typically don't start with digits.
+        if line.chars().next().map_or(false, |c| c.is_numeric()) && line.contains('%') {
             continue;
         }
 
