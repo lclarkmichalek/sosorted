@@ -16,64 +16,6 @@ mod sealed {
     pub trait Sealed {}
 }
 
-mod private {
-    pub trait ToU64 {
-        fn to_u64(self) -> u64;
-    }
-
-    impl ToU64 for u8 {
-        #[inline(always)]
-        fn to_u64(self) -> u64 {
-            self as u64
-        }
-    }
-    impl ToU64 for u16 {
-        #[inline(always)]
-        fn to_u64(self) -> u64 {
-            self as u64
-        }
-    }
-    impl ToU64 for u32 {
-        #[inline(always)]
-        fn to_u64(self) -> u64 {
-            self as u64
-        }
-    }
-    impl ToU64 for u64 {
-        #[inline(always)]
-        fn to_u64(self) -> u64 {
-            self
-        }
-    }
-
-    impl ToU64 for [u8; 1] {
-        #[inline(always)]
-        fn to_u64(self) -> u64 {
-            self[0] as u64
-        }
-    }
-    impl ToU64 for [u8; 2] {
-        #[inline(always)]
-        fn to_u64(self) -> u64 {
-            u16::from_ne_bytes(self) as u64
-        }
-    }
-    impl ToU64 for [u8; 4] {
-        #[inline(always)]
-        fn to_u64(self) -> u64 {
-            u32::from_ne_bytes(self) as u64
-        }
-    }
-    impl ToU64 for [u8; 8] {
-        #[inline(always)]
-        fn to_u64(self) -> u64 {
-            u64::from_ne_bytes(self)
-        }
-    }
-}
-
-use private::ToU64;
-
 /// Trait for SIMD mask operations.
 pub trait SimdMaskOps: Copy + std::ops::BitOr<Output = Self> {
     /// Returns true if all lanes are set.
@@ -86,31 +28,37 @@ pub trait SimdMaskOps: Copy + std::ops::BitOr<Output = Self> {
     fn to_bitmask(self) -> u64;
 }
 
-// Implement SimdMaskOps for all Mask types
-impl<T: MaskElement, const N: usize> SimdMaskOps for Mask<T, N>
-where
-    LaneCount<N>: SupportedLaneCount,
-    <LaneCount<N> as SupportedLaneCount>::BitMask: ToU64,
-{
-    #[inline(always)]
-    fn all(self) -> bool {
-        Mask::all(self)
-    }
+/// Macro to implement SimdMaskOps for a concrete Mask type.
+/// The `to_bitmask` implementation handles casting the return type (integer) to u64.
+macro_rules! impl_simd_mask_ops {
+    ($mask_ty:ty, $lanes:expr) => {
+        impl SimdMaskOps for Mask<$mask_ty, $lanes>
+        where
+            LaneCount<$lanes>: SupportedLaneCount,
+        {
+            #[inline(always)]
+            fn all(self) -> bool {
+                Mask::all(self)
+            }
 
-    #[inline(always)]
-    fn any(self) -> bool {
-        Mask::any(self)
-    }
+            #[inline(always)]
+            fn any(self) -> bool {
+                Mask::any(self)
+            }
 
-    #[inline(always)]
-    fn test(self, lane: usize) -> bool {
-        Mask::test(&self, lane)
-    }
+            #[inline(always)]
+            fn test(self, lane: usize) -> bool {
+                Mask::test(&self, lane)
+            }
 
-    #[inline(always)]
-    fn to_bitmask(self) -> u64 {
-        self.to_bitmask().to_u64()
-    }
+            #[inline(always)]
+            fn to_bitmask(self) -> u64 {
+                // The intrinsic to_bitmask returns an associated BitMask type (integer).
+                // We cast it to u64. This assumes BitMask is castable to u64 (u8, u16, u32, u64).
+                self.to_bitmask() as u64
+            }
+        }
+    };
 }
 
 /// Trait for scalar types that can be used with SIMD-accelerated sorted operations.
@@ -197,6 +145,12 @@ macro_rules! impl_sorted_simd_element {
 #[cfg(target_feature = "avx512f")]
 mod impls {
     use super::*;
+    // Implement SimdMaskOps for specific mask types used in this configuration
+    impl_simd_mask_ops!(i8, 64);
+    impl_simd_mask_ops!(i16, 32);
+    impl_simd_mask_ops!(i32, 16);
+    impl_simd_mask_ops!(i64, 8);
+
     impl_sorted_simd_element!(u8, i8, 64);
     impl_sorted_simd_element!(u16, i16, 32);
     impl_sorted_simd_element!(u32, i32, 16);
@@ -215,6 +169,12 @@ mod impls {
 #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
 mod impls {
     use super::*;
+    // Implement SimdMaskOps for specific mask types used in this configuration
+    impl_simd_mask_ops!(i8, 32);
+    impl_simd_mask_ops!(i16, 16);
+    impl_simd_mask_ops!(i32, 8);
+    impl_simd_mask_ops!(i64, 4);
+
     impl_sorted_simd_element!(u8, i8, 32);
     impl_sorted_simd_element!(u16, i16, 16);
     impl_sorted_simd_element!(u32, i32, 8);
@@ -233,6 +193,12 @@ mod impls {
 #[cfg(not(any(target_feature = "avx2", target_feature = "avx512f")))]
 mod impls {
     use super::*;
+    // Implement SimdMaskOps for specific mask types used in this configuration
+    impl_simd_mask_ops!(i8, 16);
+    impl_simd_mask_ops!(i16, 8);
+    impl_simd_mask_ops!(i32, 4);
+    impl_simd_mask_ops!(i64, 2);
+
     impl_sorted_simd_element!(u8, i8, 16);
     impl_sorted_simd_element!(u16, i16, 8);
     impl_sorted_simd_element!(u32, i32, 4);
