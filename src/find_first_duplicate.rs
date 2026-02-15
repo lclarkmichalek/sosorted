@@ -5,12 +5,16 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// Returns the index of the first duplicate entry. If there are no duplicates, the length of the
 /// slice is returned.
 ///
+/// Specifically, this returns the index of the *second* occurrence of the first value that appears
+/// more than once in the sorted slice.
+///
 /// # Examples
 ///
 /// ```
 /// use sosorted::find_first_duplicate;
 ///
 /// let data = vec![0u64, 1, 2, 2];
+/// // The duplicate value is 2. The second 2 is at index 3.
 /// assert_eq!(3, find_first_duplicate(&data[..]));
 /// ```
 pub fn find_first_duplicate<T>(vec: &[T]) -> usize
