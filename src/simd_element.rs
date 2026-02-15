@@ -16,6 +16,64 @@ mod sealed {
     pub trait Sealed {}
 }
 
+mod private {
+    pub trait ToU64 {
+        fn to_u64(self) -> u64;
+    }
+
+    impl ToU64 for u8 {
+        #[inline(always)]
+        fn to_u64(self) -> u64 {
+            self as u64
+        }
+    }
+    impl ToU64 for u16 {
+        #[inline(always)]
+        fn to_u64(self) -> u64 {
+            self as u64
+        }
+    }
+    impl ToU64 for u32 {
+        #[inline(always)]
+        fn to_u64(self) -> u64 {
+            self as u64
+        }
+    }
+    impl ToU64 for u64 {
+        #[inline(always)]
+        fn to_u64(self) -> u64 {
+            self
+        }
+    }
+
+    impl ToU64 for [u8; 1] {
+        #[inline(always)]
+        fn to_u64(self) -> u64 {
+            self[0] as u64
+        }
+    }
+    impl ToU64 for [u8; 2] {
+        #[inline(always)]
+        fn to_u64(self) -> u64 {
+            u16::from_ne_bytes(self) as u64
+        }
+    }
+    impl ToU64 for [u8; 4] {
+        #[inline(always)]
+        fn to_u64(self) -> u64 {
+            u32::from_ne_bytes(self) as u64
+        }
+    }
+    impl ToU64 for [u8; 8] {
+        #[inline(always)]
+        fn to_u64(self) -> u64 {
+            u64::from_ne_bytes(self)
+        }
+    }
+}
+
+use private::ToU64;
+
 /// Trait for SIMD mask operations.
 pub trait SimdMaskOps: Copy + std::ops::BitOr<Output = Self> {
     /// Returns true if all lanes are set.
@@ -32,6 +90,7 @@ pub trait SimdMaskOps: Copy + std::ops::BitOr<Output = Self> {
 impl<T: MaskElement, const N: usize> SimdMaskOps for Mask<T, N>
 where
     LaneCount<N>: SupportedLaneCount,
+    <LaneCount<N> as SupportedLaneCount>::BitMask: ToU64,
 {
     #[inline(always)]
     fn all(self) -> bool {
@@ -50,13 +109,7 @@ where
 
     #[inline(always)]
     fn to_bitmask(self) -> u64 {
-        let mut mask: u64 = 0;
-        for i in 0..N {
-            if self.test(i) {
-                mask |= 1 << i;
-            }
-        }
-        mask
+        self.to_bitmask().to_u64()
     }
 }
 
