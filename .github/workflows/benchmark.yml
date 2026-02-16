@@ -110,6 +110,22 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "⏭️ **Benchmarks skipped** - no Rust files changed." >> $GITHUB_STEP_SUMMARY
 
+      - name: Determine benchmark status
+        if: steps.changes.outputs.skip_benchmarks != 'true'
+        id: bench-status
+        run: |
+          EXIT_CODE="${{ steps.bench-compare.outputs.exit_code }}"
+          if [ "$EXIT_CODE" == "0" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "message=✅ **No regressions detected.**" >> $GITHUB_OUTPUT
+          elif [ "$EXIT_CODE" == "1" ]; then
+            echo "status=regression" >> $GITHUB_OUTPUT
+            echo "message=⚠️ **Regressions detected!**" >> $GITHUB_OUTPUT
+          else
+            echo "status=error" >> $GITHUB_OUTPUT
+            echo "message=❌ **Benchmark execution failed** (exit code: $EXIT_CODE)" >> $GITHUB_OUTPUT
+          fi
+
       - name: Post PR comment
         if: steps.changes.outputs.skip_benchmarks != 'true'
         uses: peter-evans/create-or-update-comment@v4
@@ -118,7 +134,9 @@ jobs:
           body: |
             ## Statistical Benchmark Comparison
 
-            ${{ steps.bench-compare.outputs.exit_code == '1' && '⚠️ **Regressions detected!**' || '✅ **No regressions detected.**' }}
+            ${{ steps.bench-status.outputs.message }}
+
+            ${{ steps.bench-status.outputs.status == 'error' && 'The benchmark tool failed to build or run. This typically indicates:\n- Missing system dependencies\n- Build failures\n- Runtime errors\n\nCheck the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.' || '' }}
 
             <details>
             <summary>Benchmark Results</summary>
