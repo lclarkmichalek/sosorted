@@ -452,6 +452,11 @@ fn parse_criterion_output(output: &str) -> Vec<BenchmarkResult> {
             || line.starts_with("Found")
             || line.contains("outliers")
             || line.contains("thrpt:")
+            || line.contains("change:")
+            || line.starts_with("Performance has")
+            || line.starts_with("No change in performance")
+            || line.contains("slope")
+            || line.contains("R^2")
         {
             continue;
         }
@@ -471,9 +476,9 @@ fn parse_criterion_output(output: &str) -> Vec<BenchmarkResult> {
                     });
                 }
             }
-        } else if !line.contains(':') && !line.starts_with('[') {
-            // This looks like a benchmark name (no colons, not a bracket line)
-            // Benchmark names typically look like "group/variant/case"
+        } else if !line.starts_with('[') {
+            // This looks like a benchmark name (not a bracket line)
+            // We allow colons because some benchmarks use them (e.g. ratio_1:10)
             current_name = Some(line.to_string());
         }
     }
