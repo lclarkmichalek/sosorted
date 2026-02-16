@@ -1,0 +1,33 @@
+# Terraform state files
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Terraform directory
+.terraform/
+.terraform.lock.hcl
+
+# Variable files with secrets
+*.tfvars
+!terraform.tfvars.example
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Generated files
+scaler-source.zip
+
+# Logs
+*.log
+
+# Environment files
+.env

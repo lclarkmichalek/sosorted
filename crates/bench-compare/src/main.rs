@@ -148,7 +148,30 @@ impl std::fmt::Display for Verdict {
     }
 }
 
-fn main() -> Result<()> {
+fn main() {
+    // Run main logic and handle exit codes properly
+    let exit_code = match run() {
+        Ok(has_regressions) => {
+            if has_regressions {
+                1 // Regressions detected
+            } else {
+                0 // Success, no regressions
+            }
+        }
+        Err(e) => {
+            // Print error to stderr
+            eprintln!("Error: {:#}", e);
+
+            // Use 128 + 2 (general error) for all errors
+            // Future: could extract specific error codes from different error types
+            130
+        }
+    };
+
+    std::process::exit(exit_code);
+}
+
+fn run() -> Result<bool> {
     let args = Args::parse();
 
     // Validate working directory
@@ -217,13 +240,9 @@ fn main() -> Result<()> {
         let _ = std::fs::remove_dir_all(&test_dir);
     }
 
-    // Exit with error if any regressions detected
+    // Return whether regressions were detected
     let has_regressions = comparisons.iter().any(|c| c.verdict == Verdict::Regression);
-    if has_regressions {
-        std::process::exit(1);
-    }
-
-    Ok(())
+    Ok(has_regressions)
 }
 
 fn get_current_ref(workdir: &Path) -> Result<String> {
