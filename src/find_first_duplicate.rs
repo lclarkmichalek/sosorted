@@ -2,14 +2,15 @@ use std::simd::cmp::SimdPartialEq;
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
-/// Returns the index of the first duplicate entry. If there are no duplicates, the length of the
-/// slice is returned.
+/// Returns the index of the second occurrence of the first duplicate pair found.
+/// If there are no duplicates, the length of the slice is returned.
 ///
 /// # Examples
 ///
 /// ```
 /// use sosorted::find_first_duplicate;
 ///
+/// // The second '2' is at index 3
 /// let data = vec![0u64, 1, 2, 2];
 /// assert_eq!(3, find_first_duplicate(&data[..]));
 /// ```
