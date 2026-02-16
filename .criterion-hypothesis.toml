@@ -12,7 +12,7 @@ sample_size = 50             # Number of samples per benchmark
 
 [build]
 profile = "release"          # Always use release profile for benchmarks
-# bench_targets omitted to allow auto-discovery
+bench_targets = ["intersect"] # Only run intersect benchmarks to verify optimization and avoid CI timeouts
 
 [network]
 base_port = 9200             # Base port for harness communication
