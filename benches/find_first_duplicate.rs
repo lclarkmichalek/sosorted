@@ -1,12 +1,16 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+//! Criterion-hypothesis harness for find_first_duplicate benchmarks.
+//!
+//! This harness exposes find_first_duplicate benchmarks via HTTP for
+//! criterion-hypothesis orchestration.
+
+use criterion_hypothesis_harness::{run_harness, BenchmarkRegistry};
 use sosorted::find_first_duplicate;
+use std::hint::black_box;
+use std::time::{Duration, Instant};
 
 mod common;
-use common::{standard_unary_datasets, UnaryDatasetGroup, DEFAULT_SIZE};
-
-// =============================================================================
-// Baseline implementations
-// =============================================================================
+use common::rng::{DEFAULT_SIZE, SEED_A};
+use common::{generate_sorted_unique, generate_with_unique_count};
 
 /// Naive find_first_duplicate: simple loop comparing adjacent elements.
 fn naive_find_first_duplicate(vec: &[u64]) -> usize {
@@ -18,119 +22,95 @@ fn naive_find_first_duplicate(vec: &[u64]) -> usize {
     vec.len()
 }
 
-/// Windows-based find_first_duplicate using idiomatic Rust iterators.
-fn windows_find_first_duplicate(vec: &[u64]) -> usize {
-    vec.windows(2)
-        .position(|w| w[0] == w[1])
-        .map(|i| i + 1)
-        .unwrap_or(vec.len())
-}
+fn main() {
+    let port: u16 = std::env::var("CH_PORT")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(9100);
 
-// =============================================================================
-// Benchmarks
-// =============================================================================
+    // Pre-generate datasets (do this once, not per iteration)
+    let all_unique = generate_sorted_unique(SEED_A, DEFAULT_SIZE);
+    let half_duplicates = generate_with_unique_count(SEED_A, DEFAULT_SIZE, DEFAULT_SIZE / 2);
 
-/// Benchmark find_first_duplicate with standard unary datasets.
-///
-/// Naming pattern: find_first_duplicate/<dataset_group>/<implementation>/<dataset_name>
-fn bench_standard_datasets(c: &mut Criterion) {
-    let datasets = standard_unary_datasets(DEFAULT_SIZE);
+    // Create dataset with early duplicate
+    let mut early_dup = generate_sorted_unique(SEED_A, DEFAULT_SIZE);
+    early_dup[10] = early_dup[9];
 
-    for group in &datasets {
-        let mut g = c.benchmark_group(format!("find_first_duplicate/{}", group.name));
+    // Create dataset with late duplicate
+    let mut late_dup = generate_sorted_unique(SEED_A, DEFAULT_SIZE);
+    let pos = (DEFAULT_SIZE as f64 * 0.9) as usize;
+    late_dup[pos] = late_dup[pos - 1];
 
-        for dataset in &group.datasets {
-            g.throughput(Throughput::Bytes((dataset.data.len() * 8) as u64));
+    let mut registry = BenchmarkRegistry::new();
 
-            g.bench_with_input(
-                BenchmarkId::new("sosorted", dataset.name),
-                &dataset.data,
-                |b, d| b.iter(|| black_box(find_first_duplicate(black_box(d)))),
-            );
-
-            g.bench_with_input(
-                BenchmarkId::new("naive", dataset.name),
-                &dataset.data,
-                |b, d| b.iter(|| black_box(naive_find_first_duplicate(black_box(d)))),
-            );
-
-            g.bench_with_input(
-                BenchmarkId::new("windows", dataset.name),
-                &dataset.data,
-                |b, d| b.iter(|| black_box(windows_find_first_duplicate(black_box(d)))),
-            );
-        }
-        g.finish();
+    // Register sosorted implementations
+    {
+        let data = all_unique.clone();
+        registry.register("find_first_duplicate/all_unique/sosorted", move || {
+            let start = Instant::now();
+            black_box(find_first_duplicate(black_box(&data)));
+            start.elapsed()
+        });
     }
-}
-
-/// Custom datasets specific to find_first_duplicate.
-fn custom_find_first_duplicate_datasets(size: usize) -> Vec<UnaryDatasetGroup> {
-    use common::rng::SEED_DATABASE_IDS;
-    use common::{generate_sorted_unique, UnaryDataset};
-    use rand::{rngs::SmallRng, RngCore, SeedableRng};
-
-    let mut rng = SmallRng::from_seed(SEED_DATABASE_IDS);
-
-    // Scattered duplicates near the end (forces scanning most of the array)
-    let mut scattered = generate_sorted_unique(SEED_DATABASE_IDS, size);
-    let last_idx = size - 100;
-    scattered[last_idx] = scattered[last_idx - 1];
-
-    // Long unique run followed by duplicate at 90%
-    let mut long_unique = Vec::with_capacity(size);
-    for _ in 0..size {
-        long_unique.push(rng.next_u64());
+    {
+        let data = all_unique.clone();
+        registry.register("find_first_duplicate/all_unique/naive", move || {
+            let start = Instant::now();
+            black_box(naive_find_first_duplicate(black_box(&data)));
+            start.elapsed()
+        });
     }
-    long_unique.sort();
-    long_unique.dedup();
-    while long_unique.len() < size {
-        long_unique.push(rng.next_u64());
+
+    {
+        let data = early_dup.clone();
+        registry.register("find_first_duplicate/early_dup/sosorted", move || {
+            let start = Instant::now();
+            black_box(find_first_duplicate(black_box(&data)));
+            start.elapsed()
+        });
     }
-    long_unique.sort();
-    let pos = (size as f64 * 0.9) as usize;
-    long_unique[pos] = long_unique[pos - 1];
-
-    vec![UnaryDatasetGroup {
-        name: "database_ids",
-        datasets: vec![
-            UnaryDataset {
-                name: "scattered",
-                data: scattered,
-            },
-            UnaryDataset {
-                name: "long_unique_run",
-                data: long_unique,
-            },
-        ],
-    }]
-}
-
-/// Benchmark find_first_duplicate with custom datasets.
-fn bench_custom_datasets(c: &mut Criterion) {
-    let datasets = custom_find_first_duplicate_datasets(DEFAULT_SIZE);
-
-    for group in &datasets {
-        let mut g = c.benchmark_group(format!("find_first_duplicate/{}", group.name));
-
-        for dataset in &group.datasets {
-            g.throughput(Throughput::Bytes((dataset.data.len() * 8) as u64));
-
-            g.bench_with_input(
-                BenchmarkId::new("sosorted", dataset.name),
-                &dataset.data,
-                |b, d| b.iter(|| black_box(find_first_duplicate(black_box(d)))),
-            );
-
-            g.bench_with_input(
-                BenchmarkId::new("naive", dataset.name),
-                &dataset.data,
-                |b, d| b.iter(|| black_box(naive_find_first_duplicate(black_box(d)))),
-            );
-        }
-        g.finish();
+    {
+        let data = early_dup.clone();
+        registry.register("find_first_duplicate/early_dup/naive", move || {
+            let start = Instant::now();
+            black_box(naive_find_first_duplicate(black_box(&data)));
+            start.elapsed()
+        });
     }
-}
 
-criterion_group!(benches, bench_standard_datasets, bench_custom_datasets);
-criterion_main!(benches);
+    {
+        let data = late_dup.clone();
+        registry.register("find_first_duplicate/late_dup/sosorted", move || {
+            let start = Instant::now();
+            black_box(find_first_duplicate(black_box(&data)));
+            start.elapsed()
+        });
+    }
+    {
+        let data = late_dup.clone();
+        registry.register("find_first_duplicate/late_dup/naive", move || {
+            let start = Instant::now();
+            black_box(naive_find_first_duplicate(black_box(&data)));
+            start.elapsed()
+        });
+    }
+
+    {
+        let data = half_duplicates.clone();
+        registry.register("find_first_duplicate/50pct_dups/sosorted", move || {
+            let start = Instant::now();
+            black_box(find_first_duplicate(black_box(&data)));
+            start.elapsed()
+        });
+    }
+    {
+        let data = half_duplicates.clone();
+        registry.register("find_first_duplicate/50pct_dups/naive", move || {
+            let start = Instant::now();
+            black_box(naive_find_first_duplicate(black_box(&data)));
+            start.elapsed()
+        });
+    }
+
+    run_harness(registry, port).expect("Failed to run harness");
+}
