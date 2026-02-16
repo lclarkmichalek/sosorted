@@ -53,7 +53,7 @@ where
         let mask3 = chunk3.simd_eq(next3);
         let mask4 = chunk4.simd_eq(next4);
 
-        // Optimization: Check combined mask to reduce branching in the common case (no duplicates)
+        // Optimization: Check combined mask to reduce branching in the common case (no duplicates found yet)
         if (mask1 | mask2 | mask3 | mask4).any() {
             if mask1.any() {
                 return i + mask1.to_bitmask().trailing_zeros() as usize + 1;

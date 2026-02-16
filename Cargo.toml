@@ -1,9 +1,6 @@
-[workspace]
-members = [".", "crates/bench-compare"]
-
 [package]
 name = "sosorted"
-version = "0.2.0"
+version = "0.1.0"
 edition = "2021"
 
 description = "A set of methods to efficiently manipulated sorted arrays"
