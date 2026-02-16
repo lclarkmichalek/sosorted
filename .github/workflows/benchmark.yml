@@ -54,6 +54,19 @@ jobs:
         if: steps.changes.outputs.skip_benchmarks != 'true'
         run: cargo install criterion-hypothesis@0.2.0
 
+      - name: Debug - Build benchmarks manually
+        if: steps.changes.outputs.skip_benchmarks != 'true'
+        run: |
+          echo "Building HEAD benchmarks..."
+          cargo bench --no-run
+
+          echo "Building Baseline benchmarks..."
+          git checkout ${{ github.event.pull_request.base.sha }}
+          cargo bench --no-run
+
+          # Restore HEAD
+          git checkout ${{ github.event.pull_request.head.sha }}
+
       - name: Run benchmark comparison
         if: steps.changes.outputs.skip_benchmarks != 'true'
         id: bench-compare
