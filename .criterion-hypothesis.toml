@@ -12,14 +12,7 @@ sample_size = 50             # Number of samples per benchmark
 
 [build]
 profile = "release"          # Always use release profile for benchmarks
-bench_targets = [
-    "find_first_duplicate",
-    "deduplicate",
-    "intersect",
-    "union",
-    "difference",
-    "roaring",
-]
+# bench_targets omitted to allow auto-discovery
 
 [network]
 base_port = 9200             # Base port for harness communication
