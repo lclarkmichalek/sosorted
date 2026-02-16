@@ -56,30 +56,46 @@ jobs:
 
       - name: Debug - Build benchmarks manually
         if: steps.changes.outputs.skip_benchmarks != 'true'
-        run: |
-          echo "Building HEAD benchmarks..."
-          cargo bench --no-run
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 30
+          max_attempts: 2
+          retry_on: error
+          command: |
+            echo "Building HEAD benchmarks..."
+            cargo bench --no-run
 
-          echo "Building Baseline benchmarks..."
-          git checkout ${{ github.event.pull_request.base.sha }}
-          cargo bench --no-run
+            echo "Building Baseline benchmarks..."
+            git checkout ${{ github.event.pull_request.base.sha }}
+            cargo bench --no-run
 
-          # Restore HEAD
-          git checkout ${{ github.event.pull_request.head.sha }}
+            # Restore HEAD
+            git checkout ${{ github.event.pull_request.head.sha }}
 
       - name: Run benchmark comparison
         if: steps.changes.outputs.skip_benchmarks != 'true'
         id: bench-compare
-        run: |
-          set +e  # Don't exit on error
-          criterion-hypothesis \
-            --baseline ${{ github.event.pull_request.base.sha }} \
-            --candidate ${{ github.event.pull_request.head.sha }} \
-            --config .criterion-hypothesis.toml \
-            2>&1 | tee benchmark-output.txt
-          EXIT_CODE=${PIPESTATUS[0]}
-          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
-          exit 0  # Always succeed so we can post results
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 40
+          max_attempts: 2
+          retry_on: error
+          command: |
+            set +e  # Don't exit on error
+            criterion-hypothesis \
+              --baseline ${{ github.event.pull_request.base.sha }} \
+              --candidate ${{ github.event.pull_request.head.sha }} \
+              --config .criterion-hypothesis.toml \
+              2>&1 | tee benchmark-output.txt
+            EXIT_CODE=${PIPESTATUS[0]}
+            echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+
+            # Exit with success for 0 (no regressions) or 1 (regressions detected)
+            # Exit with failure for 128+ (errors) to trigger retry
+            if [ "$EXIT_CODE" -ge 128 ]; then
+              exit 1
+            fi
+            exit 0
 
       - name: Generate summary
         if: steps.changes.outputs.skip_benchmarks != 'true'
