@@ -11,7 +11,10 @@ use std::time::Instant;
 
 mod common;
 use common::rng::{DEFAULT_SIZE, SEED_A, SEED_B};
-use common::{generate_disjoint, generate_sorted_unique, generate_sorted_unique_bounded, add_spread_intersections};
+use common::{
+    add_spread_intersections, generate_disjoint, generate_sorted_unique,
+    generate_sorted_unique_bounded,
+};
 
 /// Naive difference: two-pointer algorithm.
 fn naive_difference(a: &[u64], b: &[u64]) -> Vec<u64> {
@@ -72,7 +75,11 @@ fn main() {
         registry.register("difference/0pct_overlap/sosorted", move || {
             let mut dest = vec![0u64; a.len()];
             let start = Instant::now();
-            black_box(difference(black_box(&mut dest), black_box(&a), black_box(&b)));
+            black_box(difference(
+                black_box(&mut dest),
+                black_box(&a),
+                black_box(&b),
+            ));
             start.elapsed()
         });
     }
@@ -93,7 +100,11 @@ fn main() {
         registry.register("difference/50pct_overlap/sosorted", move || {
             let mut dest = vec![0u64; a.len()];
             let start = Instant::now();
-            black_box(difference(black_box(&mut dest), black_box(&a), black_box(&b)));
+            black_box(difference(
+                black_box(&mut dest),
+                black_box(&a),
+                black_box(&b),
+            ));
             start.elapsed()
         });
     }
@@ -114,7 +125,11 @@ fn main() {
         registry.register("difference/100pct_overlap/sosorted", move || {
             let mut dest = vec![0u64; a.len()];
             let start = Instant::now();
-            black_box(difference(black_box(&mut dest), black_box(&a), black_box(&b)));
+            black_box(difference(
+                black_box(&mut dest),
+                black_box(&a),
+                black_box(&b),
+            ));
             start.elapsed()
         });
     }
@@ -135,7 +150,11 @@ fn main() {
         registry.register("difference/asymmetric_10_1/sosorted", move || {
             let mut dest = vec![0u64; a.len()];
             let start = Instant::now();
-            black_box(difference(black_box(&mut dest), black_box(&a), black_box(&b)));
+            black_box(difference(
+                black_box(&mut dest),
+                black_box(&a),
+                black_box(&b),
+            ));
             start.elapsed()
         });
     }

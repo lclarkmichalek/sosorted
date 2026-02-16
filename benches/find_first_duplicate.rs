@@ -9,8 +9,8 @@ use std::hint::black_box;
 use std::time::{Duration, Instant};
 
 mod common;
+use common::rng::{DEFAULT_SIZE, SEED_A};
 use common::{generate_sorted_unique, generate_with_unique_count};
-use common::rng::{SEED_A, DEFAULT_SIZE};
 
 /// Naive find_first_duplicate: simple loop comparing adjacent elements.
 fn naive_find_first_duplicate(vec: &[u64]) -> usize {

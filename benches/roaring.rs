@@ -261,7 +261,10 @@ fn main() {
         let set2: HashSet<u32> = sparse_10k_b.iter().copied().collect();
         registry.register("roaring/intersection/sparse_10k/hashset", move || {
             let start = Instant::now();
-            let result: HashSet<u32> = black_box(&set1).intersection(black_box(&set2)).copied().collect();
+            let result: HashSet<u32> = black_box(&set1)
+                .intersection(black_box(&set2))
+                .copied()
+                .collect();
             black_box(result);
             start.elapsed()
         });
@@ -281,7 +284,10 @@ fn main() {
         let set2: HashSet<u32> = dense_15k.iter().copied().collect();
         registry.register("roaring/intersection/dense_10k/hashset", move || {
             let start = Instant::now();
-            let result: HashSet<u32> = black_box(&set1).intersection(black_box(&set2)).copied().collect();
+            let result: HashSet<u32> = black_box(&set1)
+                .intersection(black_box(&set2))
+                .copied()
+                .collect();
             black_box(result);
             start.elapsed()
         });

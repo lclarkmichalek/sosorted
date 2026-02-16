@@ -10,7 +10,9 @@ use std::time::Instant;
 
 mod common;
 use common::rng::{DEFAULT_SIZE, SEED_A, SEED_CLUSTERED, SEED_ZIPF};
-use common::{generate_sorted_unique, generate_with_unique_count, generate_zipf, generate_clustered};
+use common::{
+    generate_clustered, generate_sorted_unique, generate_with_unique_count, generate_zipf,
+};
 
 /// Naive deduplicate: simple loop writing unique elements.
 fn naive_deduplicate(out: &mut [u64], input: &[u64]) -> usize {

@@ -11,7 +11,10 @@ use std::time::Instant;
 
 mod common;
 use common::rng::{DEFAULT_SIZE, SEED_A, SEED_B};
-use common::{generate_disjoint, generate_sorted_unique, generate_sorted_unique_bounded, add_spread_intersections};
+use common::{
+    add_spread_intersections, generate_disjoint, generate_sorted_unique,
+    generate_sorted_unique_bounded,
+};
 
 /// Naive intersect: two-pointer merge algorithm.
 fn naive_intersect(dest: &mut [u64], a: &[u64], b: &[u64]) -> usize {
@@ -67,7 +70,11 @@ fn main() {
         registry.register("intersect/0pct_overlap/sosorted", move || {
             let mut dest = vec![0u64; a.len().min(b.len())];
             let start = Instant::now();
-            black_box(intersect(black_box(&mut dest), black_box(&a), black_box(&b)));
+            black_box(intersect(
+                black_box(&mut dest),
+                black_box(&a),
+                black_box(&b),
+            ));
             start.elapsed()
         });
     }
@@ -77,7 +84,11 @@ fn main() {
         registry.register("intersect/0pct_overlap/naive", move || {
             let mut dest = vec![0u64; a.len().min(b.len())];
             let start = Instant::now();
-            black_box(naive_intersect(black_box(&mut dest), black_box(&a), black_box(&b)));
+            black_box(naive_intersect(
+                black_box(&mut dest),
+                black_box(&a),
+                black_box(&b),
+            ));
             start.elapsed()
         });
     }
@@ -89,7 +100,11 @@ fn main() {
         registry.register("intersect/50pct_overlap/sosorted", move || {
             let mut dest = vec![0u64; a.len().min(b.len())];
             let start = Instant::now();
-            black_box(intersect(black_box(&mut dest), black_box(&a), black_box(&b)));
+            black_box(intersect(
+                black_box(&mut dest),
+                black_box(&a),
+                black_box(&b),
+            ));
             start.elapsed()
         });
     }
@@ -99,7 +114,11 @@ fn main() {
         registry.register("intersect/50pct_overlap/naive", move || {
             let mut dest = vec![0u64; a.len().min(b.len())];
             let start = Instant::now();
-            black_box(naive_intersect(black_box(&mut dest), black_box(&a), black_box(&b)));
+            black_box(naive_intersect(
+                black_box(&mut dest),
+                black_box(&a),
+                black_box(&b),
+            ));
             start.elapsed()
         });
     }
@@ -111,7 +130,11 @@ fn main() {
         registry.register("intersect/100pct_overlap/sosorted", move || {
             let mut dest = vec![0u64; a.len().min(b.len())];
             let start = Instant::now();
-            black_box(intersect(black_box(&mut dest), black_box(&a), black_box(&b)));
+            black_box(intersect(
+                black_box(&mut dest),
+                black_box(&a),
+                black_box(&b),
+            ));
             start.elapsed()
         });
     }
@@ -121,7 +144,11 @@ fn main() {
         registry.register("intersect/100pct_overlap/naive", move || {
             let mut dest = vec![0u64; a.len().min(b.len())];
             let start = Instant::now();
-            black_box(naive_intersect(black_box(&mut dest), black_box(&a), black_box(&b)));
+            black_box(naive_intersect(
+                black_box(&mut dest),
+                black_box(&a),
+                black_box(&b),
+            ));
             start.elapsed()
         });
     }
@@ -133,7 +160,11 @@ fn main() {
         registry.register("intersect/asymmetric_10_1/sosorted", move || {
             let mut dest = vec![0u64; a.len().min(b.len())];
             let start = Instant::now();
-            black_box(intersect(black_box(&mut dest), black_box(&a), black_box(&b)));
+            black_box(intersect(
+                black_box(&mut dest),
+                black_box(&a),
+                black_box(&b),
+            ));
             start.elapsed()
         });
     }
@@ -143,7 +174,11 @@ fn main() {
         registry.register("intersect/asymmetric_10_1/naive", move || {
             let mut dest = vec![0u64; a.len().min(b.len())];
             let start = Instant::now();
-            black_box(naive_intersect(black_box(&mut dest), black_box(&a), black_box(&b)));
+            black_box(naive_intersect(
+                black_box(&mut dest),
+                black_box(&a),
+                black_box(&b),
+            ));
             start.elapsed()
         });
     }

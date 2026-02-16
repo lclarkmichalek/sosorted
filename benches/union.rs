@@ -11,7 +11,10 @@ use std::time::Instant;
 
 mod common;
 use common::rng::{DEFAULT_SIZE, SEED_A, SEED_B};
-use common::{generate_disjoint, generate_sorted_unique, generate_sorted_unique_bounded, add_spread_intersections};
+use common::{
+    add_spread_intersections, generate_disjoint, generate_sorted_unique,
+    generate_sorted_unique_bounded,
+};
 
 /// Naive union: two-pointer merge algorithm.
 fn naive_union(a: &[u64], b: &[u64]) -> Vec<u64> {
