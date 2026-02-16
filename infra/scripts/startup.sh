@@ -74,9 +74,27 @@ su - runner -c "cd ${RUNNER_DIR} && ./config.sh \
   --ephemeral \
   --unattended"
 
-# Run the runner (will exit after one job completes)
-echo "Starting runner..."
-su - runner -c "cd ${RUNNER_DIR} && ./run.sh"
+# === BENCHMARK STABILITY OPTIMIZATIONS ===
+
+# 1. Let system settle after boot (services finish starting, caches warm)
+echo "Waiting 60s for system to settle..."
+sleep 60
+
+# 2. Warmup compile to prime CPU caches and stabilize frequency
+echo "Running warmup compile..."
+su - runner -c 'source $HOME/.cargo/env && cd /tmp && cargo init --name warmup warmup_project && cd warmup_project && cargo build --release 2>/dev/null'
+rm -rf /tmp/warmup_project
+
+# 3. Disable CPU frequency scaling - lock to max performance
+echo "Configuring CPU for consistent performance..."
+for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
+  echo "performance" > "$cpu" 2>/dev/null || true
+done
+
+# 4. Run the runner pinned to CPU 1 (leave CPU 0 for OS tasks)
+# This reduces interference from system processes
+echo "Starting runner (pinned to CPU 1)..."
+su - runner -c "cd ${RUNNER_DIR} && taskset -c 1 ./run.sh"
 
 echo "=== Runner completed at $(date) ==="
 

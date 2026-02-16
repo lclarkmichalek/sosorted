@@ -83,7 +83,8 @@ jobs:
         id: bench-compare
         run: |
           set +e  # Don't exit on error
-          ./target/release/bench-compare \
+          # Pin benchmarks to CPU 1 to reduce noise from OS tasks on CPU 0
+          taskset -c 1 ./target/release/bench-compare \
             --baseline ${{ github.event.pull_request.base.sha }} \
             --test ${{ github.event.pull_request.head.sha }} \
             --output html \
