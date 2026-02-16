@@ -50,6 +50,15 @@ where
 
     // SIMD-accelerated loop
     while i < a.len() && j + lanes <= b.len() {
+        // Optimization: if the largest element in the current 'a' chunk is smaller than the
+        // smallest element in the current 'b' chunk, then all elements in the 'a' chunk are smaller
+        // than all elements in the 'b' chunk.
+        if i + lanes <= a.len() && b[j] > a[i + lanes - 1] {
+            count += lanes;
+            i += lanes;
+            continue;
+        }
+
         let b_chunk = T::simd_from_slice(&b[j..j + lanes]);
         let a_splat = T::simd_splat(a[i]);
 
@@ -214,6 +223,17 @@ where
 
     // SIMD-accelerated loop
     while i < a.len() && j + lanes <= b.len() {
+        // Optimization: if the largest element in the current 'a' chunk is smaller than the
+        // smallest element in the current 'b' chunk, then all elements in the 'a' chunk are smaller
+        // than all elements in the 'b' chunk (and subsequent 'b' chunks).
+        // Thus, none of the elements in 'a[i..i+lanes]' can be in 'b'.
+        if i + lanes <= a.len() && b[j] > a[i + lanes - 1] {
+            dest[write..write + lanes].copy_from_slice(&a[i..i + lanes]);
+            write += lanes;
+            i += lanes;
+            continue;
+        }
+
         let b_chunk = T::simd_from_slice(&b[j..j + lanes]);
         let a_splat = T::simd_splat(a[i]);
 
