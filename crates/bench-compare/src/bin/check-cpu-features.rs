@@ -5,7 +5,14 @@ fn main() {
 
     // Show compile-time target info
     println!("Target: {}", std::env::consts::ARCH);
-    println!("Profile: {}", if cfg!(debug_assertions) { "debug" } else { "release" });
+    println!(
+        "Profile: {}",
+        if cfg!(debug_assertions) {
+            "debug"
+        } else {
+            "release"
+        }
+    );
     println!();
 
     // Runtime detection
