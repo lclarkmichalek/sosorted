@@ -6,7 +6,7 @@ name = "sosorted"
 version = "0.2.0"
 edition = "2021"
 
-description = "A set of methods to efficiently manipulated sorted arrays"
+description = "A set of methods to efficiently manipulate sorted arrays"
 authors = ["Laurie Clark-Michalek <lclarkmichalek@gmail.com>"]
 license = "MIT"
 
