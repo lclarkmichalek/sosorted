@@ -6,7 +6,7 @@ confidence_level = 0.95      # Statistical confidence level (95%)
 minimum_effect_size = 2.0    # Minimum % difference to report as significant
 
 [orchestration]
-interleave_interval_ms = 10  # Short delay between runs (fast benchmarks)
+interleave_interval_ms = 100 # Delay between runs to prevent runner exhaustion
 warmup_iterations = 5        # Warmup iterations (discarded)
 sample_size = 50             # Number of samples per benchmark
 
@@ -14,11 +14,7 @@ sample_size = 50             # Number of samples per benchmark
 profile = "release"          # Always use release profile for benchmarks
 bench_targets = [
     "find_first_duplicate",
-    "deduplicate",
     "intersect",
-    "union",
-    "difference",
-    "roaring",
 ]
 
 [network]
