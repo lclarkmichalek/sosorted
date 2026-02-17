@@ -63,11 +63,11 @@ jobs:
           retry_on: error
           command: |
             echo "Building HEAD benchmarks..."
-            cargo bench --no-run
+            cargo bench --bench find_first_duplicate --no-run
 
             echo "Building Baseline benchmarks..."
             git checkout ${{ github.event.pull_request.base.sha }}
-            cargo bench --no-run
+            cargo bench --bench find_first_duplicate --no-run
 
             # Restore HEAD
             git checkout ${{ github.event.pull_request.head.sha }}
