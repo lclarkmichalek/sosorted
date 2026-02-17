@@ -2,8 +2,8 @@
 
 use rand::{rngs::SmallRng, SeedableRng};
 
-/// Default benchmark size (1M elements).
-pub const DEFAULT_SIZE: usize = 1024 * 1024;
+/// Default benchmark size (256K elements).
+pub const DEFAULT_SIZE: usize = 256 * 1024;
 
 /// Primary seed for deterministic benchmarks.
 pub const SEED_A: [u8; 32] = [
