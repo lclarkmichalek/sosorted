@@ -50,13 +50,10 @@ where
 
     #[inline(always)]
     fn to_bitmask(self) -> u64 {
-        let mut mask: u64 = 0;
-        for i in 0..N {
-            if self.test(i) {
-                mask |= 1 << i;
-            }
-        }
-        mask
+        // Use the intrinsic `to_bitmask` which maps to efficient instructions
+        // (e.g., `vpmovmskb` on x86) on modern hardware (AVX2/AVX-512),
+        // providing significant speedups compared to a manual loop.
+        Mask::to_bitmask(self)
     }
 }
 
