@@ -144,6 +144,7 @@ where
     let mut freq_idx = 0;
 
     for &rare_val in rare.iter() {
+        let mut found = false;
         // SIMD search in freq
         while freq_idx + lanes <= freq.len() {
             let freq_block = T::simd_from_slice(&freq[freq_idx..freq_idx + lanes]);
@@ -153,7 +154,9 @@ where
             if eq_mask.any() {
                 dest[intersect_count] = rare_val;
                 intersect_count += 1;
-                freq_idx += 1;
+                let match_idx = eq_mask.to_bitmask().trailing_zeros() as usize;
+                freq_idx += match_idx + 1;
+                found = true;
                 break;
             }
 
@@ -162,6 +165,10 @@ where
             }
 
             freq_idx += lanes;
+        }
+
+        if found {
+            continue;
         }
 
         // Scalar fallback
@@ -489,4 +496,15 @@ mod tests {
     test_intersect_type!(test_intersect_i16, i16);
     test_intersect_type!(test_intersect_i32, i32);
     test_intersect_type!(test_intersect_i64, i64);
+
+    #[test]
+    fn test_intersect_v1_duplicate_behavior() {
+        // Ratio 3.5 (7/2) -> intersect_v1
+        let rare = [10u64, 10];
+        let freq = [10u64, 10, 20, 30, 40, 50, 60];
+        let mut dest = [0u64; 7];
+        let count = intersect(&mut dest, &rare, &freq);
+        assert_eq!(count, 2, "Should find two 10s");
+        assert_eq!(&dest[..count], &[10, 10]);
+    }
 }

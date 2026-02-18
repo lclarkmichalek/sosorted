@@ -50,13 +50,7 @@ where
 
     #[inline(always)]
     fn to_bitmask(self) -> u64 {
-        let mut mask: u64 = 0;
-        for i in 0..N {
-            if self.test(i) {
-                mask |= 1 << i;
-            }
-        }
-        mask
+        self.to_bitmask()
     }
 }
 
