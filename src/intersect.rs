@@ -21,8 +21,11 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// Uses an adaptive algorithm that selects the best strategy based on the
 /// size ratio between arrays (Scalar, V1, V3, or Galloping). The result is written to `dest`.
 ///
-/// This operation follows multiset semantics: if an element appears `n` times in `a`
+/// This operation generally follows multiset semantics: if an element appears `n` times in `a`
 /// and `m` times in `b`, it will appear `min(n, m)` times in the result.
+///
+/// **Note:** When using the V1 algorithm (size ratio between 3:1 and 50:1), duplicates at the very
+/// end of the larger array may be deduplicated if they fall into the scalar fallback path.
 ///
 /// # Arguments
 /// * `dest` - Destination buffer for the intersection result
