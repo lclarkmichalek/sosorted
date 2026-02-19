@@ -12,12 +12,12 @@ The library provides seven main public APIs (all in `src/lib.rs`):
 
 1. **`find_first_duplicate`** (`src/find_first_duplicate.rs`) - Locates the index of the first duplicate element in a sorted slice
 2. **`deduplicate`** (`src/deduplicate.rs`) - Removes consecutive duplicate elements, writing to a destination buffer
-3. **`intersect`** (`src/intersect.rs`) - Computes the intersection of two sorted slices
+3. **`intersect`** (`src/intersect.rs`) - Computes the multiset intersection of two sorted slices
 4. **`union`** (`src/union.rs`) - Merges two sorted arrays into a destination buffer with deduplication
 5. **`union_size`** (`src/union.rs`) - Calculates the size of the union without allocation
-6. **`difference`** (`src/difference.rs`) - Computes the set difference (a \ b), writing to a destination buffer
+6. **`difference`** (`src/difference.rs`) - Computes a modified set difference (removes all occurrences of elements found in b from a), writing to a destination buffer
 7. **`difference_size`** (`src/difference.rs`) - Calculates the size of the set difference without allocation
- 8. **`Bitmap`** (`src/roaring/mod.rs`) - Immutable Roaring Bitmap implementation for `u32` sets
+8. **`Bitmap`** (`src/roaring/mod.rs`) - Immutable Roaring Bitmap implementation for `u32` sets
 
 ## Architecture
 
