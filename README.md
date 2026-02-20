@@ -28,7 +28,7 @@ let len = deduplicate(&mut dest, &input);
 
 Note that different operations handle duplicates differently:
 
-- **`intersect`** - Computes the **multiset intersection**. If an element appears $n$ times in `a` and $m$ times in `b`, it will appear $\min(n, m)$ times in the result.
+- **`intersect`** - Computes the **multiset intersection**. If an element appears $n$ times in `a` and $m$ times in `b`, it typically appears $\min(n, m)$ times in the result. Note that due to a known limitation in the adaptive strategy (V1), duplicates at the very end of the larger array may be deduplicated in certain edge cases.
 - **`union`** - Computes the **set union**. Merges two sorted arrays and **deduplicates** the result. If an element appears multiple times in inputs, it appears exactly once in the result.
 - **`union_size`** - Calculates the size of the set union without allocation.
 - **`difference`** - Computes a modified set difference. Removes **all occurrences** of elements found in `b` from `a`. However, duplicates in `a` that are *not* in `b` are preserved.

@@ -16,13 +16,20 @@ use std::simd::cmp::SimdPartialEq;
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
-/// Computes the **multiset intersection** of two sorted arrays.
+/// Computes the intersection of two sorted arrays, typically following multiset semantics.
 ///
 /// Uses an adaptive algorithm that selects the best strategy based on the
 /// size ratio between arrays (Scalar, V1, V3, or Galloping). The result is written to `dest`.
 ///
-/// This operation follows multiset semantics: if an element appears `n` times in `a`
+/// This operation generally follows multiset semantics: if an element appears `n` times in `a`
 /// and `m` times in `b`, it will appear `min(n, m)` times in the result.
+///
+/// # Caveats
+///
+/// The V1 strategy (used for size ratios between 3:1 and 50:1) has a known limitation where
+/// duplicates at the very end of the larger array may be deduplicated if they fall into the
+/// scalar fallback path. In these specific edge cases, the result may contain fewer duplicates
+/// than expected by strict multiset semantics.
 ///
 /// # Arguments
 /// * `dest` - Destination buffer for the intersection result
@@ -121,6 +128,9 @@ where
 }
 
 /// V1 intersection algorithm - SIMD search through the larger array.
+///
+/// Note: This implementation has a known limitation regarding multiset semantics for duplicates
+/// at the end of the larger array that fall into the scalar fallback path.
 fn intersect_v1<T>(dest: &mut [T], a: &[T], b: &[T]) -> usize
 where
     T: SortedSimdElement + Ord,
