@@ -56,6 +56,8 @@ impl Bitmap {
     ///
     /// This is the most efficient way to construct a bitmap if your data is already sorted.
     /// The input must be sorted in ascending order; behavior is undefined if not sorted.
+    /// Specifically, if the input is not sorted, internal containers may be overwritten,
+    /// leading to silent data loss.
     ///
     /// # Examples
     ///

@@ -7,6 +7,17 @@
 
 This crate provides various methods for efficiently manipulating arrays of sorted data using SIMD optimizations. It supports all primitive integer types (`u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`).
 
+## Requirements
+
+This crate requires a **nightly** Rust compiler to use the `portable_simd` feature.
+
+## Safety & Preconditions
+
+All operations in this crate assume that input arrays are **sorted in ascending order**.
+
+- **Undefined Behavior**: Providing unsorted data will result in undefined behavior, including incorrect results or silent data loss (especially in `Bitmap` operations).
+- **No Checks**: For performance reasons, functions **do not** check if inputs are sorted. It is the caller's responsibility to ensure data is sorted.
+
 ## API Design
 
 All mutable operations follow a consistent pattern: **the destination buffer is always the first argument**, followed by immutable input slices. This design:
@@ -28,7 +39,7 @@ let len = deduplicate(&mut dest, &input);
 
 Note that different operations handle duplicates differently:
 
-- **`intersect`** - Computes the **multiset intersection**. If an element appears $n$ times in `a` and $m$ times in `b`, it will appear $\min(n, m)$ times in the result.
+- **`intersect`** - Computes the **multiset intersection**. If an element appears $n$ times in `a` and $m$ times in `b`, it will appear $\min(n, m)$ times in the result. (See documentation for edge case limitations).
 - **`union`** - Computes the **set union**. Merges two sorted arrays and **deduplicates** the result. If an element appears multiple times in inputs, it appears exactly once in the result.
 - **`union_size`** - Calculates the size of the set union without allocation.
 - **`difference`** - Computes a modified set difference. Removes **all occurrences** of elements found in `b` from `a`. However, duplicates in `a` that are *not* in `b` are preserved.

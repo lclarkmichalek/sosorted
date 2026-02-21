@@ -1,4 +1,5 @@
 //! Core data generation functions for benchmarks.
+#![allow(clippy::manual_is_multiple_of)]
 
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
 use std::ops::Range;
