@@ -451,7 +451,6 @@ mod tests {
         assert_eq!(&dest[..result], &[14, 15, 16, 17]);
     }
 
-
     // Tests for different numeric types
     macro_rules! test_intersect_type {
         ($name:ident, $t:ty) => {
