@@ -2,8 +2,12 @@ use std::simd::cmp::SimdPartialEq;
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
-/// Copies elements from `input` to `out`, removing consecutive duplicates.
+/// Copies elements from a sorted `input` slice to `out`, removing consecutive duplicates.
 /// Returns the number of elements written to `out`.
+///
+/// The input array must be sorted. This function relies on the sorted property
+/// for correctness (e.g., the galloping optimization assumes equal elements are adjacent).
+/// Behavior is undefined if the input is not sorted.
 ///
 /// This implementation uses Compress & Store with Adaptive Galloping:
 /// 1. **Galloping**: Checks if `input[i] == input[i + LANES - 1]`. Since data is sorted,
