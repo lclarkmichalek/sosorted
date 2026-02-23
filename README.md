@@ -63,6 +63,14 @@ assert_eq!(intersection.len(), 1);
 
 // Check for existence
 assert!(bitmap1.contains(100));
+
+// Convert to vector or iterate
+let vec = bitmap1.to_vec();
+assert_eq!(vec, vec![1, 5, 100, 1000, 10000]);
+
+for value in bitmap1.iter() {
+    println!("{}", value);
+}
 ```
 
 ## Planned Future Operations

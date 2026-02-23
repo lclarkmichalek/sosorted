@@ -24,6 +24,12 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// This operation follows multiset semantics: if an element appears `n` times in `a`
 /// and `m` times in `b`, it will appear `min(n, m)` times in the result.
 ///
+/// # Known Issues
+///
+/// Due to a bug in the V1 strategy (used for size ratios between 3:1 and 50:1),
+/// the scalar fallback path may incorrectly deduplicate elements, resulting in
+/// set intersection behavior instead of multiset intersection for those specific elements.
+///
 /// # Arguments
 /// * `dest` - Destination buffer for the intersection result
 /// * `a` - First sorted array (immutable)

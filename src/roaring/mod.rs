@@ -34,6 +34,14 @@
 //! // Operator overloading
 //! let union2 = &bitmap1 | &bitmap2;
 //! let inter2 = &bitmap1 & &bitmap2;
+//!
+//! // Convert to vector or iterate
+//! let vec = bitmap1.to_vec();
+//! assert_eq!(vec, vec![1, 5, 100, 1000, 10000]);
+//!
+//! for value in bitmap1.iter() {
+//!     println!("{}", value);
+//! }
 //! ```
 
 mod bitmap;
