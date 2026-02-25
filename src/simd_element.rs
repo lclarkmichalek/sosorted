@@ -52,9 +52,7 @@ where
     fn to_bitmask(self) -> u64 {
         let mut mask: u64 = 0;
         for i in 0..N {
-            if self.test(i) {
-                mask |= 1 << i;
-            }
+            mask |= (self.test(i) as u64) << i;
         }
         mask
     }

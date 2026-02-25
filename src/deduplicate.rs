@@ -78,11 +78,12 @@ where
         }
 
         // Compress and store: copy only unique elements
-        for lane in 0..lanes {
-            if ne_mask.test(lane) {
-                out[write_pos] = input[i + lane];
-                write_pos += 1;
-            }
+        let mut mask = ne_mask.to_bitmask();
+        while mask != 0 {
+            let idx = mask.trailing_zeros();
+            out[write_pos] = input[i + idx as usize];
+            write_pos += 1;
+            mask &= mask - 1;
         }
         i += lanes;
     }
