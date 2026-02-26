@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::{BitAnd, BitOr};
@@ -178,23 +178,49 @@ impl Bitmap {
         let mut containers = BTreeMap::new();
         let mut cardinality = 0;
 
-        // Collect all unique keys from both bitmaps
-        let all_keys: BTreeSet<_> = self
-            .containers
-            .keys()
-            .chain(other.containers.keys())
-            .copied()
-            .collect();
+        let mut iter1 = self.containers.iter();
+        let mut iter2 = other.containers.iter();
 
-        for high in all_keys {
-            let container = match (self.containers.get(&high), other.containers.get(&high)) {
-                (Some(a), Some(b)) => a.union(b),
-                (Some(a), None) => a.clone(),
-                (None, Some(b)) => b.clone(),
-                (None, None) => unreachable!(),
-            };
-            cardinality += container.cardinality();
-            containers.insert(high, container);
+        let mut next1 = iter1.next();
+        let mut next2 = iter2.next();
+
+        loop {
+            match (next1, next2) {
+                (Some((key1, c1)), Some((key2, c2))) => match key1.cmp(key2) {
+                    std::cmp::Ordering::Less => {
+                        let c = c1.clone();
+                        cardinality += c.cardinality();
+                        containers.insert(*key1, c);
+                        next1 = iter1.next();
+                    }
+                    std::cmp::Ordering::Greater => {
+                        let c = c2.clone();
+                        cardinality += c.cardinality();
+                        containers.insert(*key2, c);
+                        next2 = iter2.next();
+                    }
+                    std::cmp::Ordering::Equal => {
+                        let c = c1.union(c2);
+                        cardinality += c.cardinality();
+                        containers.insert(*key1, c);
+                        next1 = iter1.next();
+                        next2 = iter2.next();
+                    }
+                },
+                (Some((key1, c1)), None) => {
+                    let c = c1.clone();
+                    cardinality += c.cardinality();
+                    containers.insert(*key1, c);
+                    next1 = iter1.next();
+                }
+                (None, Some((key2, c2))) => {
+                    let c = c2.clone();
+                    cardinality += c.cardinality();
+                    containers.insert(*key2, c);
+                    next2 = iter2.next();
+                }
+                (None, None) => break,
+            }
         }
 
         Bitmap {
@@ -223,14 +249,29 @@ impl Bitmap {
         let mut containers = BTreeMap::new();
         let mut cardinality = 0;
 
-        // Only iterate over keys present in both bitmaps
-        for (&high, self_container) in &self.containers {
-            if let Some(other_container) = other.containers.get(&high) {
-                let result = self_container.intersect(other_container);
-                let card = result.cardinality();
-                if card > 0 {
-                    cardinality += card;
-                    containers.insert(high, result);
+        let mut iter1 = self.containers.iter();
+        let mut iter2 = other.containers.iter();
+
+        let mut next1 = iter1.next();
+        let mut next2 = iter2.next();
+
+        while let (Some((key1, c1)), Some((key2, c2))) = (next1, next2) {
+            match key1.cmp(key2) {
+                std::cmp::Ordering::Less => {
+                    next1 = iter1.next();
+                }
+                std::cmp::Ordering::Greater => {
+                    next2 = iter2.next();
+                }
+                std::cmp::Ordering::Equal => {
+                    let result = c1.intersect(c2);
+                    let card = result.cardinality();
+                    if card > 0 {
+                        cardinality += card;
+                        containers.insert(*key1, result);
+                    }
+                    next1 = iter1.next();
+                    next2 = iter2.next();
                 }
             }
         }
