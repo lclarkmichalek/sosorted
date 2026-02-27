@@ -62,15 +62,36 @@ where
             continue;
         }
 
-        // Load current block and previous block (shifted by 1)
+        // Load current block
         let curr = T::simd_from_slice(&input[i..i + lanes]);
-        let prev = T::simd_from_slice(&input[i - 1..i + lanes - 1]);
 
-        // Compare: mask bit is set where curr != prev (i.e., element is unique)
-        let ne_mask = curr.simd_ne(prev);
+        // Instead of loading the previous block (which is unaligned), we rotate the current block right.
+        // rotated[k] = curr[k-1] for k > 0.
+        // Lane 0 of rotated contains the last element of the block (wrap around), which we don't need.
+        let rotated = T::rotate_elements_right::<1>(curr);
 
-        // Fast path: all elements are unique
-        if ne_mask.all() {
+        // Compare: mask bit is set where curr != rotated
+        // For k > 0, this means curr[k] != curr[k-1] (element is unique relative to previous in block)
+        // For k = 0, this compares curr[0] with curr[lanes-1], which is garbage for our purpose.
+        let ne_mask = curr.simd_ne(rotated);
+
+        // Convert to bitmask
+        let mut bitmask = ne_mask.to_bitmask();
+
+        // Fix the 0th bit: it should indicate if input[i] != input[i-1]
+        // input[i-1] is the last element of the previous iteration
+        if input[i] != input[i - 1] {
+            bitmask |= 1;
+        } else {
+            bitmask &= !1;
+        }
+
+        // Ensure high bits are cleared if lanes < 64 (to_bitmask usually does this, but being safe)
+        // For T::LANES < 64, we might get garbage in high bits depending on implementation,
+        // but SimdMaskOps::to_bitmask implementation iterates only up to N.
+
+        // Fast path: all elements are unique (all bits set)
+        if bitmask == (1u64 << lanes) - 1 {
             out[write_pos..write_pos + lanes].copy_from_slice(&input[i..i + lanes]);
             write_pos += lanes;
             i += lanes;
@@ -78,12 +99,14 @@ where
         }
 
         // Compress and store: copy only unique elements
-        for lane in 0..lanes {
-            if ne_mask.test(lane) {
-                out[write_pos] = input[i + lane];
-                write_pos += 1;
-            }
+        // Iterate over set bits
+        while bitmask != 0 {
+            let lane = bitmask.trailing_zeros();
+            out[write_pos] = input[i + lane as usize];
+            write_pos += 1;
+            bitmask &= !(1 << lane);
         }
+
         i += lanes;
     }
 

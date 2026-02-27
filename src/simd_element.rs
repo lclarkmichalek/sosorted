@@ -107,6 +107,9 @@ pub trait SortedSimdElement:
 
     /// Load a SIMD vector from a slice. The slice must have at least `LANES` elements.
     fn simd_from_slice(slice: &[Self]) -> Self::SimdVec;
+
+    /// Rotates the vector elements right by `OFFSET`.
+    fn rotate_elements_right<const OFFSET: usize>(vec: Self::SimdVec) -> Self::SimdVec;
 }
 
 /// Macro to implement SortedSimdElement for a given type with specific lane count.
@@ -131,6 +134,11 @@ macro_rules! impl_sorted_simd_element {
             #[inline(always)]
             fn simd_from_slice(slice: &[Self]) -> Self::SimdVec {
                 Simd::from_slice(slice)
+            }
+
+            #[inline(always)]
+            fn rotate_elements_right<const OFFSET: usize>(vec: Self::SimdVec) -> Self::SimdVec {
+                vec.rotate_elements_right::<OFFSET>()
             }
         }
     };
