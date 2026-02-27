@@ -1,5 +1,7 @@
 //! RNG utilities and seed constants for reproducible benchmarks.
 
+#![allow(dead_code)]
+
 use rand::{rngs::SmallRng, SeedableRng};
 
 /// Default benchmark size (1M elements).

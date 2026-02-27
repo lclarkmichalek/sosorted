@@ -1,5 +1,7 @@
 //! Standard datasets for unary operation benchmarks (deduplicate, find_first_duplicate).
 
+#![allow(dead_code)]
+
 use super::generators::*;
 use super::rng::*;
 

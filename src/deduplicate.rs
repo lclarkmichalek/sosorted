@@ -2,7 +2,7 @@ use std::simd::cmp::SimdPartialEq;
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
-/// Copies elements from `input` to `out`, removing consecutive duplicates.
+/// Copies elements from a sorted slice `input` to `out`, removing consecutive duplicates.
 /// Returns the number of elements written to `out`.
 ///
 /// This implementation uses Compress & Store with Adaptive Galloping:
