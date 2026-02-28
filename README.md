@@ -7,6 +7,8 @@
 
 This crate provides various methods for efficiently manipulating arrays of sorted data using SIMD optimizations. It supports all primitive integer types (`u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`).
 
+**Important Note:** For performance reasons, this library does not perform runtime checks to ensure inputs are sorted. It is strictly the caller's responsibility to guarantee sorted inputs. Providing unsorted inputs will result in incorrect results or data loss (e.g., `Bitmap` key collisions), but it will not cause memory-safety undefined behavior.
+
 ## API Design
 
 All mutable operations follow a consistent pattern: **the destination buffer is always the first argument**, followed by immutable input slices. This design:
@@ -35,8 +37,8 @@ Note that different operations handle duplicates differently:
 - **`difference_size`** - Calculates the size of the difference without allocation.
 
 ### Deduplication
-- **`deduplicate`** - Removes repeated elements from a sorted slice. Writes the result to a destination buffer.
-- **`find_first_duplicate`** - Finds the index of the **second occurrence** of the first duplicate entry in a sorted slice. Returns the length if no duplicates exist.
+- **`deduplicate`** - Removes repeated elements from a sorted slice. Writes the result to a destination buffer. Strictly requires sorted input.
+- **`find_first_duplicate`** - Finds the index of the **second occurrence** of the first duplicate entry in a sorted slice. Returns the length if no duplicates exist. Strictly requires sorted input; unsorted input results in partial detection (only adjacent duplicates).
 
 ### Roaring Bitmaps
 

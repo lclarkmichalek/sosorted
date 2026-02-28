@@ -5,6 +5,8 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// Returns the index of the second occurrence of the first duplicate pair found.
 /// If there are no duplicates, the length of the slice is returned.
 ///
+/// **Important Note:** For performance reasons, this function does not perform runtime checks to ensure inputs are sorted. It strictly requires the `vec` slice to be sorted. Unsorted input results in partial detection (only adjacent duplicates will be found).
+///
 /// # Examples
 ///
 /// ```

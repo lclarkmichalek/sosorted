@@ -11,6 +11,8 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 ///
 /// Uses SIMD acceleration to quickly skip over non-overlapping regions.
 ///
+/// **Important Note:** For performance reasons, this function does not perform runtime checks to ensure inputs are sorted. It is strictly the caller's responsibility to guarantee sorted inputs. Providing unsorted inputs will result in incorrect behavior.
+///
 /// # Examples
 ///
 /// ```
@@ -136,6 +138,8 @@ where
 /// Duplicates in `a` that are NOT in `b` are preserved.
 ///
 /// Uses SIMD acceleration to quickly skip over non-overlapping regions.
+///
+/// **Important Note:** For performance reasons, this function does not perform runtime checks to ensure inputs are sorted. It is strictly the caller's responsibility to guarantee sorted inputs. Providing unsorted inputs will result in incorrect behavior.
 ///
 /// # Arguments
 /// * `dest` - Destination buffer for the difference result
