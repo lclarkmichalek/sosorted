@@ -78,11 +78,15 @@ where
         }
 
         // Compress and store: copy only unique elements
-        for lane in 0..lanes {
-            if ne_mask.test(lane) {
-                out[write_pos] = input[i + lane];
-                write_pos += 1;
-            }
+        // Optimization: Use `to_bitmask().trailing_zeros()` to skip testing every lane.
+        // This avoids branch mispredictions and scales better with wider SIMD registers
+        // by only looping for the exact number of unique elements (set bits).
+        let mut bitmask = ne_mask.to_bitmask();
+        while bitmask != 0 {
+            let lane = bitmask.trailing_zeros() as usize;
+            out[write_pos] = input[i + lane];
+            write_pos += 1;
+            bitmask &= bitmask - 1; // Clear the lowest set bit
         }
         i += lanes;
     }
