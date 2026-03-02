@@ -1,3 +1,6 @@
+#![doc = include_str!("../README.md")]
+
+
 #![feature(portable_simd)]
 
 mod simd_element;

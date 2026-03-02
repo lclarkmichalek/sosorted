@@ -56,6 +56,8 @@ impl Bitmap {
     ///
     /// This is the most efficient way to construct a bitmap if your data is already sorted.
     /// The input must be sorted in ascending order; behavior is undefined if not sorted.
+    /// Specifically, if the input is not sorted by the high 16 bits, it will result in
+    /// silent data loss as the internal `BTreeMap` overwrites existing containers.
     ///
     /// # Examples
     ///
