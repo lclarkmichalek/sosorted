@@ -1,0 +1,3 @@
+## 2025-01-05 - Rust `match` vs `if/else` on integer comparisons
+**Learning:** In hot loops, replacing `match a.cmp(&b)` with explicit `if a < b { ... } else if a > b { ... } else { ... }` blocks significantly improves performance in this codebase. The `match` abstraction on `Ordering` forces the compiler to produce branch instructions that are less optimal than explicit comparisons. In `difference.rs`, removing the early loop termination and replacing the `match` expression improved execution time by over 1.5x in benchmarks.
+**Action:** Use explicit `if a < b` instead of `match a.cmp(&b)` in hot loops iterating over integer sequences.

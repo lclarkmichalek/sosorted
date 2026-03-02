@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, simd::cmp::SimdPartialOrd};
+use std::simd::cmp::SimdPartialOrd;
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
@@ -48,8 +48,11 @@ where
     let mut j = 0;
     let mut count = 0;
 
+    let len_a = a.len();
+    let len_b = b.len();
+
     // SIMD-accelerated loop
-    while i < a.len() && j + lanes <= b.len() {
+    while i < len_a && j + lanes <= len_b {
         let b_chunk = T::simd_from_slice(&b[j..j + lanes]);
         let a_splat = T::simd_splat(a[i]);
 
@@ -70,53 +73,53 @@ where
 
         // Slow path: mixed comparison, process element by element
         for _ in 0..lanes {
-            if i >= a.len() || j >= b.len() {
+            if i >= len_a || j >= len_b {
                 break;
             }
 
-            match a[i].cmp(&b[j]) {
-                Ordering::Less => {
-                    // a[i] is not in b (at least not at current position)
-                    count += 1;
+            let a_val = a[i];
+            let b_val = b[j];
+
+            if a_val < b_val {
+                // a[i] is not in b (at least not at current position)
+                count += 1;
+                i += 1;
+            } else if a_val > b_val {
+                // Haven't reached a[i] in b yet
+                j += 1;
+            } else {
+                // a[i] is in b, skip ALL duplicates of this value in both arrays
+                i += 1;
+                while i < len_a && a[i] == a_val {
                     i += 1;
                 }
-                Ordering::Greater => {
-                    // Haven't reached a[i] in b yet
+                j += 1;
+                while j < len_b && b[j] == a_val {
                     j += 1;
-                }
-                Ordering::Equal => {
-                    // a[i] is in b, skip ALL duplicates of this value in both arrays
-                    let matched_val = a[i];
-                    while i < a.len() && a[i] == matched_val {
-                        i += 1;
-                    }
-                    while j < b.len() && b[j] == matched_val {
-                        j += 1;
-                    }
                 }
             }
         }
     }
 
     // Scalar loop for remaining elements
-    while i < a.len() && j < b.len() {
-        match a[i].cmp(&b[j]) {
-            Ordering::Less => {
-                count += 1;
+    while i < len_a && j < len_b {
+        let a_val = a[i];
+        let b_val = b[j];
+
+        if a_val < b_val {
+            count += 1;
+            i += 1;
+        } else if a_val > b_val {
+            j += 1;
+        } else {
+            // Skip ALL duplicates of this value in both arrays
+            i += 1;
+            while i < len_a && a[i] == a_val {
                 i += 1;
             }
-            Ordering::Greater => {
+            j += 1;
+            while j < len_b && b[j] == a_val {
                 j += 1;
-            }
-            Ordering::Equal => {
-                // Skip ALL duplicates of this value in both arrays
-                let matched_val = a[i];
-                while i < a.len() && a[i] == matched_val {
-                    i += 1;
-                }
-                while j < b.len() && b[j] == matched_val {
-                    j += 1;
-                }
             }
         }
     }
@@ -212,8 +215,11 @@ where
     let mut j = 0; // Position in b
     let mut write = 0; // Write position in dest
 
+    let len_a = a.len();
+    let len_b = b.len();
+
     // SIMD-accelerated loop
-    while i < a.len() && j + lanes <= b.len() {
+    while i < len_a && j + lanes <= len_b {
         let b_chunk = T::simd_from_slice(&b[j..j + lanes]);
         let a_splat = T::simd_splat(a[i]);
 
@@ -235,64 +241,64 @@ where
 
         // Slow path: mixed comparison, process element by element
         for _ in 0..lanes {
-            if i >= a.len() || j >= b.len() {
+            if i >= len_a || j >= len_b {
                 break;
             }
 
-            match a[i].cmp(&b[j]) {
-                Ordering::Less => {
-                    // a[i] is not in b, include it
-                    dest[write] = a[i];
-                    write += 1;
+            let a_val = a[i];
+            let b_val = b[j];
+
+            if a_val < b_val {
+                // a[i] is not in b, include it
+                dest[write] = a_val;
+                write += 1;
+                i += 1;
+            } else if a_val > b_val {
+                // Haven't reached a[i] in b yet
+                j += 1;
+            } else {
+                // a[i] is in b, skip ALL duplicates of this value in both arrays
+                i += 1;
+                while i < len_a && a[i] == a_val {
                     i += 1;
                 }
-                Ordering::Greater => {
-                    // Haven't reached a[i] in b yet
+                j += 1;
+                while j < len_b && b[j] == a_val {
                     j += 1;
-                }
-                Ordering::Equal => {
-                    // a[i] is in b, skip ALL duplicates of this value in both arrays
-                    let matched_val = a[i];
-                    while i < a.len() && a[i] == matched_val {
-                        i += 1;
-                    }
-                    while j < b.len() && b[j] == matched_val {
-                        j += 1;
-                    }
                 }
             }
         }
     }
 
     // Scalar loop for remaining elements
-    while i < a.len() && j < b.len() {
-        match a[i].cmp(&b[j]) {
-            Ordering::Less => {
-                dest[write] = a[i];
-                write += 1;
+    while i < len_a && j < len_b {
+        let a_val = a[i];
+        let b_val = b[j];
+
+        if a_val < b_val {
+            dest[write] = a_val;
+            write += 1;
+            i += 1;
+        } else if a_val > b_val {
+            j += 1;
+        } else {
+            // Skip ALL duplicates of this value in both arrays
+            i += 1;
+            while i < len_a && a[i] == a_val {
                 i += 1;
             }
-            Ordering::Greater => {
+            j += 1;
+            while j < len_b && b[j] == a_val {
                 j += 1;
-            }
-            Ordering::Equal => {
-                // Skip ALL duplicates of this value in both arrays
-                let matched_val = a[i];
-                while i < a.len() && a[i] == matched_val {
-                    i += 1;
-                }
-                while j < b.len() && b[j] == matched_val {
-                    j += 1;
-                }
             }
         }
     }
 
     // Copy remaining elements from a (they're all not in b since b is exhausted)
-    while i < a.len() {
-        dest[write] = a[i];
-        write += 1;
-        i += 1;
+    let remaining = len_a - i;
+    if remaining > 0 {
+        dest[write..write + remaining].copy_from_slice(&a[i..]);
+        write += remaining;
     }
 
     write
@@ -765,23 +771,24 @@ mod tests {
                     expected += a_data.len() - i;
                     break;
                 }
-                match a_data[i].cmp(&b_data[j]) {
-                    Ordering::Less => {
-                        expected += 1;
+
+                let a_val = a_data[i];
+                let b_val = b_data[j];
+
+                if a_val < b_val {
+                    expected += 1;
+                    i += 1;
+                } else if a_val > b_val {
+                    j += 1;
+                } else {
+                    // Skip ALL duplicates of matched value in both arrays
+                    i += 1;
+                    while i < a_data.len() && a_data[i] == a_val {
                         i += 1;
                     }
-                    Ordering::Greater => {
+                    j += 1;
+                    while j < b_data.len() && b_data[j] == a_val {
                         j += 1;
-                    }
-                    Ordering::Equal => {
-                        // Skip ALL duplicates of matched value in both arrays
-                        let matched_val = a_data[i];
-                        while i < a_data.len() && a_data[i] == matched_val {
-                            i += 1;
-                        }
-                        while j < b_data.len() && b_data[j] == matched_val {
-                            j += 1;
-                        }
                     }
                 }
             }
