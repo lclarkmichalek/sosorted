@@ -5,6 +5,14 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// Copies elements from `input` to `out`, removing consecutive duplicates.
 /// Returns the number of elements written to `out`.
 ///
+/// This function strictly requires sorted input. Algorithms in `sosorted` heavily rely
+/// on sorted inputs; providing unsorted inputs results in incorrect results or data loss,
+/// rather than strict memory-safety undefined behavior.
+///
+/// For performance reasons, the library does not perform runtime checks to ensure
+/// inputs are sorted; it is strictly the caller's responsibility to guarantee sorted
+/// inputs to avoid undefined behavior.
+///
 /// This implementation uses Compress & Store with Adaptive Galloping:
 /// 1. **Galloping**: Checks if `input[i] == input[i + LANES - 1]`. Since data is sorted,
 ///    if the first and last elements of a block are equal, the entire block is identical.

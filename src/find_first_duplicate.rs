@@ -5,12 +5,21 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// Returns the index of the second occurrence of the first duplicate pair found.
 /// If there are no duplicates, the length of the slice is returned.
 ///
+/// This function strictly requires sorted input to function correctly, as it only
+/// checks adjacent elements for equality. Unsorted input results in partial detection
+/// (only adjacent duplicates).
+///
+/// For performance reasons, the library does not perform runtime checks to ensure
+/// inputs are sorted; it is strictly the caller's responsibility to guarantee sorted
+/// inputs to avoid undefined behavior.
+///
 /// # Examples
 ///
 /// ```
 /// use sosorted::find_first_duplicate;
 ///
-/// // The second '2' is at index 3
+/// // Returns the index of the second occurrence of the first duplicate pair found
+/// // (e.g., for [0, 1, 2, 2], it returns 3).
 /// let data = vec![0u64, 1, 2, 2];
 /// assert_eq!(3, find_first_duplicate(&data[..]));
 /// ```
