@@ -53,6 +53,7 @@ impl Bitmap {
     }
 
     /// Creates a bitmap from a sorted slice of `u32` values.
+    /// Returns a new bitmap.
     ///
     /// This is the most efficient way to construct a bitmap if your data is already sorted.
     /// The input must be sorted in ascending order; behavior is undefined if not sorted.
@@ -158,7 +159,8 @@ impl Bitmap {
         self.cardinality == 0
     }
 
-    /// Computes the union of two bitmaps, returning a new bitmap.
+    /// Computes the union of two bitmaps.
+    /// Returns a new bitmap representing the set union, rather than mutating in place.
     ///
     /// The union contains all elements that are in either bitmap.
     ///
@@ -203,7 +205,8 @@ impl Bitmap {
         }
     }
 
-    /// Computes the intersection of two bitmaps, returning a new bitmap.
+    /// Computes the intersection of two bitmaps.
+    /// Returns a new bitmap representing the set intersection, rather than mutating in place.
     ///
     /// The intersection contains all elements that are in both bitmaps.
     ///
