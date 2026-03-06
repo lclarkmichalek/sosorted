@@ -8,7 +8,7 @@ This document provides guidance for AI agents working with the `sosorted` codeba
 
 ## Key Operations
 
-The library provides seven main public APIs (all in `src/lib.rs`):
+The library provides eight main public APIs (all in `src/lib.rs`):
 
 1. **`find_first_duplicate`** (`src/find_first_duplicate.rs`) - Locates the index of the first duplicate element in a sorted slice
 2. **`deduplicate`** (`src/deduplicate.rs`) - Removes consecutive duplicate elements, writing to a destination buffer
