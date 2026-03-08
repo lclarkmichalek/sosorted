@@ -1,0 +1,3 @@
+## 2025-01-28 - Replace std::cmp::Ordering match with explicit if/else
+**Learning:** In Rust hot loops within this codebase, replacing `match a.cmp(&b)` with explicit `if a < b { ... } else if a > b { ... } else { ... }` blocks significantly improves performance by allowing the compiler to generate more optimal branch instructions.
+**Action:** When working on array comparisons inside tight loops, especially fallback scalar implementations, use direct `<` and `>` operators rather than `match .cmp()` to avoid the overhead of returning and matching an enum `std::cmp::Ordering`. Ensure unused `std::cmp::Ordering` imports are removed after applying this optimization.

@@ -106,6 +106,9 @@ where
     let mut k = 0;
 
     while i < a.len() && j < b.len() {
+        // Optimization: Use explicit if/else instead of match a.cmp(&b)
+        // to allow the compiler to generate more optimal branch instructions
+        // avoiding the overhead of the std::cmp::Ordering enum in this hot loop.
         if a[i] < b[j] {
             i += 1;
         } else if b[j] < a[i] {
