@@ -5,6 +5,10 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// Returns the index of the second occurrence of the first duplicate pair found.
 /// If there are no duplicates, the length of the slice is returned.
 ///
+/// **Note:** This function strictly requires the input to be sorted.
+/// As it only checks adjacent elements for equality, unsorted input will
+/// result in partial detection (only adjacent duplicates will be found).
+///
 /// # Examples
 ///
 /// ```

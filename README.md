@@ -7,6 +7,9 @@
 
 This crate provides various methods for efficiently manipulating arrays of sorted data using SIMD optimizations. It supports all primitive integer types (`u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`).
 
+**Note:** All functions in this crate strictly require input arrays to be sorted in ascending order.
+Providing unsorted inputs will result in incorrect results, partial detection of duplicates, or silent data loss (e.g., in `Bitmap` initialization).
+
 ## API Design
 
 All mutable operations follow a consistent pattern: **the destination buffer is always the first argument**, followed by immutable input slices. This design:

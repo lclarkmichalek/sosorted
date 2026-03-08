@@ -6,6 +6,9 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 ///
 /// This counts unique elements in the union (deduplicated).
 ///
+/// **Note:** This function strictly requires both input arrays to be sorted.
+/// Providing unsorted inputs will result in incorrect results.
+///
 /// # Examples
 ///
 /// ```
@@ -85,6 +88,9 @@ where
 /// it will appear exactly once in the destination.
 ///
 /// Returns the length of the union. Elements past this length contain undefined data.
+///
+/// **Note:** This function strictly requires both input arrays to be sorted.
+/// Providing unsorted inputs will result in incorrect results.
 ///
 /// # Examples
 ///

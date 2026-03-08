@@ -11,6 +11,9 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 ///
 /// Uses SIMD acceleration to quickly skip over non-overlapping regions.
 ///
+/// **Note:** This function strictly requires both input arrays to be sorted.
+/// Providing unsorted inputs will result in incorrect results.
+///
 /// # Examples
 ///
 /// ```
@@ -144,6 +147,9 @@ where
 ///
 /// # Returns
 /// The number of elements in the difference
+///
+/// **Note:** This function strictly requires both input arrays to be sorted.
+/// Providing unsorted inputs will result in incorrect results.
 ///
 /// # Panics
 /// Panics if `dest.len() < a.len()` (insufficient capacity for worst case).
