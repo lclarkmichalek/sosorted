@@ -1,0 +1,3 @@
+## 2024-03-10 - Replace match cmp with if-else
+**Learning:** In Rust hot loops within this codebase, replacing `match a.cmp(&b)` with explicit `if a < b { ... } else if a > b { ... } else { ... }` blocks significantly improves performance by allowing the compiler to generate more optimal branch instructions.
+**Action:** When working on performance improvements in hot loops in Rust code in this project, prefer explicit comparison operators (`<`, `>`) over `cmp()` if the resulting code reads well, to allow for better optimizations by LLVM. Make sure to remove unused imports such as `std::cmp::Ordering`.
