@@ -40,7 +40,7 @@ jobs:
 
       - name: Install nightly toolchain
         if: steps.changes.outputs.skip_benchmarks != 'true'
-        uses: dtolnay/rust-toolchain@master
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: nightly-2026-01-05
 
