@@ -1,0 +1,3 @@
+## 2025-03-13 - [Performance improvement for SIMD fallback loops]
+**Learning:** In Rust hot loops within this codebase, replacing `match a.cmp(&b)` with explicit `if a < b { ... } else if a > b { ... } else { ... }` blocks significantly improves performance by allowing the compiler to generate more optimal branch instructions.
+**Action:** Prefer explicit `if-else if-else` comparison logic over `match a.cmp(&b)` in performance-critical scalar loops or fallbacks, as the `match` branch handling adds overhead which gets exposed in SIMD applications. And ensure `std::cmp::Ordering` unused imports are removed afterwards.
