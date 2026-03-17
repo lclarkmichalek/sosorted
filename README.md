@@ -35,8 +35,8 @@ Note that different operations handle duplicates differently:
 - **`difference_size`** - Calculates the size of the difference without allocation.
 
 ### Deduplication
-- **`deduplicate`** - Removes repeated elements from a sorted slice. Writes the result to a destination buffer.
-- **`find_first_duplicate`** - Finds the index of the **second occurrence** of the first duplicate entry in a sorted slice. Returns the length if no duplicates exist.
+- **`deduplicate`** - Removes repeated elements from a sorted slice. Writes the result to a destination buffer. It strictly requires sorted input.
+- **`find_first_duplicate`** - Finds the index of the **second occurrence** of the first duplicate entry in a sorted slice. Returns the length if no duplicates exist. It strictly requires sorted input to function correctly, as it only checks adjacent elements for equality. Unsorted input results in partial detection.
 
 ### Roaring Bitmaps
 

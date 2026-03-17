@@ -4,6 +4,7 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
 /// Copies elements from `input` to `out`, removing consecutive duplicates.
 /// Returns the number of elements written to `out`.
+/// This function strictly requires sorted input to function correctly.
 ///
 /// This implementation uses Compress & Store with Adaptive Galloping:
 /// 1. **Galloping**: Checks if `input[i] == input[i + LANES - 1]`. Since data is sorted,
