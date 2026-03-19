@@ -9,8 +9,9 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// 1. **Galloping**: Checks if `input[i] == input[i + LANES - 1]`. Since data is sorted,
 ///    if the first and last elements of a block are equal, the entire block is identical.
 ///    We can skip it entirely or write just one element.
-/// 2. **Compress & Store**: Iterates through the mask to compress unique elements,
-///    avoiding branch misprediction on scattered duplicates.
+/// 2. **Compress & Store**: Uses a bit-manipulation loop (`to_bitmask().trailing_zeros()`
+///    and `bitmask &= bitmask - 1`) to identify and copy unique elements, which is faster
+///    and avoids branch mispredictions compared to iterating over individual SIMD lanes.
 ///
 /// # Panics
 ///

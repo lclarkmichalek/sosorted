@@ -5,6 +5,9 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// Returns the index of the second occurrence of the first duplicate pair found.
 /// If there are no duplicates, the length of the slice is returned.
 ///
+/// This implementation uses 4x loop unrolling with SIMD comparison to optimize
+/// performance.
+///
 /// # Examples
 ///
 /// ```
