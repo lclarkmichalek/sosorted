@@ -5,6 +5,10 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// Copies elements from `input` to `out`, removing consecutive duplicates.
 /// Returns the number of elements written to `out`.
 ///
+/// **Important:** The input slice *must* be sorted. If the input is not sorted,
+/// this function will only remove adjacent duplicates, and the output will not
+/// be a true set of unique elements.
+///
 /// This implementation uses Compress & Store with Adaptive Galloping:
 /// 1. **Galloping**: Checks if `input[i] == input[i + LANES - 1]`. Since data is sorted,
 ///    if the first and last elements of a block are equal, the entire block is identical.

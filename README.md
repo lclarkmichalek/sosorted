@@ -7,6 +7,8 @@
 
 This crate provides various methods for efficiently manipulating arrays of sorted data using SIMD optimizations. It supports all primitive integer types (`u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`).
 
+**Important Warning:** All operations in this library strictly require that input arrays are **pre-sorted**. The library assumes sorted input for efficiency and does not perform runtime checks. Providing unsorted inputs will lead to incorrect results, data loss, or invalid states (though it avoids memory-safety undefined behavior).
+
 ## API Design
 
 All mutable operations follow a consistent pattern: **the destination buffer is always the first argument**, followed by immutable input slices. This design:
