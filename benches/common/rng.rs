@@ -1,3 +1,9 @@
+#![allow(
+    dead_code,
+    unused_variables,
+    unused_imports,
+    clippy::manual_is_multiple_of
+)]
 //! RNG utilities and seed constants for reproducible benchmarks.
 
 use rand::{rngs::SmallRng, SeedableRng};

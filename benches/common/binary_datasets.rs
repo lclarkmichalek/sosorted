@@ -1,3 +1,9 @@
+#![allow(
+    dead_code,
+    unused_variables,
+    unused_imports,
+    clippy::manual_is_multiple_of
+)]
 //! Standard datasets for binary operation benchmarks (intersect, union, difference).
 
 use super::generators::*;

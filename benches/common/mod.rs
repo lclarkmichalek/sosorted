@@ -12,7 +12,10 @@ pub mod rng;
 pub mod unary_datasets;
 
 // Re-export commonly used items for convenience
+#[allow(dead_code, unused_imports)]
 pub use binary_datasets::{standard_binary_datasets, BinaryDataset, BinaryDatasetGroup};
 pub use generators::*;
+#[allow(unused_imports)]
 pub use rng::DEFAULT_SIZE;
+#[allow(dead_code, unused_imports)]
 pub use unary_datasets::{standard_unary_datasets, UnaryDataset, UnaryDatasetGroup};
