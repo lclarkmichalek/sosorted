@@ -1,3 +1,10 @@
+#![allow(
+    dead_code,
+    unused_imports,
+    unused_variables,
+    clippy::manual_is_multiple_of
+)]
+
 //! Common benchmark utilities: data generation and datasets.
 //!
 //! This module provides shared infrastructure for all benchmarks:
@@ -12,7 +19,11 @@ pub mod rng;
 pub mod unary_datasets;
 
 // Re-export commonly used items for convenience
+#[allow(dead_code, unused_imports, unused_variables)]
 pub use binary_datasets::{standard_binary_datasets, BinaryDataset, BinaryDatasetGroup};
+#[allow(dead_code, unused_imports, unused_variables)]
 pub use generators::*;
+#[allow(dead_code, unused_imports, unused_variables)]
 pub use rng::DEFAULT_SIZE;
+#[allow(dead_code, unused_imports, unused_variables)]
 pub use unary_datasets::{standard_unary_datasets, UnaryDataset, UnaryDatasetGroup};
