@@ -42,11 +42,13 @@ pub const SEED_DATABASE_IDS: [u8; 32] = [
 ];
 
 /// Create a seeded RNG from a seed array.
+#[allow(dead_code)]
 pub fn seeded_rng(seed: [u8; 32]) -> SmallRng {
     SmallRng::from_seed(seed)
 }
 
 /// Create an RNG with the default seed (SEED_A).
+#[allow(dead_code)]
 pub fn default_rng() -> SmallRng {
     SmallRng::from_seed(SEED_A)
 }

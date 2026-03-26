@@ -4,12 +4,14 @@ use super::generators::*;
 use super::rng::*;
 
 /// A named dataset for unary benchmarks.
+#[allow(dead_code)]
 pub struct UnaryDataset {
     pub name: &'static str,
     pub data: Vec<u64>,
 }
 
 /// A group of related datasets with a common theme.
+#[allow(dead_code)]
 pub struct UnaryDatasetGroup {
     pub name: &'static str,
     pub datasets: Vec<UnaryDataset>,

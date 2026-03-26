@@ -67,6 +67,7 @@ pub fn generate_disjoint(data: &[u64], pivot_prop: f32) -> Vec<u64> {
 }
 
 /// Add evenly spread intersections to a dataset.
+#[allow(dead_code)]
 pub fn add_spread_intersections(data: &mut [u64], source: &[u64], count: usize) {
     let stride = data.len() / count;
     for i in 0..count {
@@ -75,6 +76,7 @@ pub fn add_spread_intersections(data: &mut [u64], source: &[u64], count: usize) 
 }
 
 /// Generate a second array with a specific number of intersections with base.
+#[allow(dead_code)]
 pub fn generate_with_intersections(
     seed: [u8; 32],
     base: &[u64],
@@ -106,6 +108,7 @@ pub fn generate_with_intersections(
 
 /// Generate data with controlled duplicate density by limiting the value range.
 /// unique_ratio: fraction of values that should be unique (0.0 to 1.0)
+#[allow(dead_code)]
 pub fn generate_with_duplicate_density(seed: [u8; 32], size: usize, unique_ratio: f64) -> Vec<u64> {
     let mut rng = SmallRng::from_seed(seed);
     let max_value = (size as f64 * unique_ratio) as u64;
@@ -117,6 +120,7 @@ pub fn generate_with_duplicate_density(seed: [u8; 32], size: usize, unique_ratio
 }
 
 /// Generate data with a specified number of unique values, spread evenly.
+#[allow(dead_code)]
 pub fn generate_with_unique_count(seed: [u8; 32], size: usize, unique_count: usize) -> Vec<u64> {
     let mut rng = SmallRng::from_seed(seed);
 
@@ -245,6 +249,7 @@ pub fn generate_database_ids(seed: [u8; 32], size: usize) -> Vec<u64> {
 
     while data.len() < size {
         // 90% chance of unique ID, 10% chance of 2-5 duplicates
+        #[allow(clippy::manual_is_multiple_of)]
         if rng.next_u32() % 10 == 0 {
             let dupes = (rng.next_u32() % 4 + 2) as usize;
             for _ in 0..dupes.min(size - data.len()) {

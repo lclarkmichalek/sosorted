@@ -4,6 +4,7 @@ use super::generators::*;
 use super::rng::*;
 
 /// A named dataset pair for binary benchmarks.
+#[allow(dead_code)]
 pub struct BinaryDataset {
     pub name: &'static str,
     pub a: Vec<u64>,
@@ -11,6 +12,7 @@ pub struct BinaryDataset {
 }
 
 /// A group of related binary datasets with a common theme.
+#[allow(dead_code)]
 pub struct BinaryDatasetGroup {
     pub name: &'static str,
     pub datasets: Vec<BinaryDataset>,
@@ -28,6 +30,7 @@ pub fn standard_binary_datasets(size: usize) -> Vec<BinaryDatasetGroup> {
 /// Datasets testing different overlap/intersection densities.
 fn overlap_datasets(size: usize) -> BinaryDatasetGroup {
     let base = generate_sorted_unique(SEED_A, size);
+    #[allow(unused_variables)]
     let max_val = size as u64 * 10;
 
     // 0% overlap - completely disjoint
@@ -82,6 +85,7 @@ fn overlap_datasets(size: usize) -> BinaryDatasetGroup {
 
 /// Datasets testing asymmetric array sizes (Lemire-style).
 fn asymmetric_datasets(size: usize) -> BinaryDatasetGroup {
+    #[allow(unused_variables)]
     let max_val = size as u64 * 10;
 
     BinaryDatasetGroup {
