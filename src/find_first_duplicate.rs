@@ -2,8 +2,12 @@ use std::simd::cmp::SimdPartialEq;
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
-/// Returns the index of the second occurrence of the first duplicate pair found.
+/// Returns the index of the second occurrence of the first duplicate pair found in a sorted slice.
 /// If there are no duplicates, the length of the slice is returned.
+///
+/// Note: The input slice strictly requires sorted data to function correctly, as it only
+/// checks adjacent elements for equality. Providing an unsorted slice will result in partial
+/// detection (only adjacent duplicates will be found).
 ///
 /// # Examples
 ///

@@ -2,8 +2,8 @@ use std::simd::cmp::SimdPartialEq;
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
-/// Copies elements from `input` to `out`, removing consecutive duplicates.
-/// Returns the number of elements written to `out`.
+/// Copies elements from a sorted slice `input` to `dest`, removing consecutive duplicates.
+/// Returns the number of elements written to `dest`.
 ///
 /// This implementation uses Compress & Store with Adaptive Galloping:
 /// 1. **Galloping**: Checks if `input[i] == input[i + LANES - 1]`. Since data is sorted,
@@ -14,7 +14,7 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 ///
 /// # Panics
 ///
-/// Panics if `out` is smaller than `input`.
+/// Panics if `dest` is smaller than `input`.
 ///
 /// # Examples
 ///
@@ -22,17 +22,17 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// use sosorted::deduplicate;
 ///
 /// let input = [0u64, 1, 1, 2];
-/// let mut out = vec![0u64; input.len()];
-/// let new_length = deduplicate(&mut out, &input);
-/// assert_eq!(out[..new_length], [0, 1, 2]);
+/// let mut dest = vec![0u64; input.len()];
+/// let new_length = deduplicate(&mut dest, &input);
+/// assert_eq!(dest[..new_length], [0, 1, 2]);
 /// ```
-pub fn deduplicate<T>(out: &mut [T], input: &[T]) -> usize
+pub fn deduplicate<T>(dest: &mut [T], input: &[T]) -> usize
 where
     T: SortedSimdElement,
     T::SimdVec: SimdPartialEq<Mask = T::SimdMask>,
 {
     assert!(
-        out.len() >= input.len(),
+        dest.len() >= input.len(),
         "output slice must be at least as large as input"
     );
 
@@ -43,7 +43,7 @@ where
     let lanes = T::LANES;
 
     // Write the first element unconditionally
-    out[0] = input[0];
+    dest[0] = input[0];
     let mut write_pos = 1;
     let mut i = 1;
 
@@ -54,8 +54,8 @@ where
         if input[i] == input[i + lanes - 1] {
             // All elements in this block are the same
             // Check if it's different from the last written element
-            if input[i] != out[write_pos - 1] {
-                out[write_pos] = input[i];
+            if input[i] != dest[write_pos - 1] {
+                dest[write_pos] = input[i];
                 write_pos += 1;
             }
             i += lanes;
@@ -71,7 +71,7 @@ where
 
         // Fast path: all elements are unique
         if ne_mask.all() {
-            out[write_pos..write_pos + lanes].copy_from_slice(&input[i..i + lanes]);
+            dest[write_pos..write_pos + lanes].copy_from_slice(&input[i..i + lanes]);
             write_pos += lanes;
             i += lanes;
             continue;
@@ -80,7 +80,7 @@ where
         // Compress and store: copy only unique elements
         for lane in 0..lanes {
             if ne_mask.test(lane) {
-                out[write_pos] = input[i + lane];
+                dest[write_pos] = input[i + lane];
                 write_pos += 1;
             }
         }
@@ -89,8 +89,8 @@ where
 
     // Handle remaining elements with scalar loop
     while i < input.len() {
-        if input[i] != out[write_pos - 1] {
-            out[write_pos] = input[i];
+        if input[i] != dest[write_pos - 1] {
+            dest[write_pos] = input[i];
             write_pos += 1;
         }
         i += 1;
