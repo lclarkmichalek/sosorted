@@ -106,9 +106,10 @@ where
     let mut k = 0;
 
     while i < a.len() && j < b.len() {
+        // Explicit if/else blocks are faster than match a.cmp(&b) for compiler branch prediction
         if a[i] < b[j] {
             i += 1;
-        } else if b[j] < a[i] {
+        } else if a[i] > b[j] {
             j += 1;
         } else {
             dest[k] = a[i];
