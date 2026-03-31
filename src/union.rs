@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, simd::cmp::SimdPartialOrd};
+use std::simd::cmp::SimdPartialOrd;
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
@@ -25,24 +25,18 @@ where
     let mut last_value: Option<T> = None;
 
     while i < a.len() && j < b.len() {
-        let val = match a[i].cmp(&b[j]) {
-            Ordering::Less => {
-                let v = a[i];
-                i += 1;
-                v
-            }
-            Ordering::Greater => {
-                let v = b[j];
-                j += 1;
-                v
-            }
-            Ordering::Equal => {
-                let v = a[i];
-                i += 1;
-                j += 1;
-                v
-            }
-        };
+        let val;
+        if a[i] < b[j] {
+            val = a[i];
+            i += 1;
+        } else if a[i] > b[j] {
+            val = b[j];
+            j += 1;
+        } else {
+            val = a[i];
+            i += 1;
+            j += 1;
+        }
 
         if last_value != Some(val) {
             count += 1;
@@ -251,25 +245,18 @@ where
             if i >= a.len() || j >= b.len() {
                 break;
             }
-
-            let val = match a[i].cmp(&b[j]) {
-                Ordering::Less => {
-                    let v = a[i];
-                    i += 1;
-                    v
-                }
-                Ordering::Greater => {
-                    let v = b[j];
-                    j += 1;
-                    v
-                }
-                Ordering::Equal => {
-                    let v = a[i];
-                    i += 1;
-                    j += 1;
-                    v
-                }
-            };
+            let val;
+            if a[i] < b[j] {
+                val = a[i];
+                i += 1;
+            } else if a[i] > b[j] {
+                val = b[j];
+                j += 1;
+            } else {
+                val = a[i];
+                i += 1;
+                j += 1;
+            }
 
             if last_written != Some(val) {
                 dest[write] = val;
@@ -281,24 +268,18 @@ where
 
     // Scalar merge for remaining elements
     while i < a.len() && j < b.len() {
-        let val = match a[i].cmp(&b[j]) {
-            Ordering::Less => {
-                let v = a[i];
-                i += 1;
-                v
-            }
-            Ordering::Greater => {
-                let v = b[j];
-                j += 1;
-                v
-            }
-            Ordering::Equal => {
-                let v = a[i];
-                i += 1;
-                j += 1;
-                v
-            }
-        };
+        let val;
+        if a[i] < b[j] {
+            val = a[i];
+            i += 1;
+        } else if a[i] > b[j] {
+            val = b[j];
+            j += 1;
+        } else {
+            val = a[i];
+            i += 1;
+            j += 1;
+        }
 
         if last_written != Some(val) {
             dest[write] = val;

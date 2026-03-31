@@ -1,0 +1,3 @@
+## 2024-05-24 - [Replace match a.cmp(&b) with if/else in difference.rs and union.rs hot loops]
+**Learning:** In Rust hot loops within this codebase, replacing `match a.cmp(&b)` with explicit `if a < b { ... } else if a > b { ... } else { ... }` blocks significantly improves performance by allowing the compiler to generate more optimal branch instructions.
+**Action:** Always prefer explicit `if a < b` comparisons over `match a.cmp(&b)` in performance-critical scalar iteration loops. Remember to remove unused `std::cmp::Ordering` imports after applying this optimization to avoid clippy warnings.
