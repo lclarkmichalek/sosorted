@@ -278,7 +278,7 @@ All operations are generic via the `SortedSimdElement` trait.
 ## Common Pitfalls
 
 1. **Off-by-one errors**: SIMD comparisons shift elements, watch indices carefully
-2. **Undefined behavior**: `deduplicate` (and other mutable ops) leaves garbage past the returned length
+2. **Unmodified data**: `deduplicate` (and other mutable ops) leaves unmodified/stale data past the returned length
 3. **Sorting requirement**: All functions assume input is already sorted
 4. **Nightly features**: Code requires nightly Rust for `portable_simd`
 
