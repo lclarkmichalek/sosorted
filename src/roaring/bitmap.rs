@@ -55,7 +55,7 @@ impl Bitmap {
     /// Creates a bitmap from a sorted slice of `u32` values.
     ///
     /// This is the most efficient way to construct a bitmap if your data is already sorted.
-    /// The input must be sorted in ascending order; behavior is undefined if not sorted.
+    /// The input must be sorted in ascending order; providing unsorted inputs results in incorrect results or data loss, rather than strict undefined behavior.
     ///
     /// # Examples
     ///
