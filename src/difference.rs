@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, simd::cmp::SimdPartialOrd};
+use std::simd::cmp::SimdPartialOrd;
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
@@ -73,43 +73,12 @@ where
             if i >= a.len() || j >= b.len() {
                 break;
             }
-
-            match a[i].cmp(&b[j]) {
-                Ordering::Less => {
-                    // a[i] is not in b (at least not at current position)
-                    count += 1;
-                    i += 1;
-                }
-                Ordering::Greater => {
-                    // Haven't reached a[i] in b yet
-                    j += 1;
-                }
-                Ordering::Equal => {
-                    // a[i] is in b, skip ALL duplicates of this value in both arrays
-                    let matched_val = a[i];
-                    while i < a.len() && a[i] == matched_val {
-                        i += 1;
-                    }
-                    while j < b.len() && b[j] == matched_val {
-                        j += 1;
-                    }
-                }
-            }
-        }
-    }
-
-    // Scalar loop for remaining elements
-    while i < a.len() && j < b.len() {
-        match a[i].cmp(&b[j]) {
-            Ordering::Less => {
+            if a[i] < b[j] {
                 count += 1;
                 i += 1;
-            }
-            Ordering::Greater => {
+            } else if a[i] > b[j] {
                 j += 1;
-            }
-            Ordering::Equal => {
-                // Skip ALL duplicates of this value in both arrays
+            } else {
                 let matched_val = a[i];
                 while i < a.len() && a[i] == matched_val {
                     i += 1;
@@ -117,6 +86,24 @@ where
                 while j < b.len() && b[j] == matched_val {
                     j += 1;
                 }
+            }
+        }
+    }
+
+    // Scalar loop for remaining elements
+    while i < a.len() && j < b.len() {
+        if a[i] < b[j] {
+            count += 1;
+            i += 1;
+        } else if a[i] > b[j] {
+            j += 1;
+        } else {
+            let matched_val = a[i];
+            while i < a.len() && a[i] == matched_val {
+                i += 1;
+            }
+            while j < b.len() && b[j] == matched_val {
+                j += 1;
             }
         }
     }
@@ -238,45 +225,13 @@ where
             if i >= a.len() || j >= b.len() {
                 break;
             }
-
-            match a[i].cmp(&b[j]) {
-                Ordering::Less => {
-                    // a[i] is not in b, include it
-                    dest[write] = a[i];
-                    write += 1;
-                    i += 1;
-                }
-                Ordering::Greater => {
-                    // Haven't reached a[i] in b yet
-                    j += 1;
-                }
-                Ordering::Equal => {
-                    // a[i] is in b, skip ALL duplicates of this value in both arrays
-                    let matched_val = a[i];
-                    while i < a.len() && a[i] == matched_val {
-                        i += 1;
-                    }
-                    while j < b.len() && b[j] == matched_val {
-                        j += 1;
-                    }
-                }
-            }
-        }
-    }
-
-    // Scalar loop for remaining elements
-    while i < a.len() && j < b.len() {
-        match a[i].cmp(&b[j]) {
-            Ordering::Less => {
+            if a[i] < b[j] {
                 dest[write] = a[i];
                 write += 1;
                 i += 1;
-            }
-            Ordering::Greater => {
+            } else if a[i] > b[j] {
                 j += 1;
-            }
-            Ordering::Equal => {
-                // Skip ALL duplicates of this value in both arrays
+            } else {
                 let matched_val = a[i];
                 while i < a.len() && a[i] == matched_val {
                     i += 1;
@@ -284,6 +239,25 @@ where
                 while j < b.len() && b[j] == matched_val {
                     j += 1;
                 }
+            }
+        }
+    }
+
+    // Scalar loop for remaining elements
+    while i < a.len() && j < b.len() {
+        if a[i] < b[j] {
+            dest[write] = a[i];
+            write += 1;
+            i += 1;
+        } else if a[i] > b[j] {
+            j += 1;
+        } else {
+            let matched_val = a[i];
+            while i < a.len() && a[i] == matched_val {
+                i += 1;
+            }
+            while j < b.len() && b[j] == matched_val {
+                j += 1;
             }
         }
     }
@@ -302,6 +276,7 @@ where
 mod tests {
     use super::*;
     use rand::{rngs::SmallRng, RngCore, SeedableRng};
+    use std::cmp::Ordering;
 
     // ==================== difference_size tests ====================
 
