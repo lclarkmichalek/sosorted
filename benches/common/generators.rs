@@ -6,7 +6,7 @@ use std::ops::Range;
 /// Generate a sorted array of unique random u64 values.
 pub fn generate_sorted_unique(seed: [u8; 32], size: usize) -> Vec<u64> {
     let mut rng = SmallRng::from_seed(seed);
-    let mut data: Vec<u64> = (0..size).map(|_| rng.next_u64()).collect();
+    let mut data: Vec<u64> = (0..size).map(|_| (rng.next_u64() >> 2)).collect();
     data.sort();
     data
 }
@@ -14,7 +14,7 @@ pub fn generate_sorted_unique(seed: [u8; 32], size: usize) -> Vec<u64> {
 /// Generate a sorted array of unique random values within a bounded range.
 pub fn generate_sorted_unique_bounded(seed: [u8; 32], size: usize, max_val: u64) -> Vec<u64> {
     let mut rng = SmallRng::from_seed(seed);
-    let mut data: Vec<u64> = (0..size * 2).map(|_| rng.next_u64() % max_val).collect();
+    let mut data: Vec<u64> = (0..size * 2).map(|_| (rng.next_u64() >> 2) % max_val).collect();
     data.sort();
     data.dedup();
     data.truncate(size);
@@ -46,7 +46,7 @@ pub fn generate_disjoint(data: &[u64], pivot_prop: f32) -> Vec<u64> {
     let pivot_val = data[pivot_ix];
 
     for (d, &val_a) in disjoint.iter_mut().take(pivot_ix).zip(data.iter()) {
-        let val = (val_a + pivot_val) / 2;
+        let val = val_a / 2 + pivot_val / 2 + (val_a % 2 + pivot_val % 2) / 2;
         if data.binary_search(&val).is_ok() {
             panic!("could not make disjoint dataset");
         }
@@ -57,7 +57,7 @@ pub fn generate_disjoint(data: &[u64], pivot_prop: f32) -> Vec<u64> {
         .skip(pivot_ix)
         .zip(data.iter().skip(pivot_ix))
     {
-        let val = val_a + (val_a + pivot_val) / 2;
+        let val = val_a.saturating_add(val_a / 2 + pivot_val / 2 + (val_a % 2 + pivot_val % 2) / 2);
         if data.binary_search(&val).is_ok() {
             panic!("could not make disjoint dataset");
         }
@@ -92,7 +92,7 @@ pub fn generate_with_intersections(
 
     // Add random non-intersecting elements
     while result.len() < size {
-        let val = rng.next_u64() % max_val;
+        let val = (rng.next_u64() >> 2) % max_val;
         if base.binary_search(&val).is_err() {
             result.push(val);
         }
@@ -110,7 +110,7 @@ pub fn generate_with_duplicate_density(seed: [u8; 32], size: usize, unique_ratio
     let mut rng = SmallRng::from_seed(seed);
     let max_value = (size as f64 * unique_ratio) as u64;
     let mut data: Vec<u64> = (0..size)
-        .map(|_| rng.next_u64() % max_value.max(1))
+        .map(|_| (rng.next_u64() >> 2) % max_value.max(1))
         .collect();
     data.sort();
     data
@@ -121,7 +121,7 @@ pub fn generate_with_unique_count(seed: [u8; 32], size: usize, unique_count: usi
     let mut rng = SmallRng::from_seed(seed);
 
     // Generate unique values
-    let mut unique_vals: Vec<u64> = (0..unique_count * 2).map(|_| rng.next_u64()).collect();
+    let mut unique_vals: Vec<u64> = (0..unique_count * 2).map(|_| (rng.next_u64() >> 2)).collect();
     unique_vals.sort();
     unique_vals.dedup();
     unique_vals.truncate(unique_count.max(1));
@@ -148,7 +148,7 @@ pub fn generate_with_run_length(seed: [u8; 32], size: usize, avg_run_length: usi
     let mut rng = SmallRng::from_seed(seed);
 
     let unique_count = size / avg_run_length.max(1);
-    let mut unique_vals: Vec<u64> = (0..unique_count * 2).map(|_| rng.next_u64()).collect();
+    let mut unique_vals: Vec<u64> = (0..unique_count * 2).map(|_| (rng.next_u64() >> 2)).collect();
     unique_vals.sort();
     unique_vals.dedup();
     unique_vals.truncate(unique_count.max(1));
@@ -158,7 +158,7 @@ pub fn generate_with_run_length(seed: [u8; 32], size: usize, avg_run_length: usi
     while result.len() < size {
         let val = unique_vals[idx % unique_vals.len()];
         // Vary run length around the average
-        let run_len = (avg_run_length as i64 + (rng.next_u64() % 3) as i64 - 1).max(1) as usize;
+        let run_len = (avg_run_length as i64 + ((rng.next_u64() >> 2) % 3) as i64 - 1).max(1) as usize;
         for _ in 0..run_len {
             if result.len() < size {
                 result.push(val);
@@ -177,7 +177,7 @@ pub fn generate_zipf(seed: [u8; 32], size: usize) -> Vec<u64> {
 
     let mut data: Vec<u64> = (0..size)
         .map(|_| {
-            let r = rng.next_u64() as f64 / u64::MAX as f64;
+            let r = (rng.next_u64() >> 2) as f64 / u64::MAX as f64;
             let value = (1.0 / (1.0 - r * 0.99)).powf(1.5) as u64;
             value.min(1_000_000)
         })
@@ -212,7 +212,7 @@ pub fn generate_small_runs(seed: [u8; 32], size: usize) -> Vec<u64> {
 pub fn generate_clustered(seed: [u8; 32], size: usize) -> Vec<u64> {
     let mut rng = SmallRng::from_seed(seed);
 
-    let mut data: Vec<u64> = (0..size).map(|_| rng.next_u64()).collect();
+    let mut data: Vec<u64> = (0..size).map(|_| (rng.next_u64() >> 2)).collect();
     data.sort();
 
     // Add clusters of duplicates at random positions
