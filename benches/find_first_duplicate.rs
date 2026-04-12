@@ -26,7 +26,7 @@ fn main() {
     let port: u16 = std::env::var("CH_PORT")
         .ok()
         .and_then(|s| s.parse().ok())
-        .unwrap_or(9100);
+        .unwrap_or(9102);
 
     // Pre-generate datasets (do this once, not per iteration)
     let all_unique = generate_sorted_unique(SEED_A, DEFAULT_SIZE);

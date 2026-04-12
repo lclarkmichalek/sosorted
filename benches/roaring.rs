@@ -50,7 +50,7 @@ fn main() {
     let port: u16 = std::env::var("CH_PORT")
         .ok()
         .and_then(|s| s.parse().ok())
-        .unwrap_or(9100);
+        .unwrap_or(9104);
 
     // Pre-generate datasets
     let sparse_10k = generate_sparse(10000, 42);
