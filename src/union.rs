@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, simd::cmp::SimdPartialOrd};
+use std::simd::cmp::SimdPartialOrd;
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
@@ -15,6 +15,7 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// let b = [2u64, 3, 4];
 /// assert_eq!(union_size(&a, &b), 5); // [1, 2, 3, 4, 5]
 /// ```
+// Optimization: Explicit if/else instead of match cmp() avoids Ordering enum construction overhead in hot loops.
 pub fn union_size<T>(a: &[T], b: &[T]) -> usize
 where
     T: SortedSimdElement + Ord,
@@ -25,23 +26,19 @@ where
     let mut last_value: Option<T> = None;
 
     while i < a.len() && j < b.len() {
-        let val = match a[i].cmp(&b[j]) {
-            Ordering::Less => {
-                let v = a[i];
-                i += 1;
-                v
-            }
-            Ordering::Greater => {
-                let v = b[j];
-                j += 1;
-                v
-            }
-            Ordering::Equal => {
-                let v = a[i];
-                i += 1;
-                j += 1;
-                v
-            }
+        let val = if a[i] < b[j] {
+            let v = a[i];
+            i += 1;
+            v
+        } else if a[i] > b[j] {
+            let v = b[j];
+            j += 1;
+            v
+        } else {
+            let v = a[i];
+            i += 1;
+            j += 1;
+            v
         };
 
         if last_value != Some(val) {
@@ -252,23 +249,19 @@ where
                 break;
             }
 
-            let val = match a[i].cmp(&b[j]) {
-                Ordering::Less => {
-                    let v = a[i];
-                    i += 1;
-                    v
-                }
-                Ordering::Greater => {
-                    let v = b[j];
-                    j += 1;
-                    v
-                }
-                Ordering::Equal => {
-                    let v = a[i];
-                    i += 1;
-                    j += 1;
-                    v
-                }
+            let val = if a[i] < b[j] {
+                let v = a[i];
+                i += 1;
+                v
+            } else if a[i] > b[j] {
+                let v = b[j];
+                j += 1;
+                v
+            } else {
+                let v = a[i];
+                i += 1;
+                j += 1;
+                v
             };
 
             if last_written != Some(val) {
@@ -281,23 +274,19 @@ where
 
     // Scalar merge for remaining elements
     while i < a.len() && j < b.len() {
-        let val = match a[i].cmp(&b[j]) {
-            Ordering::Less => {
-                let v = a[i];
-                i += 1;
-                v
-            }
-            Ordering::Greater => {
-                let v = b[j];
-                j += 1;
-                v
-            }
-            Ordering::Equal => {
-                let v = a[i];
-                i += 1;
-                j += 1;
-                v
-            }
+        let val = if a[i] < b[j] {
+            let v = a[i];
+            i += 1;
+            v
+        } else if a[i] > b[j] {
+            let v = b[j];
+            j += 1;
+            v
+        } else {
+            let v = a[i];
+            i += 1;
+            j += 1;
+            v
         };
 
         if last_written != Some(val) {
