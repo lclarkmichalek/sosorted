@@ -46,7 +46,7 @@ fn main() {
     let port: u16 = std::env::var("CH_PORT")
         .ok()
         .and_then(|s| s.parse().ok())
-        .unwrap_or(9101);
+        .unwrap_or(9100);
 
     let size = DEFAULT_SIZE;
     let base = generate_sorted_unique(SEED_A, size);
