@@ -5,7 +5,6 @@
 
 use criterion_hypothesis_harness::{run_harness, BenchmarkRegistry};
 use sosorted::{difference, difference_size};
-use std::cmp::Ordering;
 use std::hint::black_box;
 use std::time::Instant;
 
@@ -23,18 +22,14 @@ fn naive_difference(a: &[u64], b: &[u64]) -> Vec<u64> {
     let mut j = 0;
 
     while i < a.len() && j < b.len() {
-        match a[i].cmp(&b[j]) {
-            Ordering::Less => {
-                result.push(a[i]);
-                i += 1;
-            }
-            Ordering::Greater => {
-                j += 1;
-            }
-            Ordering::Equal => {
-                i += 1;
-                j += 1;
-            }
+        if a[i] < b[j] {
+            result.push(a[i]);
+            i += 1;
+        } else if a[i] > b[j] {
+            j += 1;
+        } else {
+            i += 1;
+            j += 1;
         }
     }
 

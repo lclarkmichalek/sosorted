@@ -5,7 +5,6 @@
 
 use criterion_hypothesis_harness::{run_harness, BenchmarkRegistry};
 use sosorted::intersect;
-use std::cmp::Ordering;
 use std::hint::black_box;
 use std::time::Instant;
 
@@ -23,15 +22,15 @@ fn naive_intersect(dest: &mut [u64], a: &[u64], b: &[u64]) -> usize {
     let mut count = 0;
 
     while i < a.len() && j < b.len() {
-        match a[i].cmp(&b[j]) {
-            Ordering::Less => i += 1,
-            Ordering::Greater => j += 1,
-            Ordering::Equal => {
-                dest[count] = a[i];
-                i += 1;
-                j += 1;
-                count += 1;
-            }
+        if a[i] < b[j] {
+            i += 1;
+        } else if a[i] > b[j] {
+            j += 1;
+        } else {
+            dest[count] = a[i];
+            i += 1;
+            j += 1;
+            count += 1;
         }
     }
     count
