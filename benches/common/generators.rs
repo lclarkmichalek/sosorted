@@ -1,4 +1,9 @@
-#![allow(dead_code, unused_imports, unused_variables, clippy::manual_is_multiple_of)]
+#![allow(
+    dead_code,
+    unused_imports,
+    unused_variables,
+    clippy::manual_is_multiple_of
+)]
 //! Core data generation functions for benchmarks.
 
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
