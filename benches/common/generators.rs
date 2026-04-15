@@ -1,3 +1,4 @@
+#![allow(dead_code, unused_imports, unused_variables, clippy::manual_is_multiple_of)]
 //! Core data generation functions for benchmarks.
 
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
@@ -245,7 +246,7 @@ pub fn generate_database_ids(seed: [u8; 32], size: usize) -> Vec<u64> {
 
     while data.len() < size {
         // 90% chance of unique ID, 10% chance of 2-5 duplicates
-        if rng.next_u32() % 10 == 0 {
+        if rng.next_u32().is_multiple_of(10) {
             let dupes = (rng.next_u32() % 4 + 2) as usize;
             for _ in 0..dupes.min(size - data.len()) {
                 data.push(current_id);
