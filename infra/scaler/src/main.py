@@ -17,6 +17,8 @@ ZONE = os.environ["GCP_ZONE"]
 INSTANCE_GROUP = os.environ["INSTANCE_GROUP_NAME"]
 GITHUB_REPO = os.environ["GITHUB_REPO"]
 RUNNER_LABELS = os.environ.get("RUNNER_LABELS", "self-hosted,benchmark").split(",")
+MIN_INSTANCES = int(os.environ.get("MIN_INSTANCES", "0"))
+MAX_INSTANCES = int(os.environ.get("MAX_INSTANCES", "1"))
 
 
 def get_github_pat() -> str:
@@ -101,9 +103,8 @@ def scale_runner(request):
     """
     HTTP Cloud Function to scale runner instances.
 
-    Checks GitHub for jobs needing self-hosted runners and scales the instance group:
-    - Scale up to 1 if jobs are pending and no instances running
-    - Scale down to 0 if no jobs are pending and instances are running
+    Checks GitHub for jobs needing self-hosted runners and scales the instance group
+    to one ephemeral VM per matching job, capped by the configured min/max bounds.
     """
     try:
         pat = get_github_pat()
@@ -111,17 +112,22 @@ def scale_runner(request):
         current_size = get_instance_group_size()
 
         job_count = len(pending_jobs)
+        desired_size = max(MIN_INSTANCES, min(job_count, MAX_INSTANCES))
 
-        if pending_jobs and current_size == 0:
-            resize_instance_group(1)
+        if desired_size != current_size:
+            resize_instance_group(desired_size)
             job_names = [j["name"] for j in pending_jobs[:3]]
-            return f"Scaled up: {job_count} self-hosted job(s) pending: {job_names}", 200
+            return (
+                f"Resized runner group from {current_size} to {desired_size}: "
+                f"{job_count} self-hosted job(s) pending/in-progress: {job_names}",
+                200,
+            )
 
-        if not pending_jobs and current_size > 0:
-            resize_instance_group(0)
-            return "Scaled down: no self-hosted jobs pending", 200
-
-        return f"No action: {job_count} self-hosted job(s), {current_size} instance(s)", 200
+        return (
+            f"No action: {job_count} self-hosted job(s), {current_size} instance(s), "
+            f"desired size {desired_size}",
+            200,
+        )
 
     except Exception as e:
         return f"Error: {e}", 500

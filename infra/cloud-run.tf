@@ -5,6 +5,10 @@ data "archive_file" "scaler_source" {
   output_path = "${path.module}/scaler-source.zip"
 }
 
+locals {
+  scaler_service_url = "https://${google_cloudfunctions2_function.scaler.name}-${data.google_project.current.number}.${var.region}.run.app"
+}
+
 # GCS bucket for function source
 resource "google_storage_bucket" "function_source" {
   name     = "${var.gcp_project}-function-source"
@@ -58,6 +62,8 @@ resource "google_cloudfunctions2_function" "scaler" {
       GCP_ZONE            = var.zone
       INSTANCE_GROUP_NAME = google_compute_instance_group_manager.runner.name
       GITHUB_REPO         = var.github_repo
+      MIN_INSTANCES       = "0"
+      MAX_INSTANCES       = tostring(var.max_instances)
       RUNNER_LABELS       = "self-hosted,benchmark"
     }
 

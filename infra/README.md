@@ -13,7 +13,7 @@ This directory contains Terraform configuration for managing self-hosted GitHub 
 
 ### Design Principles
 
-- **Ephemeral Runners**: Each runner handles one job then shuts down (prevents state contamination)
+- **Ephemeral Runners**: Each runner handles exactly one job, then shuts down (prevents state contamination)
 - **SPOT Instances**: Uses preemptible VMs for ~80% cost savings
 - **Security**: Restrictive firewall rules (no SSH access, egress-only HTTPS/HTTP)
 - **Performance Consistency**: CPU pinning, frequency scaling disabled, warmup compiles
@@ -107,8 +107,8 @@ The autoscaler monitors the GitHub Actions job queue and scales the instance gro
 1. **Cloud Scheduler** triggers the scaler every 5 minutes
 2. **Scaler queries** GitHub API for queued jobs with labels `self-hosted` + `benchmark`
 3. **Scaling logic**:
-   - 0 queued jobs → scale to min (0)
-   - N queued jobs → scale to N (capped at max = 5)
+   - 0 matching jobs → scale to min (0)
+   - N queued/in-progress matching jobs → scale to N ephemeral VMs (capped at max = 5)
    - Respects 15-minute cooldown between scale actions
 4. **Instance group** adjusts size by creating/destroying VMs
 
@@ -134,7 +134,7 @@ The queue-based scaler is deployed and running:
 
 - **Cloud Function**: `github-runner-scaler` (us-central1)
 - **Cloud Scheduler**: Triggers every 5 minutes
-- **Scaling Logic**: Scales runners to match queued jobs (0-5 instances)
+- **Scaling Logic**: Scales runners to one VM per matching GitHub Actions job (0-5 instances)
 - **Cooldown**: 15 minutes between scale actions
 
 #### Monitoring the Scaler
