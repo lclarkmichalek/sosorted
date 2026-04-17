@@ -80,6 +80,40 @@ def get_pending_self_hosted_jobs(pat: str) -> list:
     return pending_jobs
 
 
+def get_busy_matching_runners(pat: str) -> list:
+    """Get busy self-hosted runners that match our benchmark label set."""
+    headers = {
+        "Authorization": f"token {pat}",
+        "Accept": "application/vnd.github.v3+json",
+    }
+
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/actions/runners"
+    params = {"per_page": 100}
+
+    response = requests.get(url, headers=headers, params=params, timeout=30)
+    response.raise_for_status()
+
+    runners = response.json().get("runners", [])
+    busy_runners = []
+
+    for runner in runners:
+        if not runner.get("busy"):
+            continue
+
+        runner_labels = [label.get("name") for label in runner.get("labels", [])]
+        if all(label in runner_labels for label in RUNNER_LABELS):
+            busy_runners.append(
+                {
+                    "id": runner.get("id"),
+                    "name": runner.get("name"),
+                    "status": runner.get("status"),
+                    "labels": runner_labels,
+                }
+            )
+
+    return busy_runners
+
+
 def get_instance_group_size() -> int:
     """Get current target size of the instance group."""
     client = compute_v1.InstanceGroupManagersClient()
@@ -109,23 +143,28 @@ def scale_runner(request):
     try:
         pat = get_github_pat()
         pending_jobs = get_pending_self_hosted_jobs(pat)
+        busy_runners = get_busy_matching_runners(pat)
         current_size = get_instance_group_size()
 
         job_count = len(pending_jobs)
-        desired_size = max(MIN_INSTANCES, min(job_count, MAX_INSTANCES))
+        busy_runner_count = len(busy_runners)
+        desired_size = max(MIN_INSTANCES, min(max(job_count, busy_runner_count), MAX_INSTANCES))
 
         if desired_size != current_size:
             resize_instance_group(desired_size)
             job_names = [j["name"] for j in pending_jobs[:3]]
+            busy_runner_names = [r["name"] for r in busy_runners[:3]]
             return (
                 f"Resized runner group from {current_size} to {desired_size}: "
-                f"{job_count} self-hosted job(s) pending/in-progress: {job_names}",
+                f"{job_count} self-hosted job(s) pending/in-progress: {job_names}; "
+                f"{busy_runner_count} matching busy runner(s): {busy_runner_names}",
                 200,
             )
 
         return (
-            f"No action: {job_count} self-hosted job(s), {current_size} instance(s), "
-            f"desired size {desired_size}",
+            f"No action: {job_count} self-hosted job(s), "
+            f"{busy_runner_count} matching busy runner(s), "
+            f"{current_size} instance(s), desired size {desired_size}",
             200,
         )
 
