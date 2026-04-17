@@ -17,7 +17,7 @@ bench = false
 
 [dev-dependencies]
 rand = { version = "0.9.2", features = ["small_rng"] }
-criterion-hypothesis-harness = "0.2.0"
+criterion-hypothesis-harness = { git = "https://github.com/lclarkmichalek/criterion-hypothesis.git", branch = "iter-custom-harness-api" }
 
 [[bench]]
 name = "find_first_duplicate"

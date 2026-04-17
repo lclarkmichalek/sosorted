@@ -52,7 +52,12 @@ jobs:
 
       - name: Install criterion-hypothesis
         if: steps.changes.outputs.skip_benchmarks != 'true'
-        run: cargo install criterion-hypothesis@0.2.0
+        run: |
+          cargo install \
+            --git https://github.com/lclarkmichalek/criterion-hypothesis.git \
+            --branch iter-custom-harness-api \
+            --locked \
+            criterion-hypothesis
 
       - name: Debug - Build benchmarks manually
         if: steps.changes.outputs.skip_benchmarks != 'true'
