@@ -14,7 +14,7 @@ All mutable operations follow a consistent pattern: **the destination buffer is 
 - Ensures all input data remains immutable
 - Allows callers to control memory allocation
 
-```rust,ignore
+```rust
 // All mutable APIs follow: (dest, inputs...) -> result_length
 let len = intersect(&mut dest, &a, &b);
 let len = union(&mut dest, &a, &b);
