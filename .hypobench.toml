@@ -1,5 +1,5 @@
-# criterion-hypothesis configuration for sosorted
-# See https://github.com/lclarkmichalek/criterion-hypothesis for documentation
+# hypobench configuration for sosorted
+# See https://github.com/lclarkmichalek/hypobench for documentation
 
 [hypothesis]
 confidence_level = 0.95      # Statistical confidence level (95%)

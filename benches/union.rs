@@ -1,9 +1,9 @@
 //! Criterion-hypothesis harness for union benchmarks.
 //!
 //! This harness exposes union benchmarks via HTTP for
-//! criterion-hypothesis orchestration.
+//! hypobench orchestration.
 
-use criterion_hypothesis_harness::{run_harness, BenchmarkRegistry};
+use hypobench_harness::{run_harness, BenchmarkRegistry};
 use sosorted::{union, union_size};
 use std::cmp::Ordering;
 use std::hint::black_box;
@@ -46,7 +46,7 @@ fn naive_union(a: &[u64], b: &[u64]) -> Vec<u64> {
 }
 
 fn main() {
-    let port: u16 = std::env::var("CH_PORT")
+    let port: u16 = std::env::var("HYPOBENCH_PORT")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(9100);

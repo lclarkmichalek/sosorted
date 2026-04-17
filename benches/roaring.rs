@@ -1,9 +1,9 @@
 //! Criterion-hypothesis harness for roaring bitmap benchmarks.
 //!
 //! This harness exposes roaring bitmap benchmarks via HTTP for
-//! criterion-hypothesis orchestration.
+//! hypobench orchestration.
 
-use criterion_hypothesis_harness::{run_harness, BenchmarkRegistry};
+use hypobench_harness::{run_harness, BenchmarkRegistry};
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
 use sosorted::Bitmap;
@@ -47,7 +47,7 @@ fn generate_mixed(count: usize, seed: u64) -> Vec<u32> {
 }
 
 fn main() {
-    let port: u16 = std::env::var("CH_PORT")
+    let port: u16 = std::env::var("HYPOBENCH_PORT")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(9100);

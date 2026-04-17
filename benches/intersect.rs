@@ -1,9 +1,9 @@
 //! Criterion-hypothesis harness for intersect benchmarks.
 //!
 //! This harness exposes intersect benchmarks via HTTP for
-//! criterion-hypothesis orchestration.
+//! hypobench orchestration.
 
-use criterion_hypothesis_harness::{run_harness, BenchmarkRegistry};
+use hypobench_harness::{run_harness, BenchmarkRegistry};
 use sosorted::intersect;
 use std::cmp::Ordering;
 use std::hint::black_box;
@@ -38,7 +38,7 @@ fn naive_intersect(dest: &mut [u64], a: &[u64], b: &[u64]) -> usize {
 }
 
 fn main() {
-    let port: u16 = std::env::var("CH_PORT")
+    let port: u16 = std::env::var("HYPOBENCH_PORT")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(9100);

@@ -9,7 +9,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  criterion-hypothesis:
+  hypobench:
     name: Run Benchmarks
     runs-on: [self-hosted, benchmark]
     if: github.event_name == 'pull_request'
@@ -50,9 +50,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y pkg-config libssl-dev
 
-      - name: Install criterion-hypothesis
+      - name: Install hypobench
         if: steps.changes.outputs.skip_benchmarks != 'true'
-        run: cargo install criterion-hypothesis@0.3.0
+        run: cargo install hypobench@0.3.0
 
       - name: Debug - Build benchmarks manually
         if: steps.changes.outputs.skip_benchmarks != 'true'
@@ -82,10 +82,10 @@ jobs:
           retry_on: error
           command: |
             set +e  # Don't exit on error
-            criterion-hypothesis \
+            hypobench \
               --baseline ${{ github.event.pull_request.base.sha }} \
               --candidate ${{ github.event.pull_request.head.sha }} \
-              --config .criterion-hypothesis.toml \
+              --config .hypobench.toml \
               2>&1 | tee benchmark-output.txt
             EXIT_CODE=${PIPESTATUS[0]}
             echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
@@ -177,7 +177,7 @@ jobs:
 
             </details>
 
-            <sub>Run via criterion-hypothesis on self-hosted GCP runner with Rust nightly-2026-01-05</sub>
+            <sub>Run via hypobench on self-hosted GCP runner with Rust nightly-2026-01-05</sub>
           edit-mode: replace
 
       - name: Post comment (skipped)
