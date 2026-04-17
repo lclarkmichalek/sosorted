@@ -20,10 +20,23 @@ jobs:
         with:
           fetch-depth: 0  # Need full history for git ref comparison
 
+      - name: Resolve base tip
+        id: base
+        run: |
+          # `github.event.pull_request.base.sha` is the merge-base snapshot at
+          # PR divergence, not the current tip of the base branch. Resolve the
+          # live tip at workflow runtime so the diff and baseline build reflect
+          # the branch as it exists now (robust to unrebased stale PRs).
+          BASE_REF="${{ github.event.pull_request.base.ref }}"
+          SHA=$(git rev-parse "origin/${BASE_REF}")
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "ref=${BASE_REF}" >> "$GITHUB_OUTPUT"
+          echo "Resolved ${BASE_REF} tip: ${SHA}"
+
       - name: Detect changed files
         id: changes
         run: |
-          BASE="${{ github.event.pull_request.base.sha }}"
+          BASE="${{ steps.base.outputs.sha }}"
           CHANGED=$(git diff --name-only $BASE HEAD)
           echo "Changed files:"
           echo "$CHANGED"
@@ -66,7 +79,7 @@ jobs:
             cargo bench --no-run
 
             echo "Building Baseline benchmarks..."
-            git checkout ${{ github.event.pull_request.base.sha }}
+            git checkout ${{ steps.base.outputs.sha }}
             cargo bench --no-run
 
             # Restore HEAD
@@ -83,7 +96,7 @@ jobs:
           command: |
             set +e  # Don't exit on error
             hypobench \
-              --baseline ${{ github.event.pull_request.base.sha }} \
+              --baseline ${{ steps.base.outputs.sha }} \
               --candidate ${{ github.event.pull_request.head.sha }} \
               --config .hypobench.toml \
               2>&1 | tee benchmark-output.txt
@@ -116,7 +129,7 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Configuration" >> $GITHUB_STEP_SUMMARY
-          echo "- **Baseline:** \`${{ github.event.pull_request.base.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Baseline:** \`${{ steps.base.outputs.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Candidate:** \`${{ github.event.pull_request.head.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Sample size:** 50" >> $GITHUB_STEP_SUMMARY
           echo "- **Significance level:** 0.05" >> $GITHUB_STEP_SUMMARY
@@ -168,7 +181,7 @@ jobs:
 
             | Baseline | Candidate |
             |----------|-----------|
-            | `${{ github.event.pull_request.base.sha }}` | `${{ github.event.pull_request.head.sha }}` |
+            | `${{ steps.base.outputs.sha }}` | `${{ github.event.pull_request.head.sha }}` |
 
             <details>
             <summary>Statistical Testing Parameters</summary>
