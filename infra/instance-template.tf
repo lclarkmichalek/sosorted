@@ -28,7 +28,7 @@ resource "google_compute_instance_template" "runner" {
   # See cache-disk.tf for the disk resource itself and scripts/startup.sh
   # for the mount logic.
   disk {
-    source      = google_compute_disk.bench_cache.self_link
+    source      = google_compute_region_disk.bench_cache.self_link
     device_name = "bench-cache"
     auto_delete = false
     boot        = false
