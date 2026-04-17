@@ -24,6 +24,10 @@ chmod 440 /etc/sudoers.d/runner
 # and matches the `device_name` on the attached_disk in instance-template.tf.
 CACHE_DEV=/dev/disk/by-id/google-bench-cache
 CACHE_MNT=/cache
+# Weekly rotation: wipe the cache if the last-init marker is older than this.
+# Prevents stale configs / accumulated target bloat / dependency drift from
+# living forever. One slow cold-build per week is an acceptable trade.
+CACHE_MAX_AGE_DAYS=7
 if [ -e "$CACHE_DEV" ]; then
   echo "Setting up cache disk at $CACHE_DEV..."
   if ! blkid "$CACHE_DEV" >/dev/null 2>&1; then
@@ -32,7 +36,23 @@ if [ -e "$CACHE_DEV" ]; then
   fi
   mkdir -p "$CACHE_MNT"
   mount -o discard,defaults "$CACHE_DEV" "$CACHE_MNT"
-  mkdir -p "$CACHE_MNT/cargo" "$CACHE_MNT/rustup" "$CACHE_MNT/target"
+
+  # Age-based wipe. The marker file's mtime is the time of the last fresh
+  # init; if it's older than $CACHE_MAX_AGE_DAYS we nuke the contents and
+  # reinitialize. Uses `find -mtime +N` which matches files whose mtime is
+  # strictly more than N*24h ago.
+  AGE_MARKER="$CACHE_MNT/.cache-initialized"
+  if [ -f "$AGE_MARKER" ] \
+     && [ -n "$(find "$AGE_MARKER" -mtime +"$CACHE_MAX_AGE_DAYS" -print 2>/dev/null)" ]; then
+    echo "Cache marker is older than $CACHE_MAX_AGE_DAYS days; wiping cache..."
+    find "$CACHE_MNT" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+  fi
+  if [ ! -f "$AGE_MARKER" ]; then
+    echo "Initializing cache disk..."
+    touch "$AGE_MARKER"
+  fi
+
+  mkdir -p "$CACHE_MNT/cargo" "$CACHE_MNT/rustup"
   chown -R runner:runner "$CACHE_MNT"
 
   # Point the runner user's cargo and rustup at the persistent cache.
