@@ -143,7 +143,7 @@ where
 /// * `b` - Second sorted array (elements to exclude)
 ///
 /// # Returns
-/// The number of elements in the difference
+/// The number of elements in the difference. Elements past this length contain unmodified data.
 ///
 /// # Panics
 /// Panics if `dest.len() < a.len()` (insufficient capacity for worst case).

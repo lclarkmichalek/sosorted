@@ -30,7 +30,7 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// * `b` - Second sorted array (immutable)
 ///
 /// # Returns
-/// The number of elements in the intersection
+/// The number of elements in the intersection. Elements past this length contain unmodified data.
 ///
 /// # Panics
 /// Panics if `dest.len() < min(a.len(), b.len())` (insufficient capacity for worst case).
