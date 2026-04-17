@@ -57,7 +57,7 @@ jobs:
         run: |
           cargo install \
             --git https://github.com/lclarkmichalek/criterion-hypothesis.git \
-            --rev 474b3d25fc1958bca0e0d6abe65bcfa09af73cb1 \
+            --rev e476015d648752c0b144a8e745738a03329827b9 \
             --locked \
             criterion-hypothesis
 
