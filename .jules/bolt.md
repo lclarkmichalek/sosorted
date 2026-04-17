@@ -1,0 +1,3 @@
+## 2026-04-17 - match cmp() vs explicit if/else
+**Learning:** Replaced `match a[i].cmp(&b[j])` with explicit `if a[i] < b[j] else if a[i] > b[j] else` logic in `src/union.rs` and `src/difference.rs`. While it avoids the `Ordering` enum construction overhead, it actually causes benchmark regressions in this specific codebase's architecture and compiler environment. The compiler seems to optimize `match cmp()` better for these specific hot loops compared to explicitly separated branch conditions.
+**Action:** Do not attempt to replace `match cmp()` with explicit `if/else` in this codebase, as `match cmp()` is measurably faster despite the enum overhead.
