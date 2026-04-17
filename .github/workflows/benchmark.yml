@@ -9,7 +9,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  criterion-hypothesis:
+  hypobench:
     name: Run Benchmarks
     runs-on: [self-hosted, benchmark]
     if: github.event_name == 'pull_request'
@@ -20,10 +20,23 @@ jobs:
         with:
           fetch-depth: 0  # Need full history for git ref comparison
 
+      - name: Resolve base tip
+        id: base
+        run: |
+          # `github.event.pull_request.base.sha` is the merge-base snapshot at
+          # PR divergence, not the current tip of the base branch. Resolve the
+          # live tip at workflow runtime so the diff and baseline build reflect
+          # the branch as it exists now (robust to unrebased stale PRs).
+          BASE_REF="${{ github.event.pull_request.base.ref }}"
+          SHA=$(git rev-parse "origin/${BASE_REF}")
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "ref=${BASE_REF}" >> "$GITHUB_OUTPUT"
+          echo "Resolved ${BASE_REF} tip: ${SHA}"
+
       - name: Detect changed files
         id: changes
         run: |
-          BASE="${{ github.event.pull_request.base.sha }}"
+          BASE="${{ steps.base.outputs.sha }}"
           CHANGED=$(git diff --name-only $BASE HEAD)
           echo "Changed files:"
           echo "$CHANGED"
@@ -50,43 +63,62 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y pkg-config libssl-dev
 
-      - name: Install criterion-hypothesis
+      - name: Install hypobench
         if: steps.changes.outputs.skip_benchmarks != 'true'
-        run: cargo install criterion-hypothesis@0.2.0
+        run: cargo install hypobench@0.4.0
 
       - name: Debug - Build benchmarks manually
         if: steps.changes.outputs.skip_benchmarks != 'true'
-        run: |
-          echo "Building HEAD benchmarks..."
-          cargo bench --no-run
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 30
+          max_attempts: 2
+          retry_on: error
+          command: |
+            echo "Building HEAD benchmarks..."
+            cargo bench --no-run
 
-          echo "Building Baseline benchmarks..."
-          git checkout ${{ github.event.pull_request.base.sha }}
-          cargo bench --no-run
+            echo "Building Baseline benchmarks..."
+            git checkout ${{ steps.base.outputs.sha }}
+            cargo bench --no-run
 
-          # Restore HEAD
-          git checkout ${{ github.event.pull_request.head.sha }}
+            # Restore HEAD
+            git checkout ${{ github.event.pull_request.head.sha }}
 
       - name: Run benchmark comparison
         if: steps.changes.outputs.skip_benchmarks != 'true'
-        id: bench-compare
-        run: |
-          set +e  # Don't exit on error
-          criterion-hypothesis \
-            --baseline ${{ github.event.pull_request.base.sha }} \
-            --candidate ${{ github.event.pull_request.head.sha }} \
-            --config .criterion-hypothesis.toml \
-            2>&1 | tee benchmark-output.txt
-          EXIT_CODE=${PIPESTATUS[0]}
-          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
-          exit 0  # Always succeed so we can post results
+        id: benchmarks
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 40
+          max_attempts: 2
+          retry_on: error
+          command: |
+            set +e  # Don't exit on error
+            hypobench \
+              --baseline ${{ steps.base.outputs.sha }} \
+              --candidate ${{ github.event.pull_request.head.sha }} \
+              --config .hypobench.toml \
+              2>&1 | tee benchmark-output.txt
+            EXIT_CODE=${PIPESTATUS[0]}
+            # Use a distinct key here — `nick-fields/retry` declares its own
+            # `exit_code` output which last-write-wins overrides ours at the
+            # end of the step. `tool_exit_code` avoids the collision.
+            echo "tool_exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+
+            # Exit with success for 0 (no regressions) or 1 (regressions detected)
+            # Exit with failure for 128+ (errors) to trigger retry
+            if [ "$EXIT_CODE" -ge 128 ]; then
+              exit 1
+            fi
+            exit 0
 
       - name: Generate summary
         if: steps.changes.outputs.skip_benchmarks != 'true'
         run: |
           echo "## Benchmark Comparison Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.bench-compare.outputs.exit_code }}" == "1" ]; then
+          if [ "${{ steps.benchmarks.outputs.tool_exit_code }}" == "1" ]; then
             echo "⚠️ **Regressions detected!** See details below." >> $GITHUB_STEP_SUMMARY
           else
             echo "✅ **No regressions detected.**" >> $GITHUB_STEP_SUMMARY
@@ -97,7 +129,7 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Configuration" >> $GITHUB_STEP_SUMMARY
-          echo "- **Baseline:** \`${{ github.event.pull_request.base.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Baseline:** \`${{ steps.base.outputs.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Candidate:** \`${{ github.event.pull_request.head.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Sample size:** 50" >> $GITHUB_STEP_SUMMARY
           echo "- **Significance level:** 0.05" >> $GITHUB_STEP_SUMMARY
@@ -114,7 +146,7 @@ jobs:
         if: steps.changes.outputs.skip_benchmarks != 'true'
         id: bench-status
         run: |
-          EXIT_CODE="${{ steps.bench-compare.outputs.exit_code }}"
+          EXIT_CODE="${{ steps.benchmarks.outputs.tool_exit_code }}"
           if [ "$EXIT_CODE" == "0" ]; then
             echo "status=success" >> $GITHUB_OUTPUT
             echo "message=✅ **No regressions detected.**" >> $GITHUB_OUTPUT
@@ -142,14 +174,14 @@ jobs:
             <summary>Benchmark Results</summary>
 
             ```
-            ${{ steps.bench-compare.outputs.exit_code != '' && '(see workflow run for full output)' || '' }}
+            ${{ steps.benchmarks.outputs.tool_exit_code != '' && '(see workflow run for full output)' || '' }}
             ```
 
             </details>
 
             | Baseline | Candidate |
             |----------|-----------|
-            | `${{ github.event.pull_request.base.sha }}` | `${{ github.event.pull_request.head.sha }}` |
+            | `${{ steps.base.outputs.sha }}` | `${{ github.event.pull_request.head.sha }}` |
 
             <details>
             <summary>Statistical Testing Parameters</summary>
@@ -161,7 +193,7 @@ jobs:
 
             </details>
 
-            <sub>Run via criterion-hypothesis on self-hosted GCP runner with Rust nightly-2026-01-05</sub>
+            <sub>Run via hypobench on self-hosted GCP runner with Rust nightly-2026-01-05</sub>
           edit-mode: replace
 
       - name: Post comment (skipped)
@@ -176,7 +208,7 @@ jobs:
           edit-mode: replace
 
       - name: Fail on regressions
-        if: steps.changes.outputs.skip_benchmarks != 'true' && steps.bench-compare.outputs.exit_code == '1'
+        if: steps.changes.outputs.skip_benchmarks != 'true' && steps.benchmarks.outputs.tool_exit_code == '1'
         run: |
           echo "::error::Benchmark regressions detected. See the benchmark output for details."
           exit 1

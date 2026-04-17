@@ -9,7 +9,7 @@ echo "=== Runner startup script started at $(date) ==="
 echo "Installing dependencies..."
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y curl jq git build-essential pkg-config libssl-dev
+apt-get install -y curl jq git build-essential
 
 # Create runner user with passwordless sudo
 echo "Creating runner user..."

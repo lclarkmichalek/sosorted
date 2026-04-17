@@ -1,9 +1,9 @@
 //! Criterion-hypothesis harness for union benchmarks.
 //!
 //! This harness exposes union benchmarks via HTTP for
-//! criterion-hypothesis orchestration.
+//! hypobench orchestration.
 
-use criterion_hypothesis_harness::{run_harness, BenchmarkRegistry};
+use hypobench_harness::{run_harness, BenchmarkRegistry};
 use sosorted::{union, union_size};
 use std::cmp::Ordering;
 use std::hint::black_box;
@@ -46,7 +46,7 @@ fn naive_union(a: &[u64], b: &[u64]) -> Vec<u64> {
 }
 
 fn main() {
-    let port: u16 = std::env::var("CH_PORT")
+    let port: u16 = std::env::var("HYPOBENCH_PORT")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(9100);
@@ -75,19 +75,23 @@ fn main() {
     {
         let a = base.clone();
         let b = disjoint.clone();
-        registry.register("union/0pct_overlap/sosorted", move || {
+        registry.register("union/0pct_overlap/sosorted", move |n| {
             let mut dest = vec![0u64; a.len() + b.len()];
             let start = Instant::now();
-            black_box(union(black_box(&mut dest), black_box(&a), black_box(&b)));
+            for _ in 0..n {
+                black_box(union(black_box(&mut dest), black_box(&a), black_box(&b)));
+            }
             start.elapsed()
         });
     }
     {
         let a = base.clone();
         let b = disjoint.clone();
-        registry.register("union/0pct_overlap/naive", move || {
+        registry.register("union/0pct_overlap/naive", move |n| {
             let start = Instant::now();
-            black_box(naive_union(black_box(&a), black_box(&b)));
+            for _ in 0..n {
+                black_box(naive_union(black_box(&a), black_box(&b)));
+            }
             start.elapsed()
         });
     }
@@ -96,19 +100,23 @@ fn main() {
     {
         let a = base.clone();
         let b = overlap_50pct.clone();
-        registry.register("union/50pct_overlap/sosorted", move || {
+        registry.register("union/50pct_overlap/sosorted", move |n| {
             let mut dest = vec![0u64; a.len() + b.len()];
             let start = Instant::now();
-            black_box(union(black_box(&mut dest), black_box(&a), black_box(&b)));
+            for _ in 0..n {
+                black_box(union(black_box(&mut dest), black_box(&a), black_box(&b)));
+            }
             start.elapsed()
         });
     }
     {
         let a = base.clone();
         let b = overlap_50pct.clone();
-        registry.register("union/50pct_overlap/naive", move || {
+        registry.register("union/50pct_overlap/naive", move |n| {
             let start = Instant::now();
-            black_box(naive_union(black_box(&a), black_box(&b)));
+            for _ in 0..n {
+                black_box(naive_union(black_box(&a), black_box(&b)));
+            }
             start.elapsed()
         });
     }
@@ -117,19 +125,23 @@ fn main() {
     {
         let a = base.clone();
         let b = identical.clone();
-        registry.register("union/100pct_overlap/sosorted", move || {
+        registry.register("union/100pct_overlap/sosorted", move |n| {
             let mut dest = vec![0u64; a.len() + b.len()];
             let start = Instant::now();
-            black_box(union(black_box(&mut dest), black_box(&a), black_box(&b)));
+            for _ in 0..n {
+                black_box(union(black_box(&mut dest), black_box(&a), black_box(&b)));
+            }
             start.elapsed()
         });
     }
     {
         let a = base.clone();
         let b = identical.clone();
-        registry.register("union/100pct_overlap/naive", move || {
+        registry.register("union/100pct_overlap/naive", move |n| {
             let start = Instant::now();
-            black_box(naive_union(black_box(&a), black_box(&b)));
+            for _ in 0..n {
+                black_box(naive_union(black_box(&a), black_box(&b)));
+            }
             start.elapsed()
         });
     }
@@ -138,19 +150,23 @@ fn main() {
     {
         let a = asym_a.clone();
         let b = asym_b.clone();
-        registry.register("union/asymmetric_10_1/sosorted", move || {
+        registry.register("union/asymmetric_10_1/sosorted", move |n| {
             let mut dest = vec![0u64; a.len() + b.len()];
             let start = Instant::now();
-            black_box(union(black_box(&mut dest), black_box(&a), black_box(&b)));
+            for _ in 0..n {
+                black_box(union(black_box(&mut dest), black_box(&a), black_box(&b)));
+            }
             start.elapsed()
         });
     }
     {
         let a = asym_a.clone();
         let b = asym_b.clone();
-        registry.register("union/asymmetric_10_1/naive", move || {
+        registry.register("union/asymmetric_10_1/naive", move |n| {
             let start = Instant::now();
-            black_box(naive_union(black_box(&a), black_box(&b)));
+            for _ in 0..n {
+                black_box(naive_union(black_box(&a), black_box(&b)));
+            }
             start.elapsed()
         });
     }
@@ -159,36 +175,44 @@ fn main() {
     {
         let a = base.clone();
         let b = disjoint.clone();
-        registry.register("union_size/0pct_overlap/sosorted", move || {
+        registry.register("union_size/0pct_overlap/sosorted", move |n| {
             let start = Instant::now();
-            black_box(union_size(black_box(&a), black_box(&b)));
+            for _ in 0..n {
+                black_box(union_size(black_box(&a), black_box(&b)));
+            }
             start.elapsed()
         });
     }
     {
         let a = base.clone();
         let b = overlap_50pct.clone();
-        registry.register("union_size/50pct_overlap/sosorted", move || {
+        registry.register("union_size/50pct_overlap/sosorted", move |n| {
             let start = Instant::now();
-            black_box(union_size(black_box(&a), black_box(&b)));
+            for _ in 0..n {
+                black_box(union_size(black_box(&a), black_box(&b)));
+            }
             start.elapsed()
         });
     }
     {
         let a = base.clone();
         let b = identical.clone();
-        registry.register("union_size/100pct_overlap/sosorted", move || {
+        registry.register("union_size/100pct_overlap/sosorted", move |n| {
             let start = Instant::now();
-            black_box(union_size(black_box(&a), black_box(&b)));
+            for _ in 0..n {
+                black_box(union_size(black_box(&a), black_box(&b)));
+            }
             start.elapsed()
         });
     }
     {
         let a = asym_a.clone();
         let b = asym_b.clone();
-        registry.register("union_size/asymmetric_10_1/sosorted", move || {
+        registry.register("union_size/asymmetric_10_1/sosorted", move |n| {
             let start = Instant::now();
-            black_box(union_size(black_box(&a), black_box(&b)));
+            for _ in 0..n {
+                black_box(union_size(black_box(&a), black_box(&b)));
+            }
             start.elapsed()
         });
     }

@@ -25,12 +25,12 @@ resource "google_cloud_scheduler_job" "scale_runner" {
   schedule    = "* * * * *" # Every minute
 
   http_target {
-    uri         = google_cloudfunctions2_function.scaler.service_config[0].uri
+    uri         = local.scaler_service_url
     http_method = "POST"
 
     oidc_token {
       service_account_email = google_service_account.scheduler.email
-      audience              = google_cloudfunctions2_function.scaler.service_config[0].uri
+      audience              = local.scaler_service_url
     }
   }
 

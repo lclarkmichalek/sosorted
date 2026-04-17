@@ -10,5 +10,5 @@ output "scaler_function_url" {
 
 output "scaler_function_uri" {
   description = "URI of the Cloud Function (for Cloud Scheduler)"
-  value       = google_cloudfunctions2_function.scaler.service_config[0].uri
+  value       = local.scaler_service_url
 }
