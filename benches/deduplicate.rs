@@ -1,9 +1,9 @@
 //! Criterion-hypothesis harness for deduplicate benchmarks.
 //!
 //! This harness exposes deduplicate benchmarks via HTTP for
-//! criterion-hypothesis orchestration.
+//! hypobench orchestration.
 
-use criterion_hypothesis_harness::{run_harness, BenchmarkRegistry};
+use hypobench_harness::{run_harness, BenchmarkRegistry};
 use sosorted::deduplicate;
 use std::hint::black_box;
 use std::time::Instant;
@@ -32,7 +32,7 @@ fn naive_deduplicate(out: &mut [u64], input: &[u64]) -> usize {
 }
 
 fn main() {
-    let port: u16 = std::env::var("CH_PORT")
+    let port: u16 = std::env::var("HYPOBENCH_PORT")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(9100);
@@ -48,19 +48,23 @@ fn main() {
     // all_unique
     {
         let data = all_unique.clone();
-        registry.register("deduplicate/all_unique/sosorted", move || {
+        registry.register("deduplicate/all_unique/sosorted", move |n| {
             let mut out = vec![0u64; data.len()];
             let start = Instant::now();
-            black_box(deduplicate(black_box(&mut out), black_box(&data)));
+            for _ in 0..n {
+                black_box(deduplicate(black_box(&mut out), black_box(&data)));
+            }
             start.elapsed()
         });
     }
     {
         let data = all_unique.clone();
-        registry.register("deduplicate/all_unique/naive", move || {
+        registry.register("deduplicate/all_unique/naive", move |n| {
             let mut out = vec![0u64; data.len()];
             let start = Instant::now();
-            black_box(naive_deduplicate(black_box(&mut out), black_box(&data)));
+            for _ in 0..n {
+                black_box(naive_deduplicate(black_box(&mut out), black_box(&data)));
+            }
             start.elapsed()
         });
     }
@@ -68,19 +72,23 @@ fn main() {
     // 50pct_dups
     {
         let data = half_dups.clone();
-        registry.register("deduplicate/50pct_dups/sosorted", move || {
+        registry.register("deduplicate/50pct_dups/sosorted", move |n| {
             let mut out = vec![0u64; data.len()];
             let start = Instant::now();
-            black_box(deduplicate(black_box(&mut out), black_box(&data)));
+            for _ in 0..n {
+                black_box(deduplicate(black_box(&mut out), black_box(&data)));
+            }
             start.elapsed()
         });
     }
     {
         let data = half_dups.clone();
-        registry.register("deduplicate/50pct_dups/naive", move || {
+        registry.register("deduplicate/50pct_dups/naive", move |n| {
             let mut out = vec![0u64; data.len()];
             let start = Instant::now();
-            black_box(naive_deduplicate(black_box(&mut out), black_box(&data)));
+            for _ in 0..n {
+                black_box(naive_deduplicate(black_box(&mut out), black_box(&data)));
+            }
             start.elapsed()
         });
     }
@@ -88,19 +96,23 @@ fn main() {
     // zipf
     {
         let data = zipf.clone();
-        registry.register("deduplicate/zipf/sosorted", move || {
+        registry.register("deduplicate/zipf/sosorted", move |n| {
             let mut out = vec![0u64; data.len()];
             let start = Instant::now();
-            black_box(deduplicate(black_box(&mut out), black_box(&data)));
+            for _ in 0..n {
+                black_box(deduplicate(black_box(&mut out), black_box(&data)));
+            }
             start.elapsed()
         });
     }
     {
         let data = zipf.clone();
-        registry.register("deduplicate/zipf/naive", move || {
+        registry.register("deduplicate/zipf/naive", move |n| {
             let mut out = vec![0u64; data.len()];
             let start = Instant::now();
-            black_box(naive_deduplicate(black_box(&mut out), black_box(&data)));
+            for _ in 0..n {
+                black_box(naive_deduplicate(black_box(&mut out), black_box(&data)));
+            }
             start.elapsed()
         });
     }
@@ -108,19 +120,23 @@ fn main() {
     // clustered
     {
         let data = clustered.clone();
-        registry.register("deduplicate/clustered/sosorted", move || {
+        registry.register("deduplicate/clustered/sosorted", move |n| {
             let mut out = vec![0u64; data.len()];
             let start = Instant::now();
-            black_box(deduplicate(black_box(&mut out), black_box(&data)));
+            for _ in 0..n {
+                black_box(deduplicate(black_box(&mut out), black_box(&data)));
+            }
             start.elapsed()
         });
     }
     {
         let data = clustered.clone();
-        registry.register("deduplicate/clustered/naive", move || {
+        registry.register("deduplicate/clustered/naive", move |n| {
             let mut out = vec![0u64; data.len()];
             let start = Instant::now();
-            black_box(naive_deduplicate(black_box(&mut out), black_box(&data)));
+            for _ in 0..n {
+                black_box(naive_deduplicate(black_box(&mut out), black_box(&data)));
+            }
             start.elapsed()
         });
     }
