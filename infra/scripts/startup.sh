@@ -17,10 +17,49 @@ useradd -m -s /bin/bash runner || true
 echo "runner ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/runner
 chmod 440 /etc/sudoers.d/runner
 
-# Install Rust as runner user
+# Mount the persistent cache disk if attached. First boot formats ext4;
+# subsequent boots just mount the existing filesystem.
+#
+# The GCE block device path /dev/disk/by-id/google-<device_name> is stable
+# and matches the `device_name` on the attached_disk in instance-template.tf.
+CACHE_DEV=/dev/disk/by-id/google-bench-cache
+CACHE_MNT=/cache
+if [ -e "$CACHE_DEV" ]; then
+  echo "Setting up cache disk at $CACHE_DEV..."
+  if ! blkid "$CACHE_DEV" >/dev/null 2>&1; then
+    echo "Cache disk is unformatted; creating ext4 filesystem..."
+    mkfs.ext4 -F -L bench-cache "$CACHE_DEV"
+  fi
+  mkdir -p "$CACHE_MNT"
+  mount -o discard,defaults "$CACHE_DEV" "$CACHE_MNT"
+  mkdir -p "$CACHE_MNT/cargo" "$CACHE_MNT/rustup" "$CACHE_MNT/target"
+  chown -R runner:runner "$CACHE_MNT"
+
+  # Point the runner user's cargo and rustup at the persistent cache.
+  # Lands in the login profile so both the rustup installer below and
+  # subsequent `su - runner` / workflow shells inherit them.
+  cat > /home/runner/.profile <<'PROFILE_EOF'
+# Managed by startup.sh — point cargo/rustup at the persistent cache disk.
+export CARGO_HOME=/cache/cargo
+export RUSTUP_HOME=/cache/rustup
+export CARGO_TARGET_DIR=/cache/target
+export PATH="$CARGO_HOME/bin:$PATH"
+# Read .bashrc for interactive features (GitHub Actions invokes bash).
+if [ -n "$BASH_VERSION" ] && [ -f "$HOME/.bashrc" ]; then
+  . "$HOME/.bashrc"
+fi
+PROFILE_EOF
+  chown runner:runner /home/runner/.profile
+else
+  echo "WARNING: expected cache disk at $CACHE_DEV not found; rustup/cargo will use ephemeral boot disk"
+fi
+
+# Install Rust as runner user. With the cache disk mounted, subsequent boots
+# skip the download/install (rustup detects the existing install and `rustup
+# default` is idempotent).
 echo "Installing Rust..."
-su - runner -c 'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y'
-su - runner -c 'source $HOME/.cargo/env && rustup install nightly-2026-01-05 && rustup default nightly-2026-01-05'
+su - runner -c 'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path --default-toolchain none'
+su - runner -c 'rustup install nightly-2026-01-05 && rustup default nightly-2026-01-05'
 
 # Get repo from instance metadata
 echo "Fetching metadata..."
@@ -80,9 +119,12 @@ su - runner -c "cd ${RUNNER_DIR} && ./config.sh \
 echo "Waiting 60s for system to settle..."
 sleep 60
 
-# 2. Warmup compile to prime CPU caches and stabilize frequency
+# 2. Warmup compile to prime CPU caches and stabilize frequency.
+# `su - runner` loads /home/runner/.profile which sets CARGO_HOME/PATH when
+# the cache disk is mounted; otherwise rustup's default $HOME/.cargo/env is
+# sourced as a fallback.
 echo "Running warmup compile..."
-su - runner -c 'source $HOME/.cargo/env && cd /tmp && cargo init --name warmup warmup_project && cd warmup_project && cargo build --release 2>/dev/null'
+su - runner -c 'command -v cargo >/dev/null || source "$HOME/.cargo/env"; cd /tmp && cargo init --name warmup warmup_project && cd warmup_project && cargo build --release 2>/dev/null'
 rm -rf /tmp/warmup_project
 
 # 3. Disable CPU frequency scaling - lock to max performance
