@@ -1,4 +1,4 @@
-use std::simd::cmp::SimdPartialOrd;
+use std::{cmp::Ordering, simd::cmp::SimdPartialOrd};
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
@@ -25,20 +25,23 @@ where
     let mut last_value: Option<T> = None;
 
     while i < a.len() && j < b.len() {
-        // Optimization: explicit if/else avoids Ordering enum overhead and improves branch prediction.
-        let val = if a[i] < b[j] {
-            let v = a[i];
-            i += 1;
-            v
-        } else if a[i] > b[j] {
-            let v = b[j];
-            j += 1;
-            v
-        } else {
-            let v = a[i];
-            i += 1;
-            j += 1;
-            v
+        let val = match a[i].cmp(&b[j]) {
+            Ordering::Less => {
+                let v = a[i];
+                i += 1;
+                v
+            }
+            Ordering::Greater => {
+                let v = b[j];
+                j += 1;
+                v
+            }
+            Ordering::Equal => {
+                let v = a[i];
+                i += 1;
+                j += 1;
+                v
+            }
         };
 
         if last_value != Some(val) {
@@ -249,20 +252,23 @@ where
                 break;
             }
 
-            // Optimization: explicit if/else avoids Ordering enum overhead and improves branch prediction.
-            let val = if a[i] < b[j] {
-                let v = a[i];
-                i += 1;
-                v
-            } else if a[i] > b[j] {
-                let v = b[j];
-                j += 1;
-                v
-            } else {
-                let v = a[i];
-                i += 1;
-                j += 1;
-                v
+            let val = match a[i].cmp(&b[j]) {
+                Ordering::Less => {
+                    let v = a[i];
+                    i += 1;
+                    v
+                }
+                Ordering::Greater => {
+                    let v = b[j];
+                    j += 1;
+                    v
+                }
+                Ordering::Equal => {
+                    let v = a[i];
+                    i += 1;
+                    j += 1;
+                    v
+                }
             };
 
             if last_written != Some(val) {
@@ -275,20 +281,23 @@ where
 
     // Scalar merge for remaining elements
     while i < a.len() && j < b.len() {
-        // Optimization: explicit if/else avoids Ordering enum overhead and improves branch prediction.
-        let val = if a[i] < b[j] {
-            let v = a[i];
-            i += 1;
-            v
-        } else if a[i] > b[j] {
-            let v = b[j];
-            j += 1;
-            v
-        } else {
-            let v = a[i];
-            i += 1;
-            j += 1;
-            v
+        let val = match a[i].cmp(&b[j]) {
+            Ordering::Less => {
+                let v = a[i];
+                i += 1;
+                v
+            }
+            Ordering::Greater => {
+                let v = b[j];
+                j += 1;
+                v
+            }
+            Ordering::Equal => {
+                let v = a[i];
+                i += 1;
+                j += 1;
+                v
+            }
         };
 
         if last_written != Some(val) {

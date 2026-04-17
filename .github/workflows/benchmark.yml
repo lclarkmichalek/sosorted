@@ -9,7 +9,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  hypobench:
+  criterion-hypothesis:
     name: Run Benchmarks
     runs-on: [self-hosted, benchmark]
     if: github.event_name == 'pull_request'
@@ -50,9 +50,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y pkg-config libssl-dev
 
-      - name: Install hypobench
+      - name: Install criterion-hypothesis
         if: steps.changes.outputs.skip_benchmarks != 'true'
-        run: cargo install hypobench@0.4.0
+        run: cargo install criterion-hypothesis@0.2.0
 
       - name: Debug - Build benchmarks manually
         if: steps.changes.outputs.skip_benchmarks != 'true'
@@ -74,7 +74,7 @@ jobs:
 
       - name: Run benchmark comparison
         if: steps.changes.outputs.skip_benchmarks != 'true'
-        id: benchmarks
+        id: bench-compare
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 40
@@ -82,16 +82,13 @@ jobs:
           retry_on: error
           command: |
             set +e  # Don't exit on error
-            hypobench \
+            criterion-hypothesis \
               --baseline ${{ github.event.pull_request.base.sha }} \
               --candidate ${{ github.event.pull_request.head.sha }} \
-              --config .hypobench.toml \
+              --config .criterion-hypothesis.toml \
               2>&1 | tee benchmark-output.txt
             EXIT_CODE=${PIPESTATUS[0]}
-            # Use a distinct key here — `nick-fields/retry` declares its own
-            # `exit_code` output which last-write-wins overrides ours at the
-            # end of the step. `tool_exit_code` avoids the collision.
-            echo "tool_exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+            echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
 
             # Exit with success for 0 (no regressions) or 1 (regressions detected)
             # Exit with failure for 128+ (errors) to trigger retry
@@ -105,7 +102,7 @@ jobs:
         run: |
           echo "## Benchmark Comparison Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.benchmarks.outputs.tool_exit_code }}" == "1" ]; then
+          if [ "${{ steps.bench-compare.outputs.exit_code }}" == "1" ]; then
             echo "⚠️ **Regressions detected!** See details below." >> $GITHUB_STEP_SUMMARY
           else
             echo "✅ **No regressions detected.**" >> $GITHUB_STEP_SUMMARY
@@ -133,7 +130,7 @@ jobs:
         if: steps.changes.outputs.skip_benchmarks != 'true'
         id: bench-status
         run: |
-          EXIT_CODE="${{ steps.benchmarks.outputs.tool_exit_code }}"
+          EXIT_CODE="${{ steps.bench-compare.outputs.exit_code }}"
           if [ "$EXIT_CODE" == "0" ]; then
             echo "status=success" >> $GITHUB_OUTPUT
             echo "message=✅ **No regressions detected.**" >> $GITHUB_OUTPUT
@@ -161,7 +158,7 @@ jobs:
             <summary>Benchmark Results</summary>
 
             ```
-            ${{ steps.benchmarks.outputs.tool_exit_code != '' && '(see workflow run for full output)' || '' }}
+            ${{ steps.bench-compare.outputs.exit_code != '' && '(see workflow run for full output)' || '' }}
             ```
 
             </details>
@@ -180,7 +177,7 @@ jobs:
 
             </details>
 
-            <sub>Run via hypobench on self-hosted GCP runner with Rust nightly-2026-01-05</sub>
+            <sub>Run via criterion-hypothesis on self-hosted GCP runner with Rust nightly-2026-01-05</sub>
           edit-mode: replace
 
       - name: Post comment (skipped)
@@ -195,7 +192,7 @@ jobs:
           edit-mode: replace
 
       - name: Fail on regressions
-        if: steps.changes.outputs.skip_benchmarks != 'true' && steps.benchmarks.outputs.tool_exit_code == '1'
+        if: steps.changes.outputs.skip_benchmarks != 'true' && steps.bench-compare.outputs.exit_code == '1'
         run: |
           echo "::error::Benchmark regressions detected. See the benchmark output for details."
           exit 1

@@ -1,0 +1,4 @@
+google-cloud-compute==1.19.2
+google-cloud-secret-manager==2.20.2
+requests==2.31.0
+functions-framework==3.5.0

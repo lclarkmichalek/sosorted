@@ -1,0 +1,113 @@
+# Optional: Cloud Function for automated queue-based scaling
+# This can be deployed to run the scaler.py script on a schedule
+
+resource "google_storage_bucket" "scaler_source" {
+  name     = "${var.project_id}-scaler-source"
+  location = var.region
+
+  uniform_bucket_level_access = true
+
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      age = 30  # Delete old versions after 30 days
+    }
+  }
+}
+
+# Create a zip file with the scaler code
+data "archive_file" "scaler_source" {
+  type        = "zip"
+  output_path = "${path.module}/scaler-source.zip"
+
+  source {
+    content  = file("${path.module}/scaler.py")
+    filename = "main.py"
+  }
+
+  source {
+    content  = file("${path.module}/requirements.txt")
+    filename = "requirements.txt"
+  }
+}
+
+resource "google_storage_bucket_object" "scaler_source" {
+  name   = "scaler-source-${data.archive_file.scaler_source.output_md5}.zip"
+  bucket = google_storage_bucket.scaler_source.name
+  source = data.archive_file.scaler_source.output_path
+}
+
+# Service account for the Cloud Function
+resource "google_service_account" "scaler_function" {
+  account_id   = "scaler-function"
+  display_name = "Autoscaler Cloud Function Service Account"
+}
+
+# Grant permissions to manage instance groups
+resource "google_project_iam_member" "scaler_compute_admin" {
+  project = var.project_id
+  role    = "roles/compute.instanceAdmin.v1"
+  member  = "serviceAccount:${google_service_account.scaler_function.email}"
+}
+
+resource "google_project_iam_member" "scaler_secret_accessor" {
+  project = var.project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${google_service_account.scaler_function.email}"
+}
+
+# Cloud Function (Gen 2)
+resource "google_cloudfunctions2_function" "scaler" {
+  name     = "github-runner-scaler"
+  location = var.region
+
+  build_config {
+    runtime     = "python311"
+    entry_point = "scale"
+    source {
+      storage_source {
+        bucket = google_storage_bucket.scaler_source.name
+        object = google_storage_bucket_object.scaler_source.name
+      }
+    }
+  }
+
+  service_config {
+    max_instance_count = 1
+    min_instance_count = 0
+    available_memory   = "256M"
+    timeout_seconds    = 60
+
+    environment_variables = {
+      GCP_PROJECT   = var.project_id
+      GCP_ZONE      = var.zone
+      INSTANCE_GROUP = google_compute_instance_group_manager.runner_group.name
+      GITHUB_REPO   = var.github_repo
+      MIN_INSTANCES = var.min_runners
+      MAX_INSTANCES = var.max_runners
+      COOLDOWN_SECONDS = var.cooldown_period_seconds
+    }
+
+    service_account_email = google_service_account.scaler_function.email
+  }
+}
+
+# Cloud Scheduler job to trigger the scaler every 5 minutes
+resource "google_cloud_scheduler_job" "scaler" {
+  name             = "github-runner-scaler"
+  description      = "Triggers the GitHub Actions runner autoscaler"
+  schedule         = "*/5 * * * *"  # Every 5 minutes
+  time_zone        = "UTC"
+  attempt_deadline = "60s"
+
+  http_target {
+    http_method = "POST"
+    uri         = google_cloudfunctions2_function.scaler.service_config[0].uri
+
+    oidc_token {
+      service_account_email = google_service_account.scaler_function.email
+    }
+  }
+}

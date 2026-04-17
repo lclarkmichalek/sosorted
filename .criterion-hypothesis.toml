@@ -1,5 +1,5 @@
-# hypobench configuration for sosorted
-# See https://github.com/lclarkmichalek/hypobench for documentation
+# criterion-hypothesis configuration for sosorted
+# See https://github.com/lclarkmichalek/criterion-hypothesis for documentation
 
 [hypothesis]
 confidence_level = 0.95      # Statistical confidence level (95%)
@@ -7,8 +7,8 @@ minimum_effect_size = 2.0    # Minimum % difference to report as significant
 
 [orchestration]
 interleave_interval_ms = 10  # Short delay between runs (fast benchmarks)
-sample_size = 50             # Number of samples per benchmark (after calibration)
-target_sample_ms = 10        # Calibration target: each sample should take >= 10ms
+warmup_iterations = 5        # Warmup iterations (discarded)
+sample_size = 50             # Number of samples per benchmark
 
 [build]
 profile = "release"          # Always use release profile for benchmarks

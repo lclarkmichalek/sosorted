@@ -25,7 +25,6 @@ build/
 
 # Generated files
 scaler-source.zip
-tfplan
 
 # Logs
 *.log

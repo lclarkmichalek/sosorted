@@ -6,7 +6,6 @@ instance group between 0 and 1 instances accordingly.
 """
 
 import os
-from datetime import datetime, timezone
 
 import functions_framework
 import requests
@@ -18,9 +17,6 @@ ZONE = os.environ["GCP_ZONE"]
 INSTANCE_GROUP = os.environ["INSTANCE_GROUP_NAME"]
 GITHUB_REPO = os.environ["GITHUB_REPO"]
 RUNNER_LABELS = os.environ.get("RUNNER_LABELS", "self-hosted,benchmark").split(",")
-MIN_INSTANCES = int(os.environ.get("MIN_INSTANCES", "0"))
-MAX_INSTANCES = int(os.environ.get("MAX_INSTANCES", "1"))
-STARTUP_GRACE_SECONDS = int(os.environ.get("STARTUP_GRACE_SECONDS", "300"))
 
 
 def get_github_pat() -> str:
@@ -82,79 +78,11 @@ def get_pending_self_hosted_jobs(pat: str) -> list:
     return pending_jobs
 
 
-def get_matching_runners(pat: str) -> list:
-    """Get GitHub runners that advertise the labels managed by this scaler."""
-    headers = {
-        "Authorization": f"token {pat}",
-        "Accept": "application/vnd.github.v3+json",
-    }
-
-    url = f"https://api.github.com/repos/{GITHUB_REPO}/actions/runners"
-    response = requests.get(url, headers=headers, params={"per_page": 100}, timeout=30)
-    response.raise_for_status()
-
-    runners = response.json().get("runners", [])
-    matching = []
-
-    for runner in runners:
-        runner_labels = [label.get("name") for label in runner.get("labels", [])]
-        if all(label in runner_labels for label in RUNNER_LABELS):
-            matching.append({
-                "name": runner.get("name"),
-                "status": runner.get("status"),
-                "busy": runner.get("busy", False),
-            })
-
-    return matching
-
-
 def get_instance_group_size() -> int:
     """Get current target size of the instance group."""
     client = compute_v1.InstanceGroupManagersClient()
     ig = client.get(project=PROJECT, zone=ZONE, instance_group_manager=INSTANCE_GROUP)
     return ig.target_size
-
-
-def get_instance_group_instances() -> list:
-    """Get instances currently managed by the runner instance group."""
-    client = compute_v1.InstanceGroupManagersClient()
-    instances_client = compute_v1.InstancesClient()
-    managed_instances = client.list_managed_instances(
-        project=PROJECT,
-        zone=ZONE,
-        instance_group_manager=INSTANCE_GROUP,
-    )
-
-    instances = []
-    for managed in managed_instances:
-        instance_url = managed.instance
-        if not instance_url:
-            continue
-
-        instance_name = instance_url.rsplit("/", 1)[-1]
-        instance = instances_client.get(project=PROJECT, zone=ZONE, instance=instance_name)
-        instances.append({
-            "name": instance_name,
-            "creation_timestamp": instance.creation_timestamp,
-        })
-
-    return instances
-
-
-def has_recent_instance_start(instances: list) -> bool:
-    """Return True when any managed instance is still within the startup grace period."""
-    now = datetime.now(timezone.utc)
-
-    for instance in instances:
-        created_at = instance.get("creation_timestamp")
-        if not created_at:
-            continue
-
-        created = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-        if (now - created).total_seconds() < STARTUP_GRACE_SECONDS:
-            return True
-
-    return False
 
 
 def resize_instance_group(size: int) -> None:
@@ -173,39 +101,27 @@ def scale_runner(request):
     """
     HTTP Cloud Function to scale runner instances.
 
-    Checks GitHub for jobs needing self-hosted runners and scales the instance group
-    to one ephemeral VM per matching job, capped by the configured min/max bounds.
+    Checks GitHub for jobs needing self-hosted runners and scales the instance group:
+    - Scale up to 1 if jobs are pending and no instances running
+    - Scale down to 0 if no jobs are pending and instances are running
     """
     try:
         pat = get_github_pat()
         pending_jobs = get_pending_self_hosted_jobs(pat)
-        matching_runners = get_matching_runners(pat)
         current_size = get_instance_group_size()
-        current_instances = get_instance_group_instances()
 
         job_count = len(pending_jobs)
-        desired_size = max(MIN_INSTANCES, min(job_count, MAX_INSTANCES))
-        busy_runners = [runner for runner in matching_runners if runner["busy"]]
-        if busy_runners:
-            desired_size = max(desired_size, min(len(busy_runners), MAX_INSTANCES))
 
-        if current_size > 0 and has_recent_instance_start(current_instances):
-            desired_size = max(desired_size, current_size)
-
-        if desired_size != current_size:
-            resize_instance_group(desired_size)
+        if pending_jobs and current_size == 0:
+            resize_instance_group(1)
             job_names = [j["name"] for j in pending_jobs[:3]]
-            return (
-                f"Resized runner group from {current_size} to {desired_size}: "
-                f"{job_count} self-hosted job(s), {len(busy_runners)} busy runner(s): {job_names}",
-                200,
-            )
+            return f"Scaled up: {job_count} self-hosted job(s) pending: {job_names}", 200
 
-        return (
-            f"No action: {job_count} self-hosted job(s), {len(busy_runners)} busy runner(s), "
-            f"{current_size} instance(s), desired size {desired_size}",
-            200,
-        )
+        if not pending_jobs and current_size > 0:
+            resize_instance_group(0)
+            return "Scaled down: no self-hosted jobs pending", 200
+
+        return f"No action: {job_count} self-hosted job(s), {current_size} instance(s)", 200
 
     except Exception as e:
         return f"Error: {e}", 500

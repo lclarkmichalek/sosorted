@@ -158,7 +158,7 @@ The `SIMD_WIDTH_BITS` constant is exported and indicates the detected register w
 
 ## Tools
 
-This repository uses `hypobench` for benchmark comparison in CI. The benchmark harnesses live under `benches/`, and the comparison run is configured via [.hypobench.toml](.hypobench.toml).
+This repository includes `bench-compare`, a CLI tool for A/B benchmark comparison with statistical hypothesis testing. See [crates/bench-compare](crates/bench-compare/README.md) for details.
 
 ## References
 
