@@ -40,9 +40,13 @@ if [ -e "$CACHE_DEV" ]; then
   # subsequent `su - runner` / workflow shells inherit them.
   cat > /home/runner/.profile <<'PROFILE_EOF'
 # Managed by startup.sh — point cargo/rustup at the persistent cache disk.
+# Notably does NOT set CARGO_TARGET_DIR: hypobench creates a worktree per
+# side (baseline/candidate) and expects each worktree's build artifacts in
+# its own relative `target/` dir. Forcing a shared target dir breaks
+# hypobench's per-worktree binary discovery ("No benchmark binary found").
+# Registry/toolchain caches alone still cover the bulk of the startup time.
 export CARGO_HOME=/cache/cargo
 export RUSTUP_HOME=/cache/rustup
-export CARGO_TARGET_DIR=/cache/target
 export PATH="$CARGO_HOME/bin:$PATH"
 # Read .bashrc for interactive features (GitHub Actions invokes bash).
 if [ -n "$BASH_VERSION" ] && [ -f "$HOME/.bashrc" ]; then
