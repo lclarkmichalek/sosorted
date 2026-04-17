@@ -241,7 +241,8 @@ fn main() {
         registry.register("roaring/union/sparse_10k/hashset", move |n| {
             let start = Instant::now();
             for _ in 0..n {
-                let result: HashSet<u32> = black_box(&set1).union(black_box(&set2)).copied().collect();
+                let result: HashSet<u32> =
+                    black_box(&set1).union(black_box(&set2)).copied().collect();
                 black_box(result);
             }
             start.elapsed()
@@ -265,7 +266,8 @@ fn main() {
         registry.register("roaring/union/dense_10k/hashset", move |n| {
             let start = Instant::now();
             for _ in 0..n {
-                let result: HashSet<u32> = black_box(&set1).union(black_box(&set2)).copied().collect();
+                let result: HashSet<u32> =
+                    black_box(&set1).union(black_box(&set2)).copied().collect();
                 black_box(result);
             }
             start.elapsed()
