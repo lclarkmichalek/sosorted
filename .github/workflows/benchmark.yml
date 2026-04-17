@@ -65,7 +65,7 @@ jobs:
 
       - name: Install hypobench
         if: steps.changes.outputs.skip_benchmarks != 'true'
-        run: cargo install hypobench@0.4.0
+        run: cargo install hypobench@0.4.1
 
       - name: Debug - Build benchmarks manually
         if: steps.changes.outputs.skip_benchmarks != 'true'
