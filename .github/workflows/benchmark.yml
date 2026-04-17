@@ -28,11 +28,11 @@ jobs:
           echo "Changed files:"
           echo "$CHANGED"
 
-          # Check if any Rust files changed
-          RUST_FILES=$(echo "$CHANGED" | grep '\.rs$' || true)
-          if [ -z "$RUST_FILES" ]; then
+          # Run benchmarks when code, benchmark config, or benchmark workflow changes.
+          BENCHMARK_RELEVANT_FILES=$(echo "$CHANGED" | grep -E '^(\.github/workflows/benchmark\.yml|\.criterion-hypothesis\.toml|Cargo\.toml|Cargo\.lock|benches/|src/.*\.rs$|crates/.*\.rs$|scripts/)' || true)
+          if [ -z "$BENCHMARK_RELEVANT_FILES" ]; then
             echo "skip_benchmarks=true" >> $GITHUB_OUTPUT
-            echo "No Rust files changed, skipping benchmarks"
+            echo "No benchmark-relevant files changed, skipping benchmarks"
             exit 0
           fi
 
