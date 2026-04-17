@@ -17,7 +17,8 @@ This directory contains Terraform configuration for managing self-hosted GitHub 
 - **SPOT Instances**: Uses preemptible VMs for ~80% cost savings
 - **Security**: Restrictive firewall rules (no SSH access, egress-only HTTPS/HTTP)
 - **Performance Consistency**: CPU pinning, frequency scaling disabled, warmup compiles
-- **Queue-Based Scaling**: Scales based on actual job queue and active busy runners, not CPU utilization
+- **Queue-Based Scaling**: Scales based on actual job queue, not CPU utilization
+- **Cooldown Period**: 15-minute cooldown between scale actions to prevent thrashing
 
 ## Current Configuration
 
@@ -31,7 +32,7 @@ This directory contains Terraform configuration for managing self-hosted GitHub 
 ### Autoscaling Settings
 - **Min Instances**: 0 (scales to zero when idle)
 - **Max Instances**: 5 (up to 5 parallel benchmark jobs)
-- **Scheduler cadence**: every minute
+- **Cooldown**: 900 seconds (15 minutes between scale actions)
 - **Labels**: `self-hosted`, `gcp`, `benchmark`
 
 ### Network Configuration
@@ -103,12 +104,12 @@ The autoscaler monitors the GitHub Actions job queue and scales the instance gro
 
 ### How It Works
 
-1. **Cloud Scheduler** triggers the scaler every minute
-2. **Scaler queries** GitHub API for jobs and runners with labels `self-hosted` + `benchmark`
+1. **Cloud Scheduler** triggers the scaler every 5 minutes
+2. **Scaler queries** GitHub API for queued jobs with labels `self-hosted` + `benchmark`
 3. **Scaling logic**:
-   - 0 matching jobs and 0 busy matching runners → scale to min (0)
+   - 0 matching jobs → scale to min (0)
    - N queued/in-progress matching jobs → scale to N ephemeral VMs (capped at max = 5)
-   - Busy matching runners keep at least one instance alive so active jobs are not terminated mid-run
+   - Respects 15-minute cooldown between scale actions
 4. **Instance group** adjusts size by creating/destroying VMs
 
 ### Manual Scaling (for testing)
@@ -131,22 +132,22 @@ gcloud compute instance-groups managed describe runner-group \
 
 The queue-based scaler is deployed and running:
 
-- **Cloud Function**: `runner-scaler` (us-central1)
-- **Cloud Scheduler**: `scale-runner` triggers every minute
+- **Cloud Function**: `github-runner-scaler` (us-central1)
+- **Cloud Scheduler**: Triggers every 5 minutes
 - **Scaling Logic**: Scales runners to one VM per matching GitHub Actions job (0-5 instances)
-- **Busy Runner Guard**: Keeps at least one instance alive while a matching runner is busy
+- **Cooldown**: 15 minutes between scale actions
 
 #### Monitoring the Scaler
 
 ```bash
 # View recent scaler logs
-gcloud functions logs read runner-scaler --region=us-central1 --limit=20
+gcloud functions logs read github-runner-scaler --region=us-central1 --limit=20
 
 # Check scheduler status
-gcloud scheduler jobs describe scale-runner --location=us-central1
+gcloud scheduler jobs describe github-runner-scaler --location=us-central1
 
 # Manually trigger (for testing)
-gcloud scheduler jobs run scale-runner --location=us-central1
+gcloud scheduler jobs run github-runner-scaler --location=us-central1
 ```
 
 #### Updating the Scaler
@@ -154,15 +155,23 @@ gcloud scheduler jobs run scale-runner --location=us-central1
 ```bash
 cd /home/lcm/Code/sosorted/infra
 
-# Modify the scaler source, then redeploy through Terraform:
-terraform apply
+# Modify main.py as needed, then redeploy:
+gcloud functions deploy github-runner-scaler \
+  --gen2 \
+  --runtime=python312 \
+  --region=us-central1 \
+  --source=. \
+  --entry-point=scale \
+  --trigger-http \
+  --no-allow-unauthenticated \
+  --set-env-vars="GCP_PROJECT=sosorted-bench,GCP_ZONE=us-central1-a,INSTANCE_GROUP=runner-group,GITHUB_REPO=lclarkmichalek/sosorted,MIN_INSTANCES=0,MAX_INSTANCES=5,COOLDOWN_SECONDS=900"
 ```
 
 ### Scaler Logs
 
 View Cloud Function logs:
 ```bash
-gcloud functions logs read runner-scaler \
+gcloud functions logs read github-runner-scaler \
   --region=us-central1 \
   --limit=50
 ```
@@ -238,23 +247,23 @@ gcloud compute instance-groups managed describe runner-group --zone=us-central1-
 **Symptom**: Jobs queued but instance group doesn't scale up
 
 **Checks**:
-1. Check Cloud Scheduler is triggering (should run every minute)
-2. Verify the benchmark job labels still match `self-hosted` + `benchmark`
+1. Verify cooldown period hasn't blocked scaling (15min since last scale)
+2. Check Cloud Scheduler is triggering (should run every 5 minutes)
 3. Review scaler logs for errors
 4. Verify max_runners limit isn't reached
 
 **Debug**:
 ```bash
 # Check scheduler status
-gcloud scheduler jobs describe scale-runner --location=us-central1
+gcloud scheduler jobs describe github-runner-scaler --location=us-central1
 
 # Check recent executions
-gcloud scheduler jobs describe scale-runner \
+gcloud scheduler jobs describe github-runner-scaler \
   --location=us-central1 \
   --format="value(state,lastAttemptTime)"
 
 # Manual trigger
-gcloud scheduler jobs run scale-runner --location=us-central1
+gcloud scheduler jobs run github-runner-scaler --location=us-central1
 ```
 
 ### Runner Timeout Issues
@@ -289,13 +298,12 @@ gcloud compute instances list --filter="name:runner-*" \
 
 ## Configuration Files
 
-- `main.tf` - Core infrastructure wiring
-- `variables.tf` - Configurable parameters (max runners, machine type, etc.)
-- `instance-template.tf` - VM initialization script and runner template
-- `instance-group.tf` - Managed instance group for ephemeral runners
-- `cloud-run.tf` - Cloud Function v2 / Cloud Run scaler deployment
-- `scheduler.tf` - Cloud Scheduler trigger for the scaler
-- `scaler/src/main.py` - Queue-based autoscaler logic
+- `main.tf` - Core infrastructure (network, instance template, instance group, autoscaler)
+- `variables.tf` - Configurable parameters (max runners, timeout, machine type, etc.)
+- `startup-script.sh` - VM initialization script (installs Rust, configures runner, sets up watchdog)
+- `scaler.py` - Queue-based autoscaler logic
+- `scaler-cloud-function.tf` - Cloud Function + Scheduler for automated scaling (optional)
+- `requirements.txt` - Python dependencies for scaler
 
 ## Security Notes
 

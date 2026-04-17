@@ -1,9 +1,9 @@
 //! Criterion-hypothesis harness for roaring bitmap benchmarks.
 //!
 //! This harness exposes roaring bitmap benchmarks via HTTP for
-//! hypobench orchestration.
+//! criterion-hypothesis orchestration.
 
-use hypobench_harness::{run_harness, BenchmarkRegistry};
+use criterion_hypothesis_harness::{run_harness, BenchmarkRegistry};
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
 use sosorted::Bitmap;
@@ -47,7 +47,7 @@ fn generate_mixed(count: usize, seed: u64) -> Vec<u32> {
 }
 
 fn main() {
-    let port: u16 = std::env::var("HYPOBENCH_PORT")
+    let port: u16 = std::env::var("CH_PORT")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(9100);
@@ -68,66 +68,54 @@ fn main() {
     // =========================================================================
     {
         let data = sparse_10k.clone();
-        registry.register("roaring/construction/sparse_10k/bitmap", move |n| {
+        registry.register("roaring/construction/sparse_10k/bitmap", move || {
             let start = Instant::now();
-            for _ in 0..n {
-                black_box(Bitmap::from_sorted_slice(black_box(&data)));
-            }
+            black_box(Bitmap::from_sorted_slice(black_box(&data)));
             start.elapsed()
         });
     }
     {
         let data = sparse_10k.clone();
-        registry.register("roaring/construction/sparse_10k/hashset", move |n| {
+        registry.register("roaring/construction/sparse_10k/hashset", move || {
             let start = Instant::now();
-            for _ in 0..n {
-                let set: HashSet<u32> = black_box(data.iter().copied().collect());
-                black_box(set);
-            }
+            let set: HashSet<u32> = black_box(data.iter().copied().collect());
+            black_box(set);
             start.elapsed()
         });
     }
 
     {
         let data = dense_10k.clone();
-        registry.register("roaring/construction/dense_10k/bitmap", move |n| {
+        registry.register("roaring/construction/dense_10k/bitmap", move || {
             let start = Instant::now();
-            for _ in 0..n {
-                black_box(Bitmap::from_sorted_slice(black_box(&data)));
-            }
+            black_box(Bitmap::from_sorted_slice(black_box(&data)));
             start.elapsed()
         });
     }
     {
         let data = dense_10k.clone();
-        registry.register("roaring/construction/dense_10k/hashset", move |n| {
+        registry.register("roaring/construction/dense_10k/hashset", move || {
             let start = Instant::now();
-            for _ in 0..n {
-                let set: HashSet<u32> = black_box(data.iter().copied().collect());
-                black_box(set);
-            }
+            let set: HashSet<u32> = black_box(data.iter().copied().collect());
+            black_box(set);
             start.elapsed()
         });
     }
 
     {
         let data = mixed_10k.clone();
-        registry.register("roaring/construction/mixed_10k/bitmap", move |n| {
+        registry.register("roaring/construction/mixed_10k/bitmap", move || {
             let start = Instant::now();
-            for _ in 0..n {
-                black_box(Bitmap::from_sorted_slice(black_box(&data)));
-            }
+            black_box(Bitmap::from_sorted_slice(black_box(&data)));
             start.elapsed()
         });
     }
     {
         let data = mixed_10k.clone();
-        registry.register("roaring/construction/mixed_10k/hashset", move |n| {
+        registry.register("roaring/construction/mixed_10k/hashset", move || {
             let start = Instant::now();
-            for _ in 0..n {
-                let set: HashSet<u32> = black_box(data.iter().copied().collect());
-                black_box(set);
-            }
+            let set: HashSet<u32> = black_box(data.iter().copied().collect());
+            black_box(set);
             start.elapsed()
         });
     }
@@ -146,12 +134,10 @@ fn main() {
                 }
             })
             .collect();
-        registry.register("roaring/contains/sparse_10k/bitmap", move |n| {
+        registry.register("roaring/contains/sparse_10k/bitmap", move || {
             let start = Instant::now();
-            for _ in 0..n {
-                for &value in &test_values {
-                    black_box(bitmap.contains(black_box(value)));
-                }
+            for &value in &test_values {
+                black_box(bitmap.contains(black_box(value)));
             }
             start.elapsed()
         });
@@ -167,12 +153,10 @@ fn main() {
                 }
             })
             .collect();
-        registry.register("roaring/contains/sparse_10k/hashset", move |n| {
+        registry.register("roaring/contains/sparse_10k/hashset", move || {
             let start = Instant::now();
-            for _ in 0..n {
-                for &value in &test_values {
-                    black_box(hashset.contains(black_box(&value)));
-                }
+            for &value in &test_values {
+                black_box(hashset.contains(black_box(&value)));
             }
             start.elapsed()
         });
@@ -189,12 +173,10 @@ fn main() {
                 }
             })
             .collect();
-        registry.register("roaring/contains/dense_10k/bitmap", move |n| {
+        registry.register("roaring/contains/dense_10k/bitmap", move || {
             let start = Instant::now();
-            for _ in 0..n {
-                for &value in &test_values {
-                    black_box(bitmap.contains(black_box(value)));
-                }
+            for &value in &test_values {
+                black_box(bitmap.contains(black_box(value)));
             }
             start.elapsed()
         });
@@ -210,12 +192,10 @@ fn main() {
                 }
             })
             .collect();
-        registry.register("roaring/contains/dense_10k/hashset", move |n| {
+        registry.register("roaring/contains/dense_10k/hashset", move || {
             let start = Instant::now();
-            for _ in 0..n {
-                for &value in &test_values {
-                    black_box(hashset.contains(black_box(&value)));
-                }
+            for &value in &test_values {
+                black_box(hashset.contains(black_box(&value)));
             }
             start.elapsed()
         });
@@ -227,24 +207,19 @@ fn main() {
     {
         let bitmap1 = Bitmap::from_sorted_slice(&sparse_10k);
         let bitmap2 = Bitmap::from_sorted_slice(&sparse_10k_b);
-        registry.register("roaring/union/sparse_10k/bitmap", move |n| {
+        registry.register("roaring/union/sparse_10k/bitmap", move || {
             let start = Instant::now();
-            for _ in 0..n {
-                black_box(black_box(&bitmap1).union(black_box(&bitmap2)));
-            }
+            black_box(black_box(&bitmap1).union(black_box(&bitmap2)));
             start.elapsed()
         });
     }
     {
         let set1: HashSet<u32> = sparse_10k.iter().copied().collect();
         let set2: HashSet<u32> = sparse_10k_b.iter().copied().collect();
-        registry.register("roaring/union/sparse_10k/hashset", move |n| {
+        registry.register("roaring/union/sparse_10k/hashset", move || {
             let start = Instant::now();
-            for _ in 0..n {
-                let result: HashSet<u32> =
-                    black_box(&set1).union(black_box(&set2)).copied().collect();
-                black_box(result);
-            }
+            let result: HashSet<u32> = black_box(&set1).union(black_box(&set2)).copied().collect();
+            black_box(result);
             start.elapsed()
         });
     }
@@ -252,24 +227,19 @@ fn main() {
     {
         let bitmap1 = Bitmap::from_sorted_slice(&dense_10k);
         let bitmap2 = Bitmap::from_sorted_slice(&dense_15k);
-        registry.register("roaring/union/dense_10k/bitmap", move |n| {
+        registry.register("roaring/union/dense_10k/bitmap", move || {
             let start = Instant::now();
-            for _ in 0..n {
-                black_box(black_box(&bitmap1).union(black_box(&bitmap2)));
-            }
+            black_box(black_box(&bitmap1).union(black_box(&bitmap2)));
             start.elapsed()
         });
     }
     {
         let set1: HashSet<u32> = dense_10k.iter().copied().collect();
         let set2: HashSet<u32> = dense_15k.iter().copied().collect();
-        registry.register("roaring/union/dense_10k/hashset", move |n| {
+        registry.register("roaring/union/dense_10k/hashset", move || {
             let start = Instant::now();
-            for _ in 0..n {
-                let result: HashSet<u32> =
-                    black_box(&set1).union(black_box(&set2)).copied().collect();
-                black_box(result);
-            }
+            let result: HashSet<u32> = black_box(&set1).union(black_box(&set2)).copied().collect();
+            black_box(result);
             start.elapsed()
         });
     }
@@ -280,26 +250,22 @@ fn main() {
     {
         let bitmap1 = Bitmap::from_sorted_slice(&sparse_10k);
         let bitmap2 = Bitmap::from_sorted_slice(&sparse_10k_b);
-        registry.register("roaring/intersection/sparse_10k/bitmap", move |n| {
+        registry.register("roaring/intersection/sparse_10k/bitmap", move || {
             let start = Instant::now();
-            for _ in 0..n {
-                black_box(black_box(&bitmap1).intersection(black_box(&bitmap2)));
-            }
+            black_box(black_box(&bitmap1).intersection(black_box(&bitmap2)));
             start.elapsed()
         });
     }
     {
         let set1: HashSet<u32> = sparse_10k.iter().copied().collect();
         let set2: HashSet<u32> = sparse_10k_b.iter().copied().collect();
-        registry.register("roaring/intersection/sparse_10k/hashset", move |n| {
+        registry.register("roaring/intersection/sparse_10k/hashset", move || {
             let start = Instant::now();
-            for _ in 0..n {
-                let result: HashSet<u32> = black_box(&set1)
-                    .intersection(black_box(&set2))
-                    .copied()
-                    .collect();
-                black_box(result);
-            }
+            let result: HashSet<u32> = black_box(&set1)
+                .intersection(black_box(&set2))
+                .copied()
+                .collect();
+            black_box(result);
             start.elapsed()
         });
     }
@@ -307,26 +273,22 @@ fn main() {
     {
         let bitmap1 = Bitmap::from_sorted_slice(&dense_10k);
         let bitmap2 = Bitmap::from_sorted_slice(&dense_15k);
-        registry.register("roaring/intersection/dense_10k/bitmap", move |n| {
+        registry.register("roaring/intersection/dense_10k/bitmap", move || {
             let start = Instant::now();
-            for _ in 0..n {
-                black_box(black_box(&bitmap1).intersection(black_box(&bitmap2)));
-            }
+            black_box(black_box(&bitmap1).intersection(black_box(&bitmap2)));
             start.elapsed()
         });
     }
     {
         let set1: HashSet<u32> = dense_10k.iter().copied().collect();
         let set2: HashSet<u32> = dense_15k.iter().copied().collect();
-        registry.register("roaring/intersection/dense_10k/hashset", move |n| {
+        registry.register("roaring/intersection/dense_10k/hashset", move || {
             let start = Instant::now();
-            for _ in 0..n {
-                let result: HashSet<u32> = black_box(&set1)
-                    .intersection(black_box(&set2))
-                    .copied()
-                    .collect();
-                black_box(result);
-            }
+            let result: HashSet<u32> = black_box(&set1)
+                .intersection(black_box(&set2))
+                .copied()
+                .collect();
+            black_box(result);
             start.elapsed()
         });
     }
