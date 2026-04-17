@@ -57,6 +57,8 @@ jobs:
       - name: Debug - Build benchmarks manually
         if: steps.changes.outputs.skip_benchmarks != 'true'
         uses: nick-fields/retry@v3
+        env:
+          RUSTFLAGS: "-A warnings"
         with:
           timeout_minutes: 30
           max_attempts: 2
@@ -76,6 +78,8 @@ jobs:
         if: steps.changes.outputs.skip_benchmarks != 'true'
         id: benchmarks
         uses: nick-fields/retry@v3
+        env:
+          RUSTFLAGS: "-A warnings"
         with:
           timeout_minutes: 40
           max_attempts: 2
