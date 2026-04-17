@@ -52,7 +52,12 @@ jobs:
 
       - name: Install criterion-hypothesis
         if: steps.changes.outputs.skip_benchmarks != 'true'
-        run: cargo install criterion-hypothesis@0.2.0
+        run: |
+          cargo install \
+            --git https://github.com/lclarkmichalek/criterion-hypothesis.git \
+            --rev 474b3d2db17939d33452a935fd79e4203d7e5606 \
+            --locked \
+            criterion-hypothesis
 
       - name: Debug - Build benchmarks manually
         if: steps.changes.outputs.skip_benchmarks != 'true'
@@ -75,41 +80,64 @@ jobs:
       - name: Run benchmark comparison
         if: steps.changes.outputs.skip_benchmarks != 'true'
         id: benchmarks
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 40
-          max_attempts: 2
-          retry_on: error
-          command: |
-            set +e  # Don't exit on error
+        continue-on-error: true
+        timeout-minutes: 40
+        run: |
+          MAX_ATTEMPTS=2
+          ATTEMPT=1
+          EXIT_CODE=""
+
+          while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
+            echo "Attempt $ATTEMPT"
+            set +e
             criterion-hypothesis \
               --baseline ${{ github.event.pull_request.base.sha }} \
               --candidate ${{ github.event.pull_request.head.sha }} \
               --config .criterion-hypothesis.toml \
               2>&1 | tee benchmark-output.txt
             EXIT_CODE=${PIPESTATUS[0]}
-            echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+            set -e
 
-            # Exit with success for 0 (no regressions) or 1 (regressions detected)
-            # Exit with failure for 128+ (errors) to trigger retry
-            if [ "$EXIT_CODE" -ge 128 ]; then
-              exit 1
+            if [ "$EXIT_CODE" = "0" ] || [ "$EXIT_CODE" = "1" ]; then
+              break
             fi
-            exit 0
+
+            if [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
+              echo "criterion-hypothesis failed with exit code $EXIT_CODE; retrying..."
+              sleep 5
+            fi
+
+            ATTEMPT=$((ATTEMPT + 1))
+          done
+
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+
+          if [ "$EXIT_CODE" != "0" ] && [ "$EXIT_CODE" != "1" ]; then
+            echo "::error::Benchmark comparison failed with exit code $EXIT_CODE"
+            exit 1
+          fi
 
       - name: Generate summary
         if: steps.changes.outputs.skip_benchmarks != 'true'
         run: |
           echo "## Benchmark Comparison Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.benchmarks.outputs.exit_code }}" == "1" ]; then
+          if [ -z "${{ steps.benchmarks.outputs.exit_code }}" ]; then
+            echo "❌ **Benchmark execution failed before reporting an exit code.**" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.benchmarks.outputs.exit_code }}" == "1" ]; then
             echo "⚠️ **Regressions detected!** See details below." >> $GITHUB_STEP_SUMMARY
-          else
+          elif [ "${{ steps.benchmarks.outputs.exit_code }}" == "0" ]; then
             echo "✅ **No regressions detected.**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Benchmark execution failed** (exit code: ${{ steps.benchmarks.outputs.exit_code }})." >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat benchmark-output.txt >> $GITHUB_STEP_SUMMARY
+          if [ -f benchmark-output.txt ]; then
+            cat benchmark-output.txt >> $GITHUB_STEP_SUMMARY
+          else
+            echo "benchmark-output.txt was not created" >> $GITHUB_STEP_SUMMARY
+          fi
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Configuration" >> $GITHUB_STEP_SUMMARY
@@ -131,7 +159,10 @@ jobs:
         id: bench-status
         run: |
           EXIT_CODE="${{ steps.benchmarks.outputs.exit_code }}"
-          if [ "$EXIT_CODE" == "0" ]; then
+          if [ -z "$EXIT_CODE" ]; then
+            echo "status=error" >> $GITHUB_OUTPUT
+            echo "message=❌ **Benchmark execution failed before reporting an exit code.**" >> $GITHUB_OUTPUT
+          elif [ "$EXIT_CODE" == "0" ]; then
             echo "status=success" >> $GITHUB_OUTPUT
             echo "message=✅ **No regressions detected.**" >> $GITHUB_OUTPUT
           elif [ "$EXIT_CODE" == "1" ]; then
@@ -191,8 +222,12 @@ jobs:
             ⏭️ **Benchmarks skipped** - no Rust files changed.
           edit-mode: replace
 
-      - name: Fail on regressions
-        if: steps.changes.outputs.skip_benchmarks != 'true' && steps.benchmarks.outputs.exit_code == '1'
+      - name: Fail on benchmark regressions or errors
+        if: steps.changes.outputs.skip_benchmarks != 'true' && steps.benchmarks.outputs.exit_code != '0'
         run: |
-          echo "::error::Benchmark regressions detected. See the benchmark output for details."
+          if [ "${{ steps.benchmarks.outputs.exit_code }}" == "1" ]; then
+            echo "::error::Benchmark regressions detected. See the benchmark output for details."
+          else
+            echo "::error::Benchmark execution failed. See the benchmark output for details."
+          fi
           exit 1
