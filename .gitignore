@@ -9,3 +9,5 @@ infra/terraform.tfvars
 infra/.terraform/
 infra/*.tfstate*
 infra/scaler-source.zip
+# Implementation plans and design docs — kept locally, not tracked
+docs/
