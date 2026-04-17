@@ -67,28 +67,32 @@ fn main() {
     {
         let a = base.clone();
         let b = disjoint.clone();
-        registry.register("intersect/0pct_overlap/sosorted", move || {
+        registry.register("intersect/0pct_overlap/sosorted", move |n| {
             let mut dest = vec![0u64; a.len().min(b.len())];
             let start = Instant::now();
-            black_box(intersect(
-                black_box(&mut dest),
-                black_box(&a),
-                black_box(&b),
-            ));
+            for _ in 0..n {
+                black_box(intersect(
+                    black_box(&mut dest),
+                    black_box(&a),
+                    black_box(&b),
+                ));
+            }
             start.elapsed()
         });
     }
     {
         let a = base.clone();
         let b = disjoint.clone();
-        registry.register("intersect/0pct_overlap/naive", move || {
+        registry.register("intersect/0pct_overlap/naive", move |n| {
             let mut dest = vec![0u64; a.len().min(b.len())];
             let start = Instant::now();
-            black_box(naive_intersect(
-                black_box(&mut dest),
-                black_box(&a),
-                black_box(&b),
-            ));
+            for _ in 0..n {
+                black_box(naive_intersect(
+                    black_box(&mut dest),
+                    black_box(&a),
+                    black_box(&b),
+                ));
+            }
             start.elapsed()
         });
     }
@@ -97,28 +101,32 @@ fn main() {
     {
         let a = base.clone();
         let b = overlap_50pct.clone();
-        registry.register("intersect/50pct_overlap/sosorted", move || {
+        registry.register("intersect/50pct_overlap/sosorted", move |n| {
             let mut dest = vec![0u64; a.len().min(b.len())];
             let start = Instant::now();
-            black_box(intersect(
-                black_box(&mut dest),
-                black_box(&a),
-                black_box(&b),
-            ));
+            for _ in 0..n {
+                black_box(intersect(
+                    black_box(&mut dest),
+                    black_box(&a),
+                    black_box(&b),
+                ));
+            }
             start.elapsed()
         });
     }
     {
         let a = base.clone();
         let b = overlap_50pct.clone();
-        registry.register("intersect/50pct_overlap/naive", move || {
+        registry.register("intersect/50pct_overlap/naive", move |n| {
             let mut dest = vec![0u64; a.len().min(b.len())];
             let start = Instant::now();
-            black_box(naive_intersect(
-                black_box(&mut dest),
-                black_box(&a),
-                black_box(&b),
-            ));
+            for _ in 0..n {
+                black_box(naive_intersect(
+                    black_box(&mut dest),
+                    black_box(&a),
+                    black_box(&b),
+                ));
+            }
             start.elapsed()
         });
     }
@@ -127,28 +135,32 @@ fn main() {
     {
         let a = base.clone();
         let b = identical.clone();
-        registry.register("intersect/100pct_overlap/sosorted", move || {
+        registry.register("intersect/100pct_overlap/sosorted", move |n| {
             let mut dest = vec![0u64; a.len().min(b.len())];
             let start = Instant::now();
-            black_box(intersect(
-                black_box(&mut dest),
-                black_box(&a),
-                black_box(&b),
-            ));
+            for _ in 0..n {
+                black_box(intersect(
+                    black_box(&mut dest),
+                    black_box(&a),
+                    black_box(&b),
+                ));
+            }
             start.elapsed()
         });
     }
     {
         let a = base.clone();
         let b = identical.clone();
-        registry.register("intersect/100pct_overlap/naive", move || {
+        registry.register("intersect/100pct_overlap/naive", move |n| {
             let mut dest = vec![0u64; a.len().min(b.len())];
             let start = Instant::now();
-            black_box(naive_intersect(
-                black_box(&mut dest),
-                black_box(&a),
-                black_box(&b),
-            ));
+            for _ in 0..n {
+                black_box(naive_intersect(
+                    black_box(&mut dest),
+                    black_box(&a),
+                    black_box(&b),
+                ));
+            }
             start.elapsed()
         });
     }
@@ -157,28 +169,32 @@ fn main() {
     {
         let a = asym_a.clone();
         let b = asym_b.clone();
-        registry.register("intersect/asymmetric_10_1/sosorted", move || {
+        registry.register("intersect/asymmetric_10_1/sosorted", move |n| {
             let mut dest = vec![0u64; a.len().min(b.len())];
             let start = Instant::now();
-            black_box(intersect(
-                black_box(&mut dest),
-                black_box(&a),
-                black_box(&b),
-            ));
+            for _ in 0..n {
+                black_box(intersect(
+                    black_box(&mut dest),
+                    black_box(&a),
+                    black_box(&b),
+                ));
+            }
             start.elapsed()
         });
     }
     {
         let a = asym_a.clone();
         let b = asym_b.clone();
-        registry.register("intersect/asymmetric_10_1/naive", move || {
+        registry.register("intersect/asymmetric_10_1/naive", move |n| {
             let mut dest = vec![0u64; a.len().min(b.len())];
             let start = Instant::now();
-            black_box(naive_intersect(
-                black_box(&mut dest),
-                black_box(&a),
-                black_box(&b),
-            ));
+            for _ in 0..n {
+                black_box(naive_intersect(
+                    black_box(&mut dest),
+                    black_box(&a),
+                    black_box(&b),
+                ));
+            }
             start.elapsed()
         });
     }

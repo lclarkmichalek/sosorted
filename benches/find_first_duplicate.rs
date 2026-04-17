@@ -46,68 +46,84 @@ fn main() {
     // Register sosorted implementations
     {
         let data = all_unique.clone();
-        registry.register("find_first_duplicate/all_unique/sosorted", move || {
+        registry.register("find_first_duplicate/all_unique/sosorted", move |n| {
             let start = Instant::now();
-            black_box(find_first_duplicate(black_box(&data)));
+            for _ in 0..n {
+                black_box(find_first_duplicate(black_box(&data)));
+            }
             start.elapsed()
         });
     }
     {
         let data = all_unique.clone();
-        registry.register("find_first_duplicate/all_unique/naive", move || {
+        registry.register("find_first_duplicate/all_unique/naive", move |n| {
             let start = Instant::now();
-            black_box(naive_find_first_duplicate(black_box(&data)));
+            for _ in 0..n {
+                black_box(naive_find_first_duplicate(black_box(&data)));
+            }
             start.elapsed()
         });
     }
 
     {
         let data = early_dup.clone();
-        registry.register("find_first_duplicate/early_dup/sosorted", move || {
+        registry.register("find_first_duplicate/early_dup/sosorted", move |n| {
             let start = Instant::now();
-            black_box(find_first_duplicate(black_box(&data)));
+            for _ in 0..n {
+                black_box(find_first_duplicate(black_box(&data)));
+            }
             start.elapsed()
         });
     }
     {
         let data = early_dup.clone();
-        registry.register("find_first_duplicate/early_dup/naive", move || {
+        registry.register("find_first_duplicate/early_dup/naive", move |n| {
             let start = Instant::now();
-            black_box(naive_find_first_duplicate(black_box(&data)));
+            for _ in 0..n {
+                black_box(naive_find_first_duplicate(black_box(&data)));
+            }
             start.elapsed()
         });
     }
 
     {
         let data = late_dup.clone();
-        registry.register("find_first_duplicate/late_dup/sosorted", move || {
+        registry.register("find_first_duplicate/late_dup/sosorted", move |n| {
             let start = Instant::now();
-            black_box(find_first_duplicate(black_box(&data)));
+            for _ in 0..n {
+                black_box(find_first_duplicate(black_box(&data)));
+            }
             start.elapsed()
         });
     }
     {
         let data = late_dup.clone();
-        registry.register("find_first_duplicate/late_dup/naive", move || {
+        registry.register("find_first_duplicate/late_dup/naive", move |n| {
             let start = Instant::now();
-            black_box(naive_find_first_duplicate(black_box(&data)));
+            for _ in 0..n {
+                black_box(naive_find_first_duplicate(black_box(&data)));
+            }
             start.elapsed()
         });
     }
 
     {
         let data = half_duplicates.clone();
-        registry.register("find_first_duplicate/50pct_dups/sosorted", move || {
+        registry.register("find_first_duplicate/50pct_dups/sosorted", move |n| {
             let start = Instant::now();
-            black_box(find_first_duplicate(black_box(&data)));
+            for _ in 0..n {
+                black_box(find_first_duplicate(black_box(&data)));
+            }
             start.elapsed()
         });
     }
     {
         let data = half_duplicates.clone();
-        registry.register("find_first_duplicate/50pct_dups/naive", move || {
+        registry.register("find_first_duplicate/50pct_dups/naive", move |n| {
             let start = Instant::now();
-            black_box(naive_find_first_duplicate(black_box(&data)));
+            for _ in 0..n {
+                black_box(naive_find_first_duplicate(black_box(&data)));
+            }
             start.elapsed()
         });
     }
