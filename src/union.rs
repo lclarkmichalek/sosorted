@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, simd::cmp::SimdPartialOrd};
+use std::simd::cmp::SimdPartialOrd;
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
@@ -25,24 +25,13 @@ where
     let mut last_value: Option<T> = None;
 
     while i < a.len() && j < b.len() {
-        let val = match a[i].cmp(&b[j]) {
-            Ordering::Less => {
-                let v = a[i];
-                i += 1;
-                v
-            }
-            Ordering::Greater => {
-                let v = b[j];
-                j += 1;
-                v
-            }
-            Ordering::Equal => {
-                let v = a[i];
-                i += 1;
-                j += 1;
-                v
-            }
-        };
+        let av = a[i];
+        let bv = b[j];
+        let take_a = av <= bv;
+        let take_b = bv <= av;
+        let val = if take_a { av } else { bv };
+        i += take_a as usize;
+        j += take_b as usize;
 
         if last_value != Some(val) {
             count += 1;
@@ -252,24 +241,13 @@ where
                 break;
             }
 
-            let val = match a[i].cmp(&b[j]) {
-                Ordering::Less => {
-                    let v = a[i];
-                    i += 1;
-                    v
-                }
-                Ordering::Greater => {
-                    let v = b[j];
-                    j += 1;
-                    v
-                }
-                Ordering::Equal => {
-                    let v = a[i];
-                    i += 1;
-                    j += 1;
-                    v
-                }
-            };
+            let av = a[i];
+            let bv = b[j];
+            let take_a = av <= bv;
+            let take_b = bv <= av;
+            let val = if take_a { av } else { bv };
+            i += take_a as usize;
+            j += take_b as usize;
 
             if last_written != Some(val) {
                 dest[write] = val;
@@ -281,24 +259,13 @@ where
 
     // Scalar merge for remaining elements
     while i < a.len() && j < b.len() {
-        let val = match a[i].cmp(&b[j]) {
-            Ordering::Less => {
-                let v = a[i];
-                i += 1;
-                v
-            }
-            Ordering::Greater => {
-                let v = b[j];
-                j += 1;
-                v
-            }
-            Ordering::Equal => {
-                let v = a[i];
-                i += 1;
-                j += 1;
-                v
-            }
-        };
+        let av = a[i];
+        let bv = b[j];
+        let take_a = av <= bv;
+        let take_b = bv <= av;
+        let val = if take_a { av } else { bv };
+        i += take_a as usize;
+        j += take_b as usize;
 
         if last_written != Some(val) {
             dest[write] = val;
