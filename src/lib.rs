@@ -1,5 +1,7 @@
 #![feature(portable_simd)]
 
+mod prefetch;
+
 mod simd_element;
 pub use simd_element::{SimdMaskOps, SortedSimdElement, SIMD_WIDTH_BITS};
 

@@ -14,6 +14,7 @@
 
 use std::simd::cmp::SimdPartialEq;
 
+use crate::prefetch::prefetch_read;
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
 /// Computes the **multiset intersection** of two sorted arrays.
@@ -139,6 +140,8 @@ where
     T: SortedSimdElement + Ord,
     T::SimdVec: SimdPartialEq<Mask = T::SimdMask>,
 {
+    const PREFETCH_DISTANCE_ELEMS: usize = 64; // ~4 cachelines of u64 data
+
     let lanes = T::LANES;
     let mut intersect_count = 0;
     let mut freq_idx = 0;
@@ -146,6 +149,10 @@ where
     for &rare_val in rare.iter() {
         // SIMD search in freq
         while freq_idx + lanes <= freq.len() {
+            // Prefetch ahead to hide memory latency for large inputs.
+            if freq_idx + PREFETCH_DISTANCE_ELEMS < freq.len() {
+                prefetch_read(&freq[freq_idx + PREFETCH_DISTANCE_ELEMS]);
+            }
             let freq_block = T::simd_from_slice(&freq[freq_idx..freq_idx + lanes]);
             let rare_splat = T::simd_splat(rare_val);
 
@@ -200,6 +207,8 @@ where
     T: SortedSimdElement + Ord,
     T::SimdVec: SimdPartialEq<Mask = T::SimdMask>,
 {
+    const PREFETCH_DISTANCE_ELEMS: usize = 64; // ~4 cachelines of u64 data
+
     let lanes = T::LANES;
     let block_size = lanes * 4;
     let mut intersect_count = 0;
@@ -208,6 +217,10 @@ where
     for &rare_val in rare.iter() {
         // First level: skip blocks
         while freq_idx + block_size <= freq.len() {
+            // Prefetch ahead to hide memory latency for large inputs.
+            if freq_idx + PREFETCH_DISTANCE_ELEMS < freq.len() {
+                prefetch_read(&freq[freq_idx + PREFETCH_DISTANCE_ELEMS]);
+            }
             if freq[freq_idx + block_size - 1] >= rare_val {
                 break;
             }
@@ -279,12 +292,19 @@ fn intersect_galloping_impl<T>(dest: &mut [T], rare: &[T], freq: &[T]) -> usize
 where
     T: SortedSimdElement + Ord,
 {
+    const PREFETCH_DISTANCE_ELEMS: usize = 64; // ~4 cachelines of u64 data
+
     let mut intersect_count = 0;
     let mut freq_idx = 0;
 
     for &rare_val in rare.iter() {
         if freq_idx >= freq.len() {
             break;
+        }
+
+        // Prefetch ahead to hide memory latency for large inputs.
+        if freq_idx + PREFETCH_DISTANCE_ELEMS < freq.len() {
+            prefetch_read(&freq[freq_idx + PREFETCH_DISTANCE_ELEMS]);
         }
 
         // Galloping: exponentially increase search range
