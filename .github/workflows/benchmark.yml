@@ -65,7 +65,13 @@ jobs:
 
       - name: Install hypobench
         if: steps.changes.outputs.skip_benchmarks != 'true'
-        run: cargo install hypobench@0.5.0
+        run: |
+          # Pin the CLI to the same version as hypobench-harness in Cargo.toml
+          # so the CLI and the in-process harness speak the same protocol.
+          # Cargo.lock resolves this for us — one source of truth.
+          VERSION=$(cargo pkgid -p hypobench-harness | sed 's/.*@//')
+          echo "Installing hypobench@${VERSION}"
+          cargo install "hypobench@${VERSION}"
 
       - name: Run benchmark comparison (JSON)
         if: steps.changes.outputs.skip_benchmarks != 'true'
