@@ -2,7 +2,7 @@
 # See https://github.com/lclarkmichalek/hypobench for documentation
 
 [hypothesis]
-confidence_level = 0.95      # Statistical confidence level (95%)
+confidence_level = 0.99      # Statistical confidence level (99%)
 minimum_effect_size = 2.0    # Minimum % difference to report as significant
 
 [orchestration]
