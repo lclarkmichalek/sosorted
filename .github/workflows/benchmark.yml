@@ -68,7 +68,9 @@ jobs:
         run: |
           # Pin the CLI to the same version as hypobench-harness in Cargo.toml
           # so the CLI and the in-process harness speak the same protocol.
-          # Cargo.lock resolves this for us — one source of truth.
+          # Cargo.lock is gitignored, so generate it first — `cargo pkgid`
+          # requires a resolved graph to extract the exact version.
+          cargo generate-lockfile --quiet
           VERSION=$(cargo pkgid -p hypobench-harness | sed 's/.*@//')
           echo "Installing hypobench@${VERSION}"
           cargo install "hypobench@${VERSION}"
