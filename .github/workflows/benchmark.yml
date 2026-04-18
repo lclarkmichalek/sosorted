@@ -93,9 +93,9 @@ jobs:
         if: steps.changes.outputs.skip_benchmarks != 'true'
         run: hypobench report --in report.json --format terminal | tee benchmark-output.txt
 
-      - name: Render markdown report
+      - name: Render PR-comment report
         if: steps.changes.outputs.skip_benchmarks != 'true'
-        run: hypobench report --in report.json --format markdown > benchmark-comment.md
+        run: hypobench report --in report.json --format github-pr-comment > benchmark-comment.md
 
       - name: Upload JSON report artifact
         if: steps.changes.outputs.skip_benchmarks != 'true'
