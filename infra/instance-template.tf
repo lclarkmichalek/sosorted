@@ -21,6 +21,20 @@ resource "google_compute_instance_template" "runner" {
     disk_size_gb = 50
   }
 
+  # Persistent cache disk — survives VM lifetimes to avoid rebuilding the
+  # cargo/rustup state and common dependencies on every job.
+  #
+  # Exposed to the VM as /dev/disk/by-id/google-bench-cache (see device_name).
+  # See cache-disk.tf for the disk resource itself and scripts/startup.sh
+  # for the mount logic.
+  disk {
+    source      = google_compute_region_disk.bench_cache.self_link
+    device_name = "bench-cache"
+    auto_delete = false
+    boot        = false
+    mode        = "READ_WRITE"
+  }
+
   network_interface {
     subnetwork = google_compute_subnetwork.runner.id
 
