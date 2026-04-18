@@ -14,13 +14,15 @@ All mutable operations follow a consistent pattern: **the destination buffer is 
 - Ensures all input data remains immutable
 - Allows callers to control memory allocation
 
-```rust
+```rust,ignore
 // All mutable APIs follow: (dest, inputs...) -> result_length
 let len = intersect(&mut dest, &a, &b);
 let len = union(&mut dest, &a, &b);
 let len = difference(&mut dest, &a, &b);
 let len = deduplicate(&mut dest, &input);
 ```
+
+**Note**: For performance reasons, the library does not perform runtime checks to ensure inputs are sorted; it is strictly the caller's responsibility to guarantee sorted inputs to avoid incorrect behavior and invalid states.
 
 ## Currently Supported Operations
 
