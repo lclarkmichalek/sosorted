@@ -70,30 +70,23 @@ jobs:
       - name: Run benchmark comparison
         if: steps.changes.outputs.skip_benchmarks != 'true'
         id: benchmarks
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 40
-          max_attempts: 2
-          retry_on: error
-          command: |
-            set +e  # Don't exit on error
-            hypobench \
-              --baseline ${{ steps.base.outputs.sha }} \
-              --candidate ${{ github.event.pull_request.head.sha }} \
-              --config .hypobench.toml \
-              2>&1 | tee benchmark-output.txt
-            EXIT_CODE=${PIPESTATUS[0]}
-            # Use a distinct key here — `nick-fields/retry` declares its own
-            # `exit_code` output which last-write-wins overrides ours at the
-            # end of the step. `tool_exit_code` avoids the collision.
-            echo "tool_exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+        timeout-minutes: 40
+        run: |
+          set +e  # Don't exit on error — we want to inspect hypobench's exit code below.
+          hypobench \
+            --baseline ${{ steps.base.outputs.sha }} \
+            --candidate ${{ github.event.pull_request.head.sha }} \
+            --config .hypobench.toml \
+            2>&1 | tee benchmark-output.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "tool_exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
 
-            # Exit with success for 0 (no regressions) or 1 (regressions detected)
-            # Exit with failure for 128+ (errors) to trigger retry
-            if [ "$EXIT_CODE" -ge 128 ]; then
-              exit 1
-            fi
-            exit 0
+          # 0 = no regressions, 1 = regressions detected — both are "the tool ran successfully".
+          # Anything else is a real failure that should fail the step.
+          if [ "$EXIT_CODE" -ge 128 ]; then
+            exit 1
+          fi
+          exit 0
 
       - name: Generate summary
         if: steps.changes.outputs.skip_benchmarks != 'true'
