@@ -89,8 +89,9 @@ while i + lanes <= vec.len() {
 # Run tests
 cargo test
 
-# Run benchmarks
-cargo bench
+# Compile benchmark harnesses (see the Benchmarking section below for how to
+# actually run a comparison via the `hypobench` CLI)
+cargo bench --no-run
 
 # Requires nightly Rust (see rust-toolchain file)
 rustup install nightly
@@ -163,20 +164,31 @@ gh pr merge <PR> --merge
 
 ## Benchmarking
 
-The project uses **Criterion** for statistical benchmarking with HTML report generation. Every supported operation must have comprehensive benchmarks. Note that current benchmarks primarily focus on `u64`, but the library supports all primitive integer types.
+The project uses **[hypobench](https://github.com/lclarkmichalek/hypobench)** for statistical A/B benchmark comparison between two git refs (typically a PR's base and head). Criterion is no longer used.
+
+Each bench file in `benches/` is an HTTP harness binary that registers benchmark closures with a `BenchmarkRegistry` and serves them for the `hypobench` CLI to drive. `hypobench` builds both refs, interleaves samples from each, and applies a Welch's t-test to decide whether differences are significant.
 
 ### Running Benchmarks
 
+Benchmarks are driven by the `hypobench` CLI, not `cargo bench`. `cargo bench` will compile the harness binaries but not produce a useful comparison on its own.
+
 ```bash
-# Run specific benchmark
-cargo bench --bench find_first_duplicate
+# Install the orchestrator (pin to the version used in CI — see Cargo.toml dev-deps)
+cargo install hypobench@0.4.2
 
-# Run all benchmarks
-cargo bench
+# Compare the current working tree against main
+hypobench --baseline main --candidate HEAD --config .hypobench.toml
 
-# View HTML reports (generated in target/criterion/)
-open target/criterion/report/index.html
+# Compare two specific commits
+hypobench --baseline <base-sha> --candidate <head-sha> --config .hypobench.toml
+
+# Compile harness binaries without running (useful for debugging build errors)
+cargo bench --no-run
 ```
+
+Exit codes: `0` = no regressions, `1` = regressions detected, `>=128` = tool error.
+
+Configuration lives in [`.hypobench.toml`](.hypobench.toml) — confidence level, effect-size threshold, sample size, the list of `bench_targets` to run, and the build profile.
 
 ### Benchmark Requirements
 
@@ -195,57 +207,68 @@ Each operation benchmark must include:
    - Average case (mid-range scenarios)
    - Edge cases (empty, all duplicates, all unique)
 
-4. **Scaling benchmarks** - Test performance across different input sizes:
-   - Small: 1024 elements
-   - Medium: 8192 elements
-   - Large: 65536 elements
-   - Very large: 524288 elements
+4. **Deterministic inputs** - Use the seed constants from `benches/common/rng.rs` so runs are reproducible and baseline/candidate see identical data.
 
-5. **Throughput metrics** - Set throughput in bytes for performance comparison
+### Harness Structure
 
-### Benchmark Structure
+A bench file is a `main()` that builds a `BenchmarkRegistry`, registers one closure per named benchmark, and calls `run_harness(registry, port)`. Each closure receives an iteration count `n`, runs the operation `n` times, and returns the elapsed `Duration`. Pre-generate input data outside the closure so generation cost is not included in the measurement.
 
 ```rust
-use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
+use hypobench_harness::{run_harness, BenchmarkRegistry};
+use sosorted::operation;
+use std::hint::black_box;
+use std::time::Instant;
 
-fn bench_operation(c: &mut Criterion) {
-    let mut group = c.benchmark_group("operation_name");
-    group.throughput(Throughput::Bytes((N * 8) as u64));
+mod common;
+use common::rng::{DEFAULT_SIZE, SEED_A};
+use common::generate_sorted_unique;
 
-    // Benchmark sosorted implementation
-    group.bench_function("sosorted/scenario", |b| {
-        b.iter(|| black_box(operation(black_box(&data))));
-    });
+fn main() {
+    let port: u16 = std::env::var("HYPOBENCH_PORT")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(9100);
 
-    // Benchmark stdlib alternative
-    group.bench_function("stdlib/scenario", |b| {
-        b.iter(|| black_box(stdlib_operation(black_box(&data))));
-    });
+    // Pre-generate data once, outside the measured closure.
+    let data = generate_sorted_unique(SEED_A, DEFAULT_SIZE);
 
-    group.finish();
+    let mut registry = BenchmarkRegistry::new();
+
+    {
+        let data = data.clone();
+        registry.register("operation/scenario/sosorted", move |n| {
+            let start = Instant::now();
+            for _ in 0..n {
+                black_box(operation(black_box(&data)));
+            }
+            start.elapsed()
+        });
+    }
+    // ... register naive and stdlib variants under parallel names ...
+
+    run_harness(registry, port).expect("Failed to run harness");
 }
-
-criterion_group!(benches, bench_operation);
-criterion_main!(benches);
 ```
+
+Naming convention: `<operation>/<scenario>/<implementation>` (e.g. `find_first_duplicate/early_dup/sosorted`). `hypobench` pairs baseline and candidate samples by name, so the names must match exactly across refs.
 
 ### Maintaining Benchmarks
 
 When adding a new operation:
 
-1. Create `benches/<operation_name>.rs` with Criterion benchmark functions
-2. **CRITICAL: Register benchmark in `Cargo.toml`**
+1. Create `benches/<operation_name>.rs` as a hypobench harness binary (see above).
+2. **Register the `[[bench]]` entry in `Cargo.toml`:**
    ```toml
    [[bench]]
    name = "operation_name"
    harness = false
    ```
-   Without this, benchmarks will run as regular tests (showing "0 tests") instead of executing as Criterion benchmarks, and **won't appear in CI benchmark results**.
-3. Implement comparison functions (naive, stdlib, HashSet where applicable)
-4. Create multiple test scenarios (best/worst/average cases)
-5. Add scaling benchmarks across different sizes
-6. Run `cargo bench --bench operation_name` to verify benchmarks execute correctly
-7. Review HTML reports to ensure meaningful comparisons
+   `harness = false` is required — the file provides its own `main()`.
+3. **Add the bench name to `bench_targets` in `.hypobench.toml`.** If it's not listed there, `hypobench` will not run it.
+4. Implement comparison closures (naive, stdlib, `HashSet` where applicable) under the `<op>/<scenario>/<impl>` naming convention.
+5. Use datasets from `benches/common/` (`standard_unary_datasets`, `standard_binary_datasets`, or the raw generators) with seeds from `common::rng` for reproducibility.
+6. Verify the harness compiles with `cargo bench --no-run`.
+7. Run `hypobench --baseline main --candidate HEAD --config .hypobench.toml` locally to confirm the new benchmarks are picked up and produce a comparison.
 
 ### Current Benchmarks
 
@@ -286,9 +309,8 @@ All operations are generic via the `SortedSimdElement` trait.
 
 - **Production**: None (zero-dependency crate)
 - **Development**:
-  - `criterion` - Statistical benchmarking framework with HTML reports
+  - `hypobench-harness` - Harness library that exposes benchmarks over HTTP for the `hypobench` CLI to drive
   - `rand` - Random data generation for tests and benchmarks
-  - `anyhow` - Error handling in tests
 
 ## Performance Notes
 
