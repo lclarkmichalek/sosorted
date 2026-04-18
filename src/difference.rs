@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, simd::cmp::SimdPartialOrd};
+use std::simd::cmp::SimdPartialOrd;
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
@@ -74,50 +74,44 @@ where
                 break;
             }
 
-            match a[i].cmp(&b[j]) {
-                Ordering::Less => {
-                    // a[i] is not in b (at least not at current position)
-                    count += 1;
-                    i += 1;
-                }
-                Ordering::Greater => {
-                    // Haven't reached a[i] in b yet
-                    j += 1;
-                }
-                Ordering::Equal => {
-                    // a[i] is in b, skip ALL duplicates of this value in both arrays
-                    let matched_val = a[i];
-                    while i < a.len() && a[i] == matched_val {
-                        i += 1;
-                    }
-                    while j < b.len() && b[j] == matched_val {
-                        j += 1;
-                    }
-                }
-            }
-        }
-    }
-
-    // Scalar loop for remaining elements
-    while i < a.len() && j < b.len() {
-        match a[i].cmp(&b[j]) {
-            Ordering::Less => {
-                count += 1;
-                i += 1;
-            }
-            Ordering::Greater => {
-                j += 1;
-            }
-            Ordering::Equal => {
-                // Skip ALL duplicates of this value in both arrays
-                let matched_val = a[i];
+            let av = a[i];
+            let bv = b[j];
+            if av == bv {
+                // a[i] is in b, skip ALL duplicates of this value in both arrays
+                let matched_val = av;
                 while i < a.len() && a[i] == matched_val {
                     i += 1;
                 }
                 while j < b.len() && b[j] == matched_val {
                     j += 1;
                 }
+            } else {
+                let take_a = av < bv;
+                count += take_a as usize;
+                i += take_a as usize;
+                j += (!take_a) as usize;
             }
+        }
+    }
+
+    // Scalar loop for remaining elements
+    while i < a.len() && j < b.len() {
+        let av = a[i];
+        let bv = b[j];
+        if av == bv {
+            // Skip ALL duplicates of this value in both arrays
+            let matched_val = av;
+            while i < a.len() && a[i] == matched_val {
+                i += 1;
+            }
+            while j < b.len() && b[j] == matched_val {
+                j += 1;
+            }
+        } else {
+            let take_a = av < bv;
+            count += take_a as usize;
+            i += take_a as usize;
+            j += (!take_a) as usize;
         }
     }
 
@@ -207,6 +201,19 @@ where
         return a.len();
     }
 
+    // Galloping dispatch: only when a is much smaller than b.
+    //
+    // When b is tiny vs a (b << a), the existing SIMD block-skip is already optimal
+    // because we're streaming through a and skipping chunks of b — no benefit from
+    // galloping.  When a is tiny vs b (a << b), we can gallop through b for each
+    // element of a to decide emit/skip in O(|a| * log|b|) rather than O(|a| + |b|).
+    //
+    // Threshold 50 mirrors intersect's V1→V3 boundary.
+    let ratio_a_small = b.len() / a.len().max(1);
+    if ratio_a_small >= 50 {
+        return difference_galloping_impl(dest, a, b);
+    }
+
     let lanes = T::LANES;
     let mut i = 0; // Read position in a
     let mut j = 0; // Position in b
@@ -239,52 +246,50 @@ where
                 break;
             }
 
-            match a[i].cmp(&b[j]) {
-                Ordering::Less => {
-                    // a[i] is not in b, include it
-                    dest[write] = a[i];
-                    write += 1;
-                    i += 1;
-                }
-                Ordering::Greater => {
-                    // Haven't reached a[i] in b yet
-                    j += 1;
-                }
-                Ordering::Equal => {
-                    // a[i] is in b, skip ALL duplicates of this value in both arrays
-                    let matched_val = a[i];
-                    while i < a.len() && a[i] == matched_val {
-                        i += 1;
-                    }
-                    while j < b.len() && b[j] == matched_val {
-                        j += 1;
-                    }
-                }
-            }
-        }
-    }
-
-    // Scalar loop for remaining elements
-    while i < a.len() && j < b.len() {
-        match a[i].cmp(&b[j]) {
-            Ordering::Less => {
-                dest[write] = a[i];
-                write += 1;
-                i += 1;
-            }
-            Ordering::Greater => {
-                j += 1;
-            }
-            Ordering::Equal => {
-                // Skip ALL duplicates of this value in both arrays
-                let matched_val = a[i];
+            let av = a[i];
+            let bv = b[j];
+            if av == bv {
+                // a[i] is in b, skip ALL duplicates of this value in both arrays
+                let matched_val = av;
                 while i < a.len() && a[i] == matched_val {
                     i += 1;
                 }
                 while j < b.len() && b[j] == matched_val {
                     j += 1;
                 }
+            } else {
+                let take_a = av < bv;
+                if take_a {
+                    dest[write] = av;
+                    write += 1;
+                }
+                i += take_a as usize;
+                j += (!take_a) as usize;
             }
+        }
+    }
+
+    // Scalar loop for remaining elements
+    while i < a.len() && j < b.len() {
+        let av = a[i];
+        let bv = b[j];
+        if av == bv {
+            // Skip ALL duplicates of this value in both arrays
+            let matched_val = av;
+            while i < a.len() && a[i] == matched_val {
+                i += 1;
+            }
+            while j < b.len() && b[j] == matched_val {
+                j += 1;
+            }
+        } else {
+            let take_a = av < bv;
+            if take_a {
+                dest[write] = av;
+                write += 1;
+            }
+            i += take_a as usize;
+            j += (!take_a) as usize;
         }
     }
 
@@ -298,10 +303,76 @@ where
     write
 }
 
+/// Galloping difference: used when `a` is much smaller than `b`.
+///
+/// For each element of the small array `a`, gallop through `b` to check
+/// membership.  If the element is NOT in `b`, emit it.  Duplicates in `a`
+/// that are not in `b` are preserved; if a value appears in `b` at all,
+/// ALL occurrences of that value in `a` are skipped.
+///
+/// Complexity: O(|a| * log|b|) comparisons.
+fn difference_galloping_impl<T>(dest: &mut [T], a: &[T], b: &[T]) -> usize
+where
+    T: SortedSimdElement + Ord,
+{
+    let mut write = 0;
+    let mut b_idx = 0; // monotonically-advancing cursor into b
+
+    let mut i = 0;
+    while i < a.len() {
+        let a_val = a[i];
+
+        // Gallop forward in b to find first position >= a_val.
+        if b_idx < b.len() {
+            let mut bound = 1;
+            let mut lower = b_idx;
+
+            while b_idx + bound < b.len() && b[b_idx + bound] < a_val {
+                lower = b_idx + bound;
+                bound *= 2;
+            }
+            let upper = (b_idx + bound + 1).min(b.len());
+
+            // Binary search in [lower, upper)
+            let mut lo = lower;
+            let mut hi = upper;
+            while lo < hi {
+                let mid = lo + (hi - lo) / 2;
+                if b[mid] < a_val {
+                    lo = mid + 1;
+                } else {
+                    hi = mid;
+                }
+            }
+            b_idx = lo;
+        }
+
+        // b_idx now points to the first b element >= a_val.
+        if b_idx < b.len() && b[b_idx] == a_val {
+            // a_val is in b — skip ALL occurrences of a_val in a.
+            while i < a.len() && a[i] == a_val {
+                i += 1;
+            }
+            // Advance b_idx past all occurrences of a_val in b.
+            while b_idx < b.len() && b[b_idx] == a_val {
+                b_idx += 1;
+            }
+        } else {
+            // a_val is not in b — emit it and move on.
+            dest[write] = a_val;
+            write += 1;
+            i += 1;
+        }
+    }
+
+    write
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use rand::{rngs::SmallRng, RngCore, SeedableRng};
+    use std::cmp::Ordering;
 
     // ==================== difference_size tests ====================
 
@@ -878,4 +949,56 @@ mod tests {
     test_difference_type!(test_difference_i16, i16);
     test_difference_type!(test_difference_i32, i32);
     test_difference_type!(test_difference_i64, i64);
+
+    // ==================== Galloping-path tests (ratio a:b >= 50) ====================
+
+    #[test]
+    fn test_difference_galloping_a_small_b_large() {
+        // a has 3 elements, b has 300 — ratio 100:1 triggers galloping
+        let a = [5u64, 150, 295];
+        let b: Vec<u64> = (0..300).collect();
+        let mut dest = vec![0u64; a.len()];
+        let len = difference(&mut dest, &a, &b);
+        // All elements of a are in b => result is empty
+        assert_eq!(len, 0);
+    }
+
+    #[test]
+    fn test_difference_galloping_some_not_in_b() {
+        // a has elements both in and not in b (50:1 ratio triggers galloping)
+        let a = [5u64, 55, 105]; // none are multiples of 10
+        let b: Vec<u64> = (0..300u64).map(|x| x * 10).collect(); // 0,10,20,...,2990
+        let mut dest = vec![0u64; a.len()];
+        let len = difference(&mut dest, &a, &b);
+        // 5, 55, 105 are NOT multiples of 10, so all should be kept
+        assert_eq!(len, 3);
+        assert_eq!(&dest[..len], &[5, 55, 105]);
+    }
+
+    #[test]
+    fn test_difference_galloping_preserves_duplicates_in_a() {
+        // Duplicates in a that are not in b must be preserved;
+        // duplicates that are in b must all be removed.
+        let a = [3u64, 3, 7, 7, 11, 11]; // 3 is in b, 7 and 11 are not
+        let b: Vec<u64> = (0..300u64).filter(|&x| x % 10 == 0 || x == 3).collect(); // contains 3, but not 7 or 11
+        let mut dest = vec![0u64; a.len()];
+        let len = difference(&mut dest, &a, &b);
+        assert_eq!(&dest[..len], &[7, 7, 11, 11]);
+    }
+
+    #[test]
+    fn test_difference_galloping_matches_scalar() {
+        // Cross-check galloping against the scalar result for a highly asymmetric case.
+        let a: Vec<u64> = (0..5).map(|x| x * 37).collect(); // [0, 37, 74, 111, 148]
+        let b: Vec<u64> = (0..500).collect();
+
+        // Compute expected with a brute-force set difference
+        let b_set: std::collections::HashSet<u64> = b.iter().copied().collect();
+        let expected: Vec<u64> = a.iter().copied().filter(|v| !b_set.contains(v)).collect();
+
+        let mut dest = vec![0u64; a.len()];
+        let len = difference(&mut dest, &a, &b);
+        assert_eq!(len, expected.len());
+        assert_eq!(&dest[..len], &expected[..]);
+    }
 }
