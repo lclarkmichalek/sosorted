@@ -173,8 +173,9 @@ Each bench file in `benches/` is an HTTP harness binary that registers benchmark
 Benchmarks are driven by the `hypobench` CLI, not `cargo bench`. `cargo bench` will compile the harness binaries but not produce a useful comparison on its own.
 
 ```bash
-# Install the orchestrator (pin to the version used in CI — see Cargo.toml dev-deps)
-cargo install hypobench@0.4.2
+# Install the orchestrator. Use the same version as `hypobench-harness` in
+# Cargo.toml's [dev-dependencies] so the CLI and the harness library match.
+cargo install hypobench@<version-from-Cargo.toml>
 
 # Compare the current working tree against main
 hypobench --baseline main --candidate HEAD --config .hypobench.toml
