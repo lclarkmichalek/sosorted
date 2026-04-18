@@ -17,7 +17,7 @@ bench = false
 
 [dev-dependencies]
 rand = { version = "0.9.2", features = ["small_rng"] }
-hypobench-harness = "0.4.2"
+hypobench-harness = "0.4.1"
 
 [[bench]]
 name = "find_first_duplicate"

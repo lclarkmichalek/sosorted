@@ -81,7 +81,7 @@ where
 /// This operation **deduplicates** the result. If an element appears multiple times in `a` or `b`,
 /// it will appear exactly once in the destination.
 ///
-/// Returns the length of the union. Elements past this length contain unmodified data from their previous state.
+/// Returns the length of the union. Elements past this length contain undefined data.
 ///
 /// # Examples
 ///
