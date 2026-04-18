@@ -67,24 +67,6 @@ jobs:
         if: steps.changes.outputs.skip_benchmarks != 'true'
         run: cargo install hypobench@0.4.2
 
-      - name: Debug - Build benchmarks manually
-        if: steps.changes.outputs.skip_benchmarks != 'true'
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 30
-          max_attempts: 2
-          retry_on: error
-          command: |
-            echo "Building HEAD benchmarks..."
-            cargo bench --no-run
-
-            echo "Building Baseline benchmarks..."
-            git checkout ${{ steps.base.outputs.sha }}
-            cargo bench --no-run
-
-            # Restore HEAD
-            git checkout ${{ github.event.pull_request.head.sha }}
-
       - name: Run benchmark comparison
         if: steps.changes.outputs.skip_benchmarks != 'true'
         id: benchmarks
