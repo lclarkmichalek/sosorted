@@ -191,6 +191,23 @@ Exit codes: `0` = no regressions, `1` = regressions detected, `>=128` = tool err
 
 Configuration lives in [`.hypobench.toml`](.hypobench.toml) — confidence level, effect-size threshold, sample size, the list of `bench_targets` to run, and the build profile.
 
+### Reporting
+
+hypobench 0.5+ splits the run from the rendering. A single benchmark run produces a structured JSON report (`Report` schema v1), which can then be re-rendered in any supported format without re-running.
+
+```bash
+# Run once, produce JSON
+hypobench --baseline main --candidate HEAD --config .hypobench.toml --format json > report.json
+
+# Re-render the same JSON as a PR-comment-ready markdown blob
+hypobench report --in report.json --format github-pr-comment
+
+# Or as the familiar terminal table
+hypobench report --in report.json --format terminal
+```
+
+CI mirrors this: the benchmark workflow runs once with `--format json` and then renders twice — `terminal` for the step-summary code block, `github-pr-comment` for the PR comment body. The `report.json` file is also uploaded as a workflow artifact (90-day retention) for downstream tooling (e.g. a future dashboard over historical runs). The JSON schema is defined in `hypobench-core/src/report/schema.rs` in the hypobench repo.
+
 ### Benchmark Requirements
 
 Each operation benchmark must include:

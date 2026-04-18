@@ -65,20 +65,21 @@ jobs:
 
       - name: Install hypobench
         if: steps.changes.outputs.skip_benchmarks != 'true'
-        run: cargo install hypobench@0.4.2
+        run: cargo install hypobench@0.5.0
 
-      - name: Run benchmark comparison
+      - name: Run benchmark comparison (JSON)
         if: steps.changes.outputs.skip_benchmarks != 'true'
         id: benchmarks
         timeout-minutes: 40
         run: |
           set +e  # Don't exit on error — we want to inspect hypobench's exit code below.
-          hypobench \
+          hypobench run \
             --baseline ${{ steps.base.outputs.sha }} \
             --candidate ${{ github.event.pull_request.head.sha }} \
             --config .hypobench.toml \
-            2>&1 | tee benchmark-output.txt
-          EXIT_CODE=${PIPESTATUS[0]}
+            --format json \
+            > report.json
+          EXIT_CODE=$?
           echo "tool_exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
 
           # 0 = no regressions, 1 = regressions detected — both are "the tool ran successfully".
@@ -88,87 +89,53 @@ jobs:
           fi
           exit 0
 
-      - name: Generate summary
+      - name: Render terminal report
+        if: steps.changes.outputs.skip_benchmarks != 'true'
+        run: hypobench report --in report.json --format terminal | tee benchmark-output.txt
+
+      - name: Render PR-comment report
+        if: steps.changes.outputs.skip_benchmarks != 'true'
+        run: hypobench report --in report.json --format github-pr-comment > benchmark-comment.md
+
+      - name: Upload JSON report artifact
+        if: steps.changes.outputs.skip_benchmarks != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hypobench-report
+          path: report.json
+          retention-days: 90
+
+      - name: Generate step summary
         if: steps.changes.outputs.skip_benchmarks != 'true'
         run: |
+          EXIT_CODE="${{ steps.benchmarks.outputs.tool_exit_code }}"
           echo "## Benchmark Comparison Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.benchmarks.outputs.tool_exit_code }}" == "1" ]; then
-            echo "⚠️ **Regressions detected!** See details below." >> $GITHUB_STEP_SUMMARY
-          else
+          if [ "$EXIT_CODE" == "1" ]; then
+            echo "⚠️ **Regressions detected.**" >> $GITHUB_STEP_SUMMARY
+          elif [ "$EXIT_CODE" == "0" ]; then
             echo "✅ **No regressions detected.**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Benchmark execution failed** (exit $EXIT_CODE)" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat benchmark-output.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Configuration" >> $GITHUB_STEP_SUMMARY
-          echo "- **Baseline:** \`${{ steps.base.outputs.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Candidate:** \`${{ github.event.pull_request.head.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Sample size:** 50" >> $GITHUB_STEP_SUMMARY
-          echo "- **Significance level:** 0.05" >> $GITHUB_STEP_SUMMARY
-          echo "- **Effect threshold:** 2.0%" >> $GITHUB_STEP_SUMMARY
 
-      - name: Generate summary (skipped)
+      - name: Generate step summary (skipped)
         if: steps.changes.outputs.skip_benchmarks == 'true'
         run: |
           echo "## Benchmark Comparison Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "⏭️ **Benchmarks skipped** - no Rust files changed." >> $GITHUB_STEP_SUMMARY
 
-      - name: Determine benchmark status
-        if: steps.changes.outputs.skip_benchmarks != 'true'
-        id: bench-status
-        run: |
-          EXIT_CODE="${{ steps.benchmarks.outputs.tool_exit_code }}"
-          if [ "$EXIT_CODE" == "0" ]; then
-            echo "status=success" >> $GITHUB_OUTPUT
-            echo "message=✅ **No regressions detected.**" >> $GITHUB_OUTPUT
-          elif [ "$EXIT_CODE" == "1" ]; then
-            echo "status=regression" >> $GITHUB_OUTPUT
-            echo "message=⚠️ **Regressions detected!**" >> $GITHUB_OUTPUT
-          else
-            echo "status=error" >> $GITHUB_OUTPUT
-            echo "message=❌ **Benchmark execution failed** (exit code: $EXIT_CODE)" >> $GITHUB_OUTPUT
-          fi
-
       - name: Post PR comment
         if: steps.changes.outputs.skip_benchmarks != 'true'
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          body: |
-            ## Statistical Benchmark Comparison
-
-            ${{ steps.bench-status.outputs.message }}
-
-            ${{ steps.bench-status.outputs.status == 'error' && 'The benchmark tool failed to build or run. This typically indicates:\n- Missing system dependencies\n- Build failures\n- Runtime errors\n\nCheck the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.' || '' }}
-
-            <details>
-            <summary>Benchmark Results</summary>
-
-            ```
-            ${{ steps.benchmarks.outputs.tool_exit_code != '' && '(see workflow run for full output)' || '' }}
-            ```
-
-            </details>
-
-            | Baseline | Candidate |
-            |----------|-----------|
-            | `${{ steps.base.outputs.sha }}` | `${{ github.event.pull_request.head.sha }}` |
-
-            <details>
-            <summary>Statistical Testing Parameters</summary>
-
-            - **Sample size:** 50 iterations per benchmark
-            - **Significance level (α):** 0.05
-            - **Effect threshold:** ≥2.0% change required
-            - **Test:** Welch's t-test (two-tailed)
-
-            </details>
-
-            <sub>Run via hypobench on self-hosted GCP runner with Rust nightly-2026-01-05</sub>
+          body-path: benchmark-comment.md
           edit-mode: replace
 
       - name: Post comment (skipped)
@@ -177,13 +144,13 @@ jobs:
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body: |
-            ## Statistical Benchmark Comparison
+            ## Benchmark Results
 
-            ⏭️ **Benchmarks skipped** - no Rust files changed.
+            ⏭️ Benchmarks skipped — no Rust files changed.
           edit-mode: replace
 
       - name: Fail on regressions
         if: steps.changes.outputs.skip_benchmarks != 'true' && steps.benchmarks.outputs.tool_exit_code == '1'
         run: |
-          echo "::error::Benchmark regressions detected. See the benchmark output for details."
+          echo "::error::Benchmark regressions detected. See the PR comment for details."
           exit 1
