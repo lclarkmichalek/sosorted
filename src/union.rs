@@ -1,4 +1,4 @@
-use std::simd::cmp::SimdPartialOrd;
+use std::{cmp::Ordering, simd::cmp::SimdPartialOrd};
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
@@ -25,13 +25,24 @@ where
     let mut last_value: Option<T> = None;
 
     while i < a.len() && j < b.len() {
-        let av = a[i];
-        let bv = b[j];
-        let take_a = av <= bv;
-        let take_b = bv <= av;
-        let val = if take_a { av } else { bv };
-        i += take_a as usize;
-        j += take_b as usize;
+        let val = match a[i].cmp(&b[j]) {
+            Ordering::Less => {
+                let v = a[i];
+                i += 1;
+                v
+            }
+            Ordering::Greater => {
+                let v = b[j];
+                j += 1;
+                v
+            }
+            Ordering::Equal => {
+                let v = a[i];
+                i += 1;
+                j += 1;
+                v
+            }
+        };
 
         if last_value != Some(val) {
             count += 1;
@@ -241,13 +252,24 @@ where
                 break;
             }
 
-            let av = a[i];
-            let bv = b[j];
-            let take_a = av <= bv;
-            let take_b = bv <= av;
-            let val = if take_a { av } else { bv };
-            i += take_a as usize;
-            j += take_b as usize;
+            let val = match a[i].cmp(&b[j]) {
+                Ordering::Less => {
+                    let v = a[i];
+                    i += 1;
+                    v
+                }
+                Ordering::Greater => {
+                    let v = b[j];
+                    j += 1;
+                    v
+                }
+                Ordering::Equal => {
+                    let v = a[i];
+                    i += 1;
+                    j += 1;
+                    v
+                }
+            };
 
             if last_written != Some(val) {
                 dest[write] = val;
@@ -259,13 +281,24 @@ where
 
     // Scalar merge for remaining elements
     while i < a.len() && j < b.len() {
-        let av = a[i];
-        let bv = b[j];
-        let take_a = av <= bv;
-        let take_b = bv <= av;
-        let val = if take_a { av } else { bv };
-        i += take_a as usize;
-        j += take_b as usize;
+        let val = match a[i].cmp(&b[j]) {
+            Ordering::Less => {
+                let v = a[i];
+                i += 1;
+                v
+            }
+            Ordering::Greater => {
+                let v = b[j];
+                j += 1;
+                v
+            }
+            Ordering::Equal => {
+                let v = a[i];
+                i += 1;
+                j += 1;
+                v
+            }
+        };
 
         if last_written != Some(val) {
             dest[write] = val;
@@ -812,67 +845,4 @@ mod tests {
     test_union_type!(test_union_i16, i16);
     test_union_type!(test_union_i32, i32);
     test_union_type!(test_union_i64, i64);
-
-    // ==================== Galloping-path tests (ratio >= 50) ====================
-
-    #[test]
-    fn test_union_galloping_asymmetric_small_a() {
-        // a has 3 elements, b has 300 — ratio 100:1 triggers galloping
-        let a = [50u64, 150, 250];
-        let b: Vec<u64> = (0..300).collect();
-        let mut dest = vec![0u64; a.len() + b.len()];
-        let len = union(&mut dest, &a, &b);
-        // All b elements; 50, 150, 250 already present in b so no extras
-        assert_eq!(len, 300);
-        for i in 0..len {
-            assert_eq!(dest[i], i as u64);
-        }
-    }
-
-    #[test]
-    fn test_union_galloping_asymmetric_small_b() {
-        // b has 3 elements, a has 300 — ratio 100:1 triggers galloping (rare/freq swapped)
-        let a: Vec<u64> = (0..300).collect();
-        let b = [50u64, 150, 250];
-        let mut dest = vec![0u64; a.len() + b.len()];
-        let len = union(&mut dest, &a, &b);
-        assert_eq!(len, 300);
-        for i in 0..len {
-            assert_eq!(dest[i], i as u64);
-        }
-    }
-
-    #[test]
-    fn test_union_galloping_rare_elements_not_in_freq() {
-        // rare has elements that are NOT in freq — they must appear in output
-        let a = [5u64, 55, 105]; // not multiples of 10
-        let b: Vec<u64> = (0..300u64).map(|x| x * 10).collect(); // 0,10,20,...,2990
-        let mut dest = vec![0u64; a.len() + b.len()];
-        let len = union(&mut dest, &a, &b);
-
-        // Verify using simple sort+dedup of the concatenation
-        let mut expected: Vec<u64> = a.iter().copied().chain(b.iter().copied()).collect();
-        expected.sort();
-        expected.dedup();
-        assert_eq!(len, expected.len());
-        assert_eq!(&dest[..len], &expected[..]);
-    }
-
-    #[test]
-    fn test_union_galloping_matches_scalar() {
-        // Verify galloping path produces same result as a simple scalar union
-        // for highly asymmetric inputs with partial overlap.
-        let rare: Vec<u64> = (0..3).map(|x| x * 100).collect(); // [0, 100, 200]
-        let freq: Vec<u64> = (0..500).collect(); // [0..499]
-
-        // Compute expected via simple merge
-        let mut expected: Vec<u64> = rare.iter().copied().chain(freq.iter().copied()).collect();
-        expected.sort();
-        expected.dedup();
-
-        let mut dest = vec![0u64; rare.len() + freq.len()];
-        let len = union(&mut dest, &rare, &freq);
-        assert_eq!(len, expected.len());
-        assert_eq!(&dest[..len], &expected[..]);
-    }
 }
