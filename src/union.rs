@@ -27,15 +27,34 @@ where
     while i < a.len() && j < b.len() {
         let av = a[i];
         let bv = b[j];
-        let take_a = av <= bv;
-        let take_b = bv <= av;
-        let val = if take_a { av } else { bv };
-        i += take_a as usize;
-        j += take_b as usize;
+        if av == bv {
+            // Both sides match: emit once, skip all duplicates of this value in
+            // both arrays. This avoids the branchless merge's serial data
+            // dependency on workloads dominated by equal pairs (e.g. identical
+            // inputs), where every iteration would otherwise chain a cmov.
+            if last_value != Some(av) {
+                count += 1;
+                last_value = Some(av);
+            }
+            let matched_val = av;
+            while i < a.len() && a[i] == matched_val {
+                i += 1;
+            }
+            while j < b.len() && b[j] == matched_val {
+                j += 1;
+            }
+        } else {
+            // Branchless Less/Greater: LLVM lowers this to cmov + setcc,
+            // eliminating the mispredict-prone 3-way branch on interleaved data.
+            let take_a = av < bv;
+            let val = if take_a { av } else { bv };
+            i += take_a as usize;
+            j += (!take_a) as usize;
 
-        if last_value != Some(val) {
-            count += 1;
-            last_value = Some(val);
+            if last_value != Some(val) {
+                count += 1;
+                last_value = Some(val);
+            }
         }
     }
 
@@ -243,16 +262,32 @@ where
 
             let av = a[i];
             let bv = b[j];
-            let take_a = av <= bv;
-            let take_b = bv <= av;
-            let val = if take_a { av } else { bv };
-            i += take_a as usize;
-            j += take_b as usize;
+            if av == bv {
+                // Emit once, skip all duplicates of this value in both arrays.
+                if last_written != Some(av) {
+                    dest[write] = av;
+                    write += 1;
+                    last_written = Some(av);
+                }
+                let matched_val = av;
+                while i < a.len() && a[i] == matched_val {
+                    i += 1;
+                }
+                while j < b.len() && b[j] == matched_val {
+                    j += 1;
+                }
+            } else {
+                // Branchless Less/Greater: LLVM emits cmov.
+                let take_a = av < bv;
+                let val = if take_a { av } else { bv };
+                i += take_a as usize;
+                j += (!take_a) as usize;
 
-            if last_written != Some(val) {
-                dest[write] = val;
-                write += 1;
-                last_written = Some(val);
+                if last_written != Some(val) {
+                    dest[write] = val;
+                    write += 1;
+                    last_written = Some(val);
+                }
             }
         }
     }
@@ -261,16 +296,32 @@ where
     while i < a.len() && j < b.len() {
         let av = a[i];
         let bv = b[j];
-        let take_a = av <= bv;
-        let take_b = bv <= av;
-        let val = if take_a { av } else { bv };
-        i += take_a as usize;
-        j += take_b as usize;
+        if av == bv {
+            // Emit once, skip all duplicates of this value in both arrays.
+            if last_written != Some(av) {
+                dest[write] = av;
+                write += 1;
+                last_written = Some(av);
+            }
+            let matched_val = av;
+            while i < a.len() && a[i] == matched_val {
+                i += 1;
+            }
+            while j < b.len() && b[j] == matched_val {
+                j += 1;
+            }
+        } else {
+            // Branchless Less/Greater: LLVM emits cmov.
+            let take_a = av < bv;
+            let val = if take_a { av } else { bv };
+            i += take_a as usize;
+            j += (!take_a) as usize;
 
-        if last_written != Some(val) {
-            dest[write] = val;
-            write += 1;
-            last_written = Some(val);
+            if last_written != Some(val) {
+                dest[write] = val;
+                write += 1;
+                last_written = Some(val);
+            }
         }
     }
 
