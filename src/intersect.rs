@@ -5,7 +5,7 @@
 //!
 //! The main `intersect` function uses an adaptive algorithm that selects the
 //! best strategy based on the size ratio between arrays:
-//! - BMI: SIMD block-vs-block for near-equal-size inputs (ratio 0..=2)
+//! - Scalar: For very small ratios (up to 2:1)
 //! - V1: Best for ratios from ~3:1 to ~50:1
 //! - V3: Best for ratios from ~50:1 to ~1000:1
 //! - Galloping: Best for ratios > 1000:1
@@ -90,7 +90,7 @@ where
     let ratio = larger / smaller.max(1);
 
     match ratio {
-        0..=2 => intersect_bmi(dest, a, b),
+        0..=2 => intersect_scalar(dest, a, b),
         3..=50 => intersect_v1(dest, a, b),
         51..=1000 => intersect_v3(dest, a, b),
         _ => intersect_galloping(dest, a, b),
@@ -117,88 +117,6 @@ where
             j += 1;
         }
     }
-    k
-}
-
-/// BMI-style SIMD block-vs-block intersection.
-///
-/// Implements the shuffle-based intersection from Lemire, Boytsov, Kurz (arXiv:1401.6399).
-/// Optimised for near-equal-size inputs (ratio <= 2:1).
-///
-/// For each pair of LANES-element blocks, every lane of `a_block` is broadcast and compared
-/// against all lanes of `b_block` using a SIMD equality test.  Each b-lane can be claimed by
-/// at most one a-lane (the lowest-index matching a-lane wins), preserving multiset semantics
-/// within the block.
-///
-/// Pointer advancement: only advance by LANES when the last elements are strictly unequal —
-/// `i += LANES` when `a[i+LANES-1] < b[j+LANES-1]`, and `j += LANES` when
-/// `b[j+LANES-1] < a[i+LANES-1]`.  When the last elements are equal the SIMD loop exits
-/// and the scalar tail takes over, ensuring cross-block duplicate chains are handled
-/// correctly (e.g. `a=[2,2,2]` vs `b=[2,2,2]` where the value straddles block boundaries).
-fn intersect_bmi<T>(dest: &mut [T], a: &[T], b: &[T]) -> usize
-where
-    T: SortedSimdElement + Ord,
-    T::SimdVec: SimdPartialEq<Mask = T::SimdMask>,
-{
-    let lanes = T::LANES;
-
-    // Fall back to scalar for very small inputs where SIMD setup overhead dominates.
-    if a.len() < lanes || b.len() < lanes {
-        return intersect_scalar(dest, a, b);
-    }
-
-    let mut i = 0usize;
-    let mut j = 0usize;
-    let mut k = 0usize;
-
-    // SIMD main loop: process LANES elements from each array per iteration.
-    //
-    // We require strict inequality on the last block elements before advancing by LANES.
-    // When a[i+LANES-1] == b[j+LANES-1] we break and let the scalar tail handle the rest;
-    // this is conservative but guarantees correctness for multiset inputs without
-    // adding complexity to the SIMD path.
-    while i + lanes <= a.len() && j + lanes <= b.len() {
-        let a_last = a[i + lanes - 1];
-        let b_last = b[j + lanes - 1];
-
-        // Equal boundary: let scalar tail handle the rest to avoid missing cross-block
-        // duplicate matches (e.g. value v at the end of both blocks, with more v's beyond).
-        if a_last == b_last {
-            break;
-        }
-
-        let b_block = T::simd_from_slice(&b[j..j + lanes]);
-
-        // For each a lane p, broadcast and compare against b_block.
-        // b_consumed tracks which b-lanes have already been claimed this iteration,
-        // ensuring each b position is matched at most once (multiset semantics).
-        let mut b_consumed: u64 = 0;
-        for p in 0..lanes {
-            let a_splat = T::simd_splat(a[i + p]);
-            let eq_mask = a_splat.simd_eq(b_block);
-            // Remove already-consumed b-lanes from the candidate set.
-            let available = eq_mask.to_bitmask() & !b_consumed;
-            if available != 0 {
-                // Claim the lowest available matching b-lane.
-                let q = available.trailing_zeros() as usize;
-                b_consumed |= 1u64 << q;
-                dest[k] = a[i + p];
-                k += 1;
-            }
-        }
-
-        // Advance the pointer whose block ends strictly earlier.
-        if a_last < b_last {
-            i += lanes;
-        } else {
-            // b_last < a_last (equality already handled with break above)
-            j += lanes;
-        }
-    }
-
-    // Scalar tail: handles remaining elements, tails shorter than LANES, and any
-    // region starting from an equal-boundary position (duplicate-safe).
-    k += intersect_scalar(&mut dest[k..], &a[i..], &b[j..]);
     k
 }
 
