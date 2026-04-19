@@ -1,6 +1,5 @@
 use std::{cmp::Ordering, simd::cmp::SimdPartialOrd};
 
-use crate::prefetch::prefetch_read;
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
 /// Calculates the size of the union of two sorted arrays without allocating.
@@ -206,8 +205,6 @@ where
         return write;
     }
 
-    const PREFETCH_DISTANCE_ELEMS: usize = 64; // ~4 cachelines of u64 data
-
     let lanes = T::LANES;
 
     // Hybrid SIMD + scalar merge - clean and simple with separate destination buffer
@@ -218,13 +215,6 @@ where
 
     // SIMD-accelerated merge loop
     while i < a.len() && j + lanes <= b.len() {
-        // Prefetch ahead to hide memory latency for large inputs.
-        if i + PREFETCH_DISTANCE_ELEMS < a.len() {
-            prefetch_read(&a[i + PREFETCH_DISTANCE_ELEMS]);
-        }
-        if j + PREFETCH_DISTANCE_ELEMS < b.len() {
-            prefetch_read(&b[j + PREFETCH_DISTANCE_ELEMS]);
-        }
         let b_chunk = T::simd_from_slice(&b[j..j + lanes]);
         let a_splat = T::simd_splat(a[i]);
 
