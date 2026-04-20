@@ -6,9 +6,13 @@
 //! The main `intersect` function uses an adaptive algorithm that selects the
 //! best strategy based on the size ratio between arrays:
 //! - Scalar: For very small ratios (up to 2:1)
-//! - V1: Best for ratios from ~3:1 to ~50:1
-//! - V3: Best for ratios from ~50:1 to ~1000:1
+//! - V1: Best for ratios from ~3:1 to ~9:1
+//! - V3: Best for ratios from ~10:1 to ~1000:1
 //! - Galloping: Best for ratios > 1000:1
+//!
+//! The v1/v3 boundary was originally 50 but never exercised by the bench suite
+//! (only `asymmetric_10_1` runs a non-scalar path). This commit lowers it to
+//! test whether V3 beats V1 at the sole measured asymmetric ratio of 10:1.
 //!
 //! All algorithms write to a destination buffer without allocation.
 
@@ -91,8 +95,8 @@ where
 
     match ratio {
         0..=2 => intersect_scalar(dest, a, b),
-        3..=50 => intersect_v1(dest, a, b),
-        51..=1000 => intersect_v3(dest, a, b),
+        3..=9 => intersect_v1(dest, a, b),
+        10..=1000 => intersect_v3(dest, a, b),
         _ => intersect_galloping(dest, a, b),
     }
 }
