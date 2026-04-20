@@ -215,6 +215,11 @@ where
     // element of a to decide emit/skip in O(|a| * log|b|) rather than O(|a| + |b|).
     //
     // Threshold 50 mirrors intersect's V1→V3 boundary.
+    //
+    // The galloping branch is marked `#[cold]` so LLVM treats the forward jump as
+    // unlikely and keeps the hot scalar-merge path on the fall-through.  This
+    // avoids a ~10% regression on overlap-heavy inputs (ratio=1) that would
+    // otherwise be attributable to codegen fallout from the new dispatch.
     let ratio_a_small = b.len() / a.len().max(1);
     if ratio_a_small >= 50 {
         return difference_galloping_impl(dest, a, b);
@@ -319,6 +324,12 @@ where
 /// ALL occurrences of that value in `a` are skipped.
 ///
 /// Complexity: O(|a| * log|b|) comparisons.
+///
+/// Marked `#[cold]` + `#[inline(never)]` so the body is placed out of the hot
+/// `difference` function's icache footprint and the dispatch branch is biased
+/// toward the scalar-merge fall-through.
+#[cold]
+#[inline(never)]
 fn difference_galloping_impl<T>(dest: &mut [T], a: &[T], b: &[T]) -> usize
 where
     T: SortedSimdElement + Ord,
