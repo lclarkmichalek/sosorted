@@ -112,6 +112,11 @@ fn asymmetric_datasets(size: usize) -> BinaryDatasetGroup {
                 a: generate_sorted_unique_bounded(SEED_A, size, max_val),
                 b: generate_sorted_unique_bounded(SEED_B, size / 1000, max_val),
             },
+            BinaryDataset {
+                name: "10000:1",
+                a: generate_sorted_unique_bounded(SEED_A, size, max_val),
+                b: generate_sorted_unique_bounded(SEED_B, (size / 10000).max(1), max_val),
+            },
         ],
     }
 }
