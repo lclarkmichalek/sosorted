@@ -78,6 +78,11 @@ fn main() {
     let asym_1000_a = generate_sorted_unique_bounded(SEED_A, size, max_val);
     let asym_1000_b = generate_sorted_unique_bounded(SEED_B, size / 1000, max_val);
 
+    // Asymmetric 10000:1 (exercises galloping-style paths in difference,
+    // including the ratio-50 galloping added in PR #263, for ratio > 1000).
+    let asym_10000_a = generate_sorted_unique_bounded(SEED_A, size, max_val);
+    let asym_10000_b = generate_sorted_unique_bounded(SEED_B, (size / 10000).max(1), max_val);
+
     let mut registry = BenchmarkRegistry::new();
 
     // 0pct overlap
@@ -283,6 +288,35 @@ fn main() {
         });
     }
 
+    // asymmetric 10000:1 (galloping-style path)
+    {
+        let a = asym_10000_a.clone();
+        let b = asym_10000_b.clone();
+        registry.register("difference/asymmetric_10000_1/sosorted", move |n| {
+            let mut dest = vec![0u64; a.len()];
+            let start = Instant::now();
+            for _ in 0..n {
+                black_box(difference(
+                    black_box(&mut dest),
+                    black_box(&a),
+                    black_box(&b),
+                ));
+            }
+            start.elapsed()
+        });
+    }
+    {
+        let a = asym_10000_a.clone();
+        let b = asym_10000_b.clone();
+        registry.register("difference/asymmetric_10000_1/naive", move |n| {
+            let start = Instant::now();
+            for _ in 0..n {
+                black_box(naive_difference(black_box(&a), black_box(&b)));
+            }
+            start.elapsed()
+        });
+    }
+
     // difference_size entries
     {
         let a = base.clone();
@@ -354,6 +388,17 @@ fn main() {
         let a = asym_1000_a.clone();
         let b = asym_1000_b.clone();
         registry.register("difference_size/asymmetric_1000_1/sosorted", move |n| {
+            let start = Instant::now();
+            for _ in 0..n {
+                black_box(difference_size(black_box(&a), black_box(&b)));
+            }
+            start.elapsed()
+        });
+    }
+    {
+        let a = asym_10000_a.clone();
+        let b = asym_10000_b.clone();
+        registry.register("difference_size/asymmetric_10000_1/sosorted", move |n| {
             let start = Instant::now();
             for _ in 0..n {
                 black_box(difference_size(black_box(&a), black_box(&b)));
