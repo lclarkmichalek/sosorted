@@ -216,12 +216,26 @@ where
     //
     // Threshold 50 mirrors intersect's V1→V3 boundary.
     //
+    // We use `b.len() >= 50 * a.len()` (multiply + compare) instead of the
+    // mathematically equivalent `b.len() / a.len() >= 50` to avoid a 64-bit
+    // integer division on every call — `divq` is 20-40 cycles on x86 and
+    // emitting it in the hot path of `difference` shifts binary layout and
+    // perturbs nearby `difference_size::<u64>` codegen placement (unrelated
+    // symbols end up at different addresses, causing icache/DSB noise on
+    // non-galloping benchmarks such as `difference_size/asymmetric_10_1`).
+    // `wrapping_mul` compiles to a single `imul`/`mov+mul`: overflow is
+    // impossible in practice because `a.len()` is bounded by `isize::MAX`
+    // (Vec guarantee), so `50 * a.len()` fits in `usize` for any realistic
+    // allocation.  On overflow (only possible with a > 2^57 elements) the
+    // wrap would incorrectly take the scalar branch, but the galloping-vs-
+    // scalar choice is already a heuristic, not a correctness boundary.
+    //
     // The galloping branch is marked `#[cold]` so LLVM treats the forward jump as
     // unlikely and keeps the hot scalar-merge path on the fall-through.  This
     // avoids a ~10% regression on overlap-heavy inputs (ratio=1) that would
     // otherwise be attributable to codegen fallout from the new dispatch.
-    let ratio_a_small = b.len() / a.len().max(1);
-    if ratio_a_small >= 50 {
+    const GALLOP_THRESHOLD: usize = 50;
+    if b.len() >= GALLOP_THRESHOLD.wrapping_mul(a.len()) {
         return difference_galloping_impl(dest, a, b);
     }
 
