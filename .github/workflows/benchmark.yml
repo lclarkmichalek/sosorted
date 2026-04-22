@@ -33,38 +33,17 @@ jobs:
           echo "ref=${BASE_REF}" >> "$GITHUB_OUTPUT"
           echo "Resolved ${BASE_REF} tip: ${SHA}"
 
-      - name: Detect changed files
-        id: changes
-        run: |
-          BASE="${{ steps.base.outputs.sha }}"
-          CHANGED=$(git diff --name-only $BASE HEAD)
-          echo "Changed files:"
-          echo "$CHANGED"
-
-          # Check if any Rust files changed
-          RUST_FILES=$(echo "$CHANGED" | grep '\.rs$' || true)
-          if [ -z "$RUST_FILES" ]; then
-            echo "skip_benchmarks=true" >> $GITHUB_OUTPUT
-            echo "No Rust files changed, skipping benchmarks"
-            exit 0
-          fi
-
-          echo "skip_benchmarks=false" >> $GITHUB_OUTPUT
-
       - name: Install nightly toolchain
-        if: steps.changes.outputs.skip_benchmarks != 'true'
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly-2026-01-05
 
       - name: Install system dependencies
-        if: steps.changes.outputs.skip_benchmarks != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config libssl-dev
 
       - name: Install hypobench
-        if: steps.changes.outputs.skip_benchmarks != 'true'
         run: |
           # Pin the CLI to the same version as hypobench-harness in Cargo.toml
           # so the CLI and the in-process harness speak the same protocol.
@@ -76,7 +55,6 @@ jobs:
           cargo install "hypobench@${VERSION}"
 
       - name: Run benchmark comparison (JSON)
-        if: steps.changes.outputs.skip_benchmarks != 'true'
         id: benchmarks
         timeout-minutes: 40
         run: |
@@ -98,15 +76,12 @@ jobs:
           exit 0
 
       - name: Render terminal report
-        if: steps.changes.outputs.skip_benchmarks != 'true'
         run: hypobench report --in report.json --format terminal | tee benchmark-output.txt
 
       - name: Render PR-comment report
-        if: steps.changes.outputs.skip_benchmarks != 'true'
         run: hypobench report --in report.json --format github-pr-comment > benchmark-comment.md
 
       - name: Upload JSON report artifact
-        if: steps.changes.outputs.skip_benchmarks != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: hypobench-report
@@ -114,7 +89,6 @@ jobs:
           retention-days: 90
 
       - name: Generate step summary
-        if: steps.changes.outputs.skip_benchmarks != 'true'
         run: |
           EXIT_CODE="${{ steps.benchmarks.outputs.tool_exit_code }}"
           echo "## Benchmark Comparison Results" >> $GITHUB_STEP_SUMMARY
@@ -131,34 +105,15 @@ jobs:
           cat benchmark-output.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-      - name: Generate step summary (skipped)
-        if: steps.changes.outputs.skip_benchmarks == 'true'
-        run: |
-          echo "## Benchmark Comparison Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "⏭️ **Benchmarks skipped** - no Rust files changed." >> $GITHUB_STEP_SUMMARY
-
       - name: Post PR comment
-        if: steps.changes.outputs.skip_benchmarks != 'true'
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body-path: benchmark-comment.md
           edit-mode: replace
 
-      - name: Post comment (skipped)
-        if: steps.changes.outputs.skip_benchmarks == 'true'
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body: |
-            ## Benchmark Results
-
-            ⏭️ Benchmarks skipped — no Rust files changed.
-          edit-mode: replace
-
       - name: Fail on regressions
-        if: steps.changes.outputs.skip_benchmarks != 'true' && steps.benchmarks.outputs.tool_exit_code == '1'
+        if: steps.benchmarks.outputs.tool_exit_code == '1'
         run: |
           echo "::error::Benchmark regressions detected. See the PR comment for details."
           exit 1
