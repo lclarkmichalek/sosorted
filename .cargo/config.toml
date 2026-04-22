@@ -1,3 +1,19 @@
 [target.x86_64-unknown-linux-gnu]
-# I have a SKL machine. I am sorry if this inconveniences you
-rustflags = ["-C", "target-cpu=skylake"]
+# I have a SKL machine. I am sorry if this inconveniences you.
+#
+# Binary-layout stabilization (see commit message / PR body):
+#   -Ccodegen-units=1       Single codegen unit so small source edits cannot
+#                           reshuffle which function lands in which unit,
+#                           which in turn reshuffles every other function's
+#                           address and cacheline alignment.
+#   -Cllvm-args=-align-all-functions=6
+#                           Align every function to 2^6 = 64 bytes (one
+#                           cacheline). Small (< 64 byte) code changes no
+#                           longer shift downstream hot loops across cacheline
+#                           boundaries, which was the primary source of large
+#                           unrelated swings in PR-to-PR hypobench runs.
+rustflags = [
+    "-C", "target-cpu=skylake",
+    "-C", "codegen-units=1",
+    "-C", "llvm-args=-align-all-functions=6",
+]
