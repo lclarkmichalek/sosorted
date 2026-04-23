@@ -1,9 +1,20 @@
 use std::hash::{Hash, Hasher};
+use std::simd::num::SimdUint;
+use std::simd::Simd;
+
+use crate::simd_element::SortedSimdElement;
 
 /// Threshold for converting between array and bitmap containers.
 /// Arrays are more efficient for sparse data (< 4096 elements),
 /// while bitmaps are more efficient for dense data (>= 4096 elements).
 pub(crate) const ARRAY_CONTAINER_THRESHOLD: usize = 4096;
+
+/// Number of u64 words per bitmap container (65536 bits / 64 bits per word).
+const BITMAP_WORDS: usize = 1024;
+
+/// SIMD lane count for u64, chosen at compile time based on target features.
+/// AVX-512 -> 8, AVX2 -> 4, SSE2 / fallback -> 2.
+const U64_LANES: usize = <u64 as SortedSimdElement>::LANES;
 
 /// A container holds a subset of values within a 16-bit range.
 #[derive(Clone, PartialEq, Eq)]
@@ -170,16 +181,30 @@ impl BitmapContainer {
     }
 
     /// Returns the number of set bits in the bitmap (cardinality).
+    ///
+    /// Uses explicit SIMD to sum per-lane `count_ones()` across the bitmap.
+    /// `std::simd::Simd::count_ones` popcounts each lane independently, which
+    /// LLVM lowers to a vectorized popcount (vpshufb-based on AVX2, vpopcntq
+    /// on AVX-512-VPOPCNTDQ).
     pub(crate) fn cardinality(&self) -> usize {
-        self.bits.iter().map(|w| w.count_ones() as usize).sum()
+        debug_assert_eq!(BITMAP_WORDS % U64_LANES, 0);
+        let mut acc = Simd::<u64, U64_LANES>::splat(0);
+        for chunk in self.bits.chunks_exact(U64_LANES) {
+            let v = Simd::<u64, U64_LANES>::from_slice(chunk);
+            acc += v.count_ones();
+        }
+        acc.to_array().iter().map(|&x| x as usize).sum()
     }
 
     /// Computes the union with another bitmap container.
+    ///
+    /// Explicitly vectorized over `U64_LANES` u64 lanes (4 on AVX2 / 8 on
+    /// AVX-512) so the hot inner loop lowers to packed `vpor` instructions.
     fn union_bitmap(&self, other: &BitmapContainer) -> BitmapContainer {
-        let mut result = Box::new([0u64; 1024]);
-        for i in 0..1024 {
-            result[i] = self.bits[i] | other.bits[i];
-        }
+        let mut result = Box::new([0u64; BITMAP_WORDS]);
+        simd_binop_u64(&self.bits[..], &other.bits[..], &mut result[..], |a, b| {
+            a | b
+        });
         BitmapContainer { bits: result }
     }
 
@@ -193,12 +218,41 @@ impl BitmapContainer {
     }
 
     /// Computes the intersection with another bitmap container.
+    ///
+    /// Explicitly vectorized over `U64_LANES` u64 lanes (4 on AVX2 / 8 on
+    /// AVX-512) so the hot inner loop lowers to packed `vpand` instructions.
     fn intersect_bitmap(&self, other: &BitmapContainer) -> BitmapContainer {
-        let mut result = Box::new([0u64; 1024]);
-        for i in 0..1024 {
-            result[i] = self.bits[i] & other.bits[i];
-        }
+        let mut result = Box::new([0u64; BITMAP_WORDS]);
+        simd_binop_u64(&self.bits[..], &other.bits[..], &mut result[..], |a, b| {
+            a & b
+        });
         BitmapContainer { bits: result }
+    }
+}
+
+/// Apply a SIMD binary op (e.g. `|`, `&`) over three equally-sized u64 slices,
+/// writing `op(a[i], b[i])` into `dest[i]` in `U64_LANES`-wide chunks.
+///
+/// The three slices are all expected to be exactly `BITMAP_WORDS` long; this
+/// is asserted at the start so the compiler can elide the per-chunk length
+/// check and fully unroll / vectorize the loop.
+#[inline]
+fn simd_binop_u64<F>(a: &[u64], b: &[u64], dest: &mut [u64], op: F)
+where
+    F: Fn(Simd<u64, U64_LANES>, Simd<u64, U64_LANES>) -> Simd<u64, U64_LANES>,
+{
+    debug_assert_eq!(a.len(), BITMAP_WORDS);
+    debug_assert_eq!(b.len(), BITMAP_WORDS);
+    debug_assert_eq!(dest.len(), BITMAP_WORDS);
+    debug_assert_eq!(BITMAP_WORDS % U64_LANES, 0);
+
+    let a_chunks = a.chunks_exact(U64_LANES);
+    let b_chunks = b.chunks_exact(U64_LANES);
+    let dest_chunks = dest.chunks_exact_mut(U64_LANES);
+    for ((ac, bc), dc) in a_chunks.zip(b_chunks).zip(dest_chunks) {
+        let av = Simd::<u64, U64_LANES>::from_slice(ac);
+        let bv = Simd::<u64, U64_LANES>::from_slice(bc);
+        op(av, bv).copy_to_slice(dc);
     }
 }
 
