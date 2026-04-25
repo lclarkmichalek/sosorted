@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, simd::cmp::SimdPartialOrd};
+use std::simd::cmp::SimdPartialOrd;
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
@@ -74,42 +74,20 @@ where
                 break;
             }
 
-            match a[i].cmp(&b[j]) {
-                Ordering::Less => {
-                    // a[i] is not in b (at least not at current position)
-                    count += 1;
-                    i += 1;
-                }
-                Ordering::Greater => {
-                    // Haven't reached a[i] in b yet
-                    j += 1;
-                }
-                Ordering::Equal => {
-                    // a[i] is in b, skip ALL duplicates of this value in both arrays
-                    let matched_val = a[i];
-                    while i < a.len() && a[i] == matched_val {
-                        i += 1;
-                    }
-                    while j < b.len() && b[j] == matched_val {
-                        j += 1;
-                    }
-                }
-            }
-        }
-    }
+            // OPTIMIZATION: Replaced match cmp with explicit if/else to avoid Ordering enum overhead and improve branch prediction.
 
-    // Scalar loop for remaining elements
-    while i < a.len() && j < b.len() {
-        match a[i].cmp(&b[j]) {
-            Ordering::Less => {
+            if a[i] < b[j] {
+                // a[i] is not in b (at least not at current position)
+
                 count += 1;
+
                 i += 1;
-            }
-            Ordering::Greater => {
+            } else if a[i] > b[j] {
+                // Haven't reached a[i] in b yet
+
                 j += 1;
-            }
-            Ordering::Equal => {
-                // Skip ALL duplicates of this value in both arrays
+            } else {
+                // a[i] is in b, skip ALL duplicates of this value in both arrays
                 let matched_val = a[i];
                 while i < a.len() && a[i] == matched_val {
                     i += 1;
@@ -117,6 +95,28 @@ where
                 while j < b.len() && b[j] == matched_val {
                     j += 1;
                 }
+            }
+        }
+    }
+
+    // Scalar loop for remaining elements
+    while i < a.len() && j < b.len() {
+        // OPTIMIZATION: Replaced match cmp with explicit if/else to avoid Ordering enum overhead and improve branch prediction.
+
+        if a[i] < b[j] {
+            count += 1;
+
+            i += 1;
+        } else if a[i] > b[j] {
+            j += 1;
+        } else {
+            // Skip ALL duplicates of this value in both arrays
+            let matched_val = a[i];
+            while i < a.len() && a[i] == matched_val {
+                i += 1;
+            }
+            while j < b.len() && b[j] == matched_val {
+                j += 1;
             }
         }
     }
@@ -271,44 +271,22 @@ where
                 break;
             }
 
-            match a[i].cmp(&b[j]) {
-                Ordering::Less => {
-                    // a[i] is not in b, include it
-                    dest[write] = a[i];
-                    write += 1;
-                    i += 1;
-                }
-                Ordering::Greater => {
-                    // Haven't reached a[i] in b yet
-                    j += 1;
-                }
-                Ordering::Equal => {
-                    // a[i] is in b, skip ALL duplicates of this value in both arrays
-                    let matched_val = a[i];
-                    while i < a.len() && a[i] == matched_val {
-                        i += 1;
-                    }
-                    while j < b.len() && b[j] == matched_val {
-                        j += 1;
-                    }
-                }
-            }
-        }
-    }
+            // OPTIMIZATION: Replaced match cmp with explicit if/else to avoid Ordering enum overhead and improve branch prediction.
 
-    // Scalar loop for remaining elements
-    while i < a.len() && j < b.len() {
-        match a[i].cmp(&b[j]) {
-            Ordering::Less => {
+            if a[i] < b[j] {
+                // a[i] is not in b, include it
+
                 dest[write] = a[i];
+
                 write += 1;
+
                 i += 1;
-            }
-            Ordering::Greater => {
+            } else if a[i] > b[j] {
+                // Haven't reached a[i] in b yet
+
                 j += 1;
-            }
-            Ordering::Equal => {
-                // Skip ALL duplicates of this value in both arrays
+            } else {
+                // a[i] is in b, skip ALL duplicates of this value in both arrays
                 let matched_val = a[i];
                 while i < a.len() && a[i] == matched_val {
                     i += 1;
@@ -316,6 +294,30 @@ where
                 while j < b.len() && b[j] == matched_val {
                     j += 1;
                 }
+            }
+        }
+    }
+
+    // Scalar loop for remaining elements
+    while i < a.len() && j < b.len() {
+        // OPTIMIZATION: Replaced match cmp with explicit if/else to avoid Ordering enum overhead and improve branch prediction.
+
+        if a[i] < b[j] {
+            dest[write] = a[i];
+
+            write += 1;
+
+            i += 1;
+        } else if a[i] > b[j] {
+            j += 1;
+        } else {
+            // Skip ALL duplicates of this value in both arrays
+            let matched_val = a[i];
+            while i < a.len() && a[i] == matched_val {
+                i += 1;
+            }
+            while j < b.len() && b[j] == matched_val {
+                j += 1;
             }
         }
     }
@@ -868,23 +870,22 @@ mod tests {
                     expected += a_data.len() - i;
                     break;
                 }
-                match a_data[i].cmp(&b_data[j]) {
-                    Ordering::Less => {
-                        expected += 1;
+                // OPTIMIZATION: Replaced match cmp with explicit if/else to avoid Ordering enum overhead and improve branch prediction.
+
+                if a_data[i] < b_data[j] {
+                    expected += 1;
+
+                    i += 1;
+                } else if a_data[i] > b_data[j] {
+                    j += 1;
+                } else {
+                    // Skip ALL duplicates of matched value in both arrays
+                    let matched_val = a_data[i];
+                    while i < a_data.len() && a_data[i] == matched_val {
                         i += 1;
                     }
-                    Ordering::Greater => {
+                    while j < b_data.len() && b_data[j] == matched_val {
                         j += 1;
-                    }
-                    Ordering::Equal => {
-                        // Skip ALL duplicates of matched value in both arrays
-                        let matched_val = a_data[i];
-                        while i < a_data.len() && a_data[i] == matched_val {
-                            i += 1;
-                        }
-                        while j < b_data.len() && b_data[j] == matched_val {
-                            j += 1;
-                        }
                     }
                 }
             }
