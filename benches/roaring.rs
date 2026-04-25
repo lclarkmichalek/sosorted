@@ -59,7 +59,7 @@ fn main() {
 
     let sparse_10k_b = generate_sparse(10000, 43);
     let dense_15k = generate_dense(15000);
-    let mixed_10k_b = generate_mixed(10000, 43);
+    let _mixed_10k_b = generate_mixed(10000, 43);
 
     let mut registry = BenchmarkRegistry::new();
 
