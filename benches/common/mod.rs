@@ -1,18 +1,17 @@
-//! Common benchmark utilities: data generation and datasets.
-//!
-//! This module provides shared infrastructure for all benchmarks:
-//! - `rng`: Seed constants and RNG utilities for reproducible data
-//! - `generators`: Core data generation functions
-//! - `unary_datasets`: Standard datasets for unary operations (deduplicate, find_first_duplicate)
-//! - `binary_datasets`: Standard datasets for binary operations (intersect, union, difference)
-
+#[allow(dead_code, unused_imports, unused_variables)]
 pub mod binary_datasets;
+#[allow(dead_code, unused_imports, unused_variables)]
 pub mod generators;
+#[allow(dead_code, unused_imports, unused_variables)]
 pub mod rng;
+#[allow(dead_code, unused_imports, unused_variables)]
 pub mod unary_datasets;
 
-// Re-export commonly used items for convenience
+#[allow(dead_code, unused_imports, unused_variables)]
 pub use binary_datasets::{standard_binary_datasets, BinaryDataset, BinaryDatasetGroup};
+#[allow(dead_code, unused_imports, unused_variables)]
 pub use generators::*;
+#[allow(dead_code, unused_imports, unused_variables)]
 pub use rng::DEFAULT_SIZE;
+#[allow(dead_code, unused_imports, unused_variables)]
 pub use unary_datasets::{standard_unary_datasets, UnaryDataset, UnaryDatasetGroup};

@@ -6,7 +6,7 @@
 use hypobench_harness::{run_harness, BenchmarkRegistry};
 use sosorted::find_first_duplicate;
 use std::hint::black_box;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 mod common;
 use common::rng::{DEFAULT_SIZE, SEED_A};
