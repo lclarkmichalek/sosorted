@@ -14,7 +14,7 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 ///
 /// # Panics
 ///
-/// Panics if `out` is smaller than `input`.
+/// Panics if `out.len() < input.len()`.
 ///
 /// # Examples
 ///
