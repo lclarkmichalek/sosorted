@@ -22,7 +22,7 @@ let len = difference(&mut dest, &a, &b);
 let len = deduplicate(&mut dest, &input);
 ```
 
-**Note**: For performance reasons, the library does not perform runtime checks to ensure inputs are sorted; it is strictly the caller's responsibility to guarantee sorted inputs to avoid incorrect behavior and invalid states.
+**Note**: For performance reasons, the library does not perform runtime checks to ensure inputs are sorted; it is strictly the caller's responsibility to guarantee sorted inputs to avoid incorrect behavior and invalid states, rather than memory-safety undefined behavior.
 
 ## Currently Supported Operations
 
