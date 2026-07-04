@@ -1,4 +1,4 @@
-use std::{simd::cmp::SimdPartialOrd};
+use std::simd::cmp::SimdPartialOrd;
 
 use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 
