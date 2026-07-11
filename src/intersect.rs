@@ -33,7 +33,7 @@ use crate::simd_element::{SimdMaskOps, SortedSimdElement};
 /// The number of elements in the intersection
 ///
 /// # Panics
-/// Panics if `dest.len() < min(a.len(), b.len())` (insufficient capacity for worst case).
+/// Panics if `dest.len() < std::cmp::min(a.len(), b.len())` (insufficient capacity for worst case).
 ///
 /// # Examples
 ///
